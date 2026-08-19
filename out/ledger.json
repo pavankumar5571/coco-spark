@@ -1,5 +1,5 @@
 {
-  "spent_inr": 327.42022039999995,
+  "spent_inr": 433.42022039999995,
   "ops": [
     {
       "kind": "image",
@@ -293,6 +293,51 @@
       "reserved": 4.5,
       "state": "SPENT",
       "at": "2026-08-19 08:16:46",
+      "episode": "E01"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:E01/s01",
+      "inr": 5.0,
+      "reserved": 7.5,
+      "state": "SPENT",
+      "at": "2026-08-19 08:17:36",
+      "episode": "E01"
+    },
+    {
+      "kind": "video",
+      "detail": "clip:E01/s01",
+      "inr": 32.0,
+      "reserved": 48.0,
+      "state": "SPENT",
+      "at": "2026-08-19 08:17:43",
+      "episode": "E01"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:E01/s02",
+      "inr": 5.0,
+      "reserved": 7.5,
+      "state": "SPENT",
+      "at": "2026-08-19 08:18:16",
+      "episode": "E01"
+    },
+    {
+      "kind": "video",
+      "detail": "clip:E01/s02",
+      "inr": 32.0,
+      "reserved": 48.0,
+      "state": "SPENT",
+      "at": "2026-08-19 08:18:39",
+      "episode": "E01"
+    },
+    {
+      "kind": "video",
+      "detail": "clip:E01/s03",
+      "inr": 32.0,
+      "reserved": 48.0,
+      "state": "SPENT",
+      "at": "2026-08-19 08:19:17",
       "episode": "E01"
     }
   ],

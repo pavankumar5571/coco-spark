@@ -20,8 +20,13 @@ ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 
 BIBLE = yaml.safe_load((ROOT / "bible.yaml").read_text())
-EP = yaml.safe_load((ROOT / "episodes/E01.yaml").read_text())
-EP.setdefault("locations", [EP["location"]])
+# A fixture, deliberately NOT a production brief. This previously loaded episodes/E01.yaml,
+# so the moment a real episode gained a CAMERA_VARIATION requirement the suite's positive
+# control started failing — the tests were coupled to content that is supposed to change.
+EP = {"id": "T01", "mode": "BEDTIME_STORY", "title": "fixture",
+      "location": "cottage_night", "locations": ["cottage_night"],
+      "cast": ["coco", "nana"], "shots": 2,
+      "idea": "Fixture episode for the planning firewall. Never generated."}
 
 
 class FakeProvider:

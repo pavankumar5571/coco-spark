@@ -48,12 +48,23 @@ UNTESTED_PREVENTION = {}
 TESTED_PREVENTION = {
     "UNREQUESTED_VISUAL_ADDITION": {
         "mechanism": "compile_prompt.veo_constraint_clause emits a no-particles constraint",
-        "trial": "P01B, 2026-08-19, controlled against P01 on a byte-identical start frame",
-        "strength": "POSITIVE_SINGLE_TRIAL",
-        "capability_effect": "NO_REGRESSION across MOTION_PRIMITIVE / IDENTITY_PRESERVATION "
-                             "/ WORLD_PRESERVATION",
-        "caveat": "n=1 against a stochastic generator. Not a prevention rate. A future "
-                  "episode may still produce additions; that would not be a contradiction.",
+        "trials": [
+            ("P01B", "2026-08-19", "CLEAN",  "controlled against P01, byte-identical start frame"),
+            ("E01/s01", "2026-08-19", "PARTICLES", "WIDE, clean generated still"),
+            ("E01/s02", "2026-08-19", "PARTICLES", "CLOSE, clean generated still"),
+            ("E01/s03", "2026-08-19", "PARTICLES", "CLOSE, inherited clean pixels"),
+        ],
+        "strength": "PREVENTION_FAILED_ON_CONTROLLED_TRIAL",
+        "capability_effect": "NO_REGRESSION — motion, identity and world all held in every "
+                             "clip. The defect is additive only.",
+        "finding": "1 clean of 4 attempts with a byte-identical constraint clause. The "
+                   "clause is NOT a reliable control. In every failure the input still was "
+                   "verified clean, so the addition is introduced by the VIDEO model, not "
+                   "the image model — which is what narrows the next fix to the video "
+                   "stage rather than the prompt compiler in general.",
+        "do_not": "Do not re-roll clips hoping for a clean sample. At roughly 1-in-4 that "
+                  "is a slot machine, and paying per pull is how the previous project "
+                  "reached Rs 30,000.",
     },
 }
 

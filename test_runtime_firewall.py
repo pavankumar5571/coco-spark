@@ -62,6 +62,14 @@ def fresh_env(budget):
     make.PORTRAITS = tmp / "portraits"
     make.PORTRAITS.mkdir(parents=True)
     make.LEDGER = tmp / "ledger.json"
+    # Tests must not read production briefs. They previously called the real load_ep,
+    # so the moment episodes/E01.yaml gained a CAMERA_VARIATION requirement four positive
+    # controls started failing against a brief they never meant to assert anything about.
+    make.load_ep = lambda eid: {
+        "id": eid, "mode": "BEDTIME_STORY", "title": "fixture",
+        "location": "cottage_night", "locations": ["cottage_night"],
+        "cast": ["coco"], "shots": 1,
+        "idea": "Fixture episode for the runtime firewall."}
     config.BUDGET_INR = budget
     config.REQUIRE_CLEAN_TREE = False   # exercising other properties; see the dedicated
                                         # dirty-tree case below

@@ -1,0 +1,21 @@
+{
+  "status": "COMPLETE",
+  "source": "PREDECESSOR_PIXELS",
+  "from": "s02_LAST.png",
+  "input_hash": "8fcf75de95580086",
+  "sha": "5217213efba5a925",
+  "ref_ids": [
+    [
+      "identity",
+      "coco",
+      "a54f1abc63646919"
+    ],
+    [
+      "inherited",
+      "s02",
+      "5217213efba5a925"
+    ]
+  ],
+  "reason": "CONTINUOUS boundary, material + visual state unchanged",
+  "cost_inr": 0
+}

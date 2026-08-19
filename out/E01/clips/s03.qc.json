@@ -1,0 +1,36 @@
+{
+  "shot_id": "s03",
+  "status": "REJECTED_QC",
+  "findings": [
+    {
+      "category": "UNREQUESTED_VISUAL_ADDITION",
+      "evidence": "floating particles, heaviest of the three; inherited first frame was clean pixels from s02's accepted tail",
+      "specified": "cottage_night lists walls, window, bed, quilt, chair, rug, bookshelf, lamp light. BEDTIME_STORY sets ambient_effects: NONE. The compiled prompt explicitly said 'clean still air, no floating particles, dust motes, sparkles or glows'."
+    }
+  ],
+  "capability": {
+    "MOTION_PRIMITIVE": "PASS",
+    "IDENTITY_PRESERVATION": "PASS",
+    "WORLD_PRESERVATION": "PASS"
+  },
+  "judged_by": "HUMAN",
+  "revision": {
+    "commit": "a6260b6d5934f77649de8f43ffeb83646e6aa4aa",
+    "dirty": false,
+    "tag": null,
+    "sources": {
+      "make.py": "3eb6ac557e7782a7",
+      "validate.py": "af84f65def4db5c7",
+      "camera.py": "4f6ed7b818d64008",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "22a834086b48dfb9",
+      "bible.yaml": "5ff9a482e3da5955"
+    }
+  },
+  "trial": {
+    "run": "E01 opening slice, 2026-08-19",
+    "prevention_under_test": "compile_prompt.veo_constraint_clause no-particles clause",
+    "result": "PREVENTION_FAILED_ON_CONTROLLED_TRIAL",
+    "note": "Constraint clause byte-identical to the one in P01B, which came back clean. Input still was clean in all three cases. Prevention did not replicate. This is exactly why P01B was recorded POSITIVE_SINGLE_TRIAL and not VALIDATED."
+  }
+}
