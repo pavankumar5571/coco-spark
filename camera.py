@@ -61,14 +61,29 @@ def required_roles(ep, bible):
     return out
 
 
-def assign(shots, ep, bible):
-    """Assign visual state to every shot, satisfying MUST coverage requirements."""
+def assign(shots, ep, bible, frozen=0):
+    """Assign visual state to every shot, satisfying MUST coverage requirements.
+
+    `frozen` is a count of leading shots that have ALREADY BEEN GENERATED and accepted.
+    Their framing is a fact about footage that exists, not a decision still open, so it is
+    read rather than chosen. Reassigning it would change their identity hash and stale
+    paid footage — which is precisely what append-only exists to prevent.
+
+    Frozen sizes still COUNT toward coverage requirements. An episode that already opens
+    on a WIDE has satisfied its WIDE, and demanding another one from the continuation
+    would distort the story to re-prove something already on screen.
+    """
     cov = _coverage(bible, ep["mode"])
     default_angle = "EYE_LEVEL"
 
-    # 1. preferred size from each shot's declared role
+    # 1. preferred size from each shot's declared role — except frozen shots, whose size
+    #    is whatever they were actually generated with
     sizes = []
-    for s in shots:
+    for i, s in enumerate(shots):
+        if i < frozen:
+            sizes.append(((s.get("start_state") or {}).get("visual") or {}).get("shot_size")
+                         or "MEDIUM")
+            continue
         role = s.get("coverage_role") or "SUBJECT"
         opts = cov.get(role) or ["MEDIUM"]
         sizes.append(opts[0])
@@ -82,6 +97,8 @@ def assign(shots, ep, bible):
                 continue
             best = None
             for i, s in enumerate(shots):
+                if i < frozen:
+                    continue                      # cannot repromote existing footage
                 opts = cov.get(s.get("coverage_role") or "SUBJECT") or []
                 if want in opts:
                     rank = opts.index(want)
@@ -98,7 +115,10 @@ def assign(shots, ep, bible):
     #    inherit Coco's pixels into a shot meant to open on Pip — a valid-looking but
     #    objectively wrong frame.
     out = []
-    for s, size in zip(shots, sizes):
+    for i, (s, size) in enumerate(zip(shots, sizes)):
+        if i < frozen:
+            out.append(s)                          # already generated; nothing to decide
+            continue
         loc = (s.get("start_state") or {}).get("location_id", "LOC")
         setup = f"{loc}_AXIS_A".upper()                       # physical position
         foc = s.get("focus") or {}

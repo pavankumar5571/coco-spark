@@ -489,6 +489,66 @@ def vocab_block():
         for k, v in BIBLE["state_vocab"].items())
 
 
+def clip_verdict(d, sid):
+    """The recorded QC verdict for one shot's clip, or PENDING_QC if there is none."""
+    prov = d / "clips" / f"{sid}.provenance.json"
+    if not prov.exists():
+        return "PENDING_QC"
+    return json.loads(prov.read_text()).get("qc", "PENDING_QC")
+
+
+def frozen_prefix(eid, shots):
+    """How many leading shots are ACCEPTED, current, and therefore IMMUTABLE INVENTORY.
+
+    Footage that has been paid for and passed QC is not a draft. Replanning an episode to
+    make it longer must not rewrite it, because rewriting changes its identity hash and
+    silently demands that we buy the same seconds twice — the exact behaviour the resume
+    system exists to prevent.
+
+    A PREFIX, deliberately. Accepted shots after a rejected one are not appendable
+    inventory: continuity runs forward, so the frozen region has to be unbroken from the
+    start or the continuation contract has nothing to attach to.
+    """
+    d = ep_dir(eid)
+    n = 0
+    for s in shots:
+        clip = d / "clips" / f"{s['id']}.mp4"
+        frame = d / "frames" / f"{s['id']}.png"
+        if not (clip.exists() and frame.exists()):
+            break
+        ok, _ = usable(clip, d / "clips" / f"{s['id']}.provenance.json",
+                       clip_identity(s, frame, load_ep(eid)["mode"]))
+        if not ok or clip_verdict(d, s["id"]) != "ACCEPTED":
+            break
+        n += 1
+    return n
+
+
+def continuation_contract(last_shot):
+    """What the first NEW shot must begin from, stated as a hard constraint.
+
+    The planner is not asked to remember or re-derive the frozen footage. It is handed the
+    exact end state of the last accepted shot and told that its first shot starts there.
+    """
+    end = last_shot.get("end_state") or {}
+    vis = end.get("visual") or {}
+    body = {k: v for k, v in end.items() if k != "visual"}
+    return (
+        "CONTINUATION. This episode ALREADY HAS accepted, published-quality footage. You "
+        "are writing what happens NEXT, not rewriting what exists.\n\n"
+        f"The last existing shot is {last_shot['id']}. It ENDS in exactly this state:\n"
+        f"{json.dumps(body, indent=2)}\n\n"
+        f"Its final framing was: {json.dumps(vis, indent=2)}\n\n"
+        "HARD RULES FOR THE CONTINUATION:\n"
+        f"  1. Your FIRST shot's start_state must equal that end state EXACTLY, field for "
+        f"field. {last_shot['id']} has already been generated and cannot change.\n"
+        "  2. Number your shots continuing from the existing ones. Do not restart at s01.\n"
+        "  3. Do not re-describe or re-tell what already happened. Continue forward.\n"
+        "  4. Every rule about showing transitions inside shots still applies across this "
+        "boundary: nothing may change between the last existing shot and your first one.\n\n"
+    )
+
+
 def stage_plan(eid):
     d = ep_dir(eid)
     dest = d / "shots.json"
@@ -499,7 +559,20 @@ def stage_plan(eid):
     if ok:
         print(f"  shots.json valid ({len(json.loads(dest.read_text()))} shots), skipping")
         return
-    if dest.exists():
+
+    # APPEND-ONLY. Accepted footage is inventory, not a draft.
+    existing = json.loads(dest.read_text()) if dest.exists() else []
+    frozen = existing[:frozen_prefix(eid, existing)] if existing else []
+    n_new = ep["shots"] - len(frozen)
+    if frozen:
+        print(f"  {len(frozen)} shot(s) FROZEN — accepted, paid for, will not be replanned")
+        for f_ in frozen:
+            print(f"    {f_['id']}: {f_['motion'][:62]}")
+        if n_new <= 0:
+            sys.exit(f"  brief asks for {ep['shots']} shots and {len(frozen)} are already "
+                     f"accepted. Raise `shots:` in episodes/{eid}.yaml to extend.")
+        print(f"  planning {n_new} NEW shot(s) to continue from {frozen[-1]['id']}")
+    elif dest.exists():
         print(f"  REPLANNING — {why}")
     mode = BIBLE["modes"][ep["mode"]]
     loc = BIBLE["locations"][ep["location"]]
@@ -515,13 +588,18 @@ def stage_plan(eid):
             lines.append(f"  at least one of {roles}   (so a {size} shot can be assigned)")
         role_demand = "\n".join(lines) + "\n\n"
 
+    contract_block = continuation_contract(frozen[-1]) if frozen else ""
+    next_n = len(frozen) + 1
+    count_line = (f"SHOT COUNT: exactly {n_new} NEW shots, numbered s{next_n:02d} onward"
+                  if frozen else f"SHOT COUNT: exactly {ep['shots']}")
+
     prompt = f"""You are a storyboard director for a preschool animation channel.
 
 EPISODE: {ep['title']}  (mode: {ep['mode']})
 IDEA: {ep['idea']}
-SHOT COUNT: exactly {ep['shots']}
+{count_line}
 
-{role_demand}MODE DIRECTION
+{contract_block}{role_demand}MODE DIRECTION
   allowed boundaries: {', '.join(mode.get('allowed_boundaries', ['CONTINUOUS']))}
   pacing: {mode['pacing']}
   camera allowed: {', '.join(mode['camera_allowed'])}
@@ -568,14 +646,17 @@ STYLE: {BIBLE['style_lock']}
                    (u.candidates_token_count / 1e6) * 0.40) * 88) if u else 1.0
         settle(res_idx, actual)          # reconcile the conservative hold
         d = json.loads(r.text)
-        shots_ = d.get("shots", [])
+        shots_ = frozen + d.get("shots", [])
         try:
-            shots_ = camera.assign(shots_, ep, BIBLE)
+            # frozen shots keep the framing they were GENERATED with; reassigning them
+            # would change their identity and stale the footage we are protecting
+            shots_ = camera.assign(shots_, ep, BIBLE, frozen=len(frozen))
             return shots_, d.get("requirement_results", {}), None
         except camera.Unsatisfiable as e:
             return shots_, d.get("requirement_results", {}), str(e)
 
-    print(f"  planning {ep['shots']} shots for {eid} (schema-enforced)...")
+    if not frozen:
+        print(f"  planning {ep['shots']} shots for {eid} (schema-enforced)...")
     shots, results, cam_err = call()
     issues = validate(shots, ep, BIBLE, results)
     if cam_err:
@@ -605,10 +686,18 @@ STYLE: {BIBLE['style_lock']}
                      "spent on images or video. Rejected plan saved for inspection.")
         print("  repair succeeded")
 
+    # The whole point of append-only: prove the protected region came through unchanged.
+    # A single altered field here would restale paid, accepted footage.
+    if shots[:len(frozen)] != frozen:
+        (d / "shots.rejected.json").write_text(json.dumps(shots, indent=2))
+        sys.exit("  FROZEN_SHOTS_MODIFIED: planning altered already-accepted shots. "
+                 "Nothing written, nothing spent. Rejected plan saved for inspection.")
+
     dest.write_text(json.dumps(shots, indent=2))
     (d / "shots.provenance.json").write_text(json.dumps(
         {"status": "COMPLETE", "input_hash": ihash, "sha": sha_file(dest),
-         "model": C.PLANNER_MODEL, "requirement_results": results}, indent=2))
+         "model": C.PLANNER_MODEL, "requirement_results": results,
+         "frozen_shots": [f_["id"] for f_ in frozen]}, indent=2))
     print(f"  -> {dest}  ({len(shots)} shots)")
     for s in shots:
         print(f"     {s['id']}: {s['motion'][:70]}")
@@ -898,9 +987,15 @@ def stage_video(eid, only=None):
 
 # ────────────────────────────── assemble ─────────────────────────────
 def stage_assemble(eid):
+    """Assemble the accepted PREFIX — everything approved so far, in order.
+
+    Assembling a prefix rather than demanding a finished episode is what makes an episode
+    watchable while it is still being built. It stops at the first shot that is not
+    accepted and says so, so a partial cut is never mistaken for a finished one.
+    """
     d = ep_dir(eid)
     shots = json.loads((d / "shots.json").read_text())
-    clips = []
+    clips, stopped = [], None
     for s in shots:
         c = d / "clips" / f"{s['id']}.mp4"
         # Call the REAL identity function. This duplicated the formula and would have
@@ -910,14 +1005,19 @@ def stage_assemble(eid):
                          clip_identity(s, d / "frames" / f"{s['id']}.png",
                                        load_ep(eid)["mode"])) if c.exists() else (False, "missing")
         if not ok:
-            sys.exit(f"  refusing to assemble: {s['id']} clip is not provably current ({why})")
-        verdict = json.loads((d / "clips" / f"{s['id']}.provenance.json").read_text()
-                             ).get("qc", "PENDING_QC")
+            stopped = f"{s['id']} clip is not provably current ({why})"; break
+        verdict = clip_verdict(d, s["id"])
         if verdict != "ACCEPTED":
-            sys.exit(f"  refusing to assemble: {s['id']} is {verdict}. QC failure is "
-                     f"terminal — it never triggers regeneration.")
+            stopped = (f"{s['id']} is {verdict}. QC failure is terminal — it never "
+                       f"triggers regeneration.")
+            break
         clips.append(c)
-    if not clips: sys.exit(f"no clips in {d/'clips'}")
+    if not clips:
+        sys.exit(f"  nothing accepted to assemble in {d/'clips'}" +
+                 (f"\n  first blocker: {stopped}" if stopped else ""))
+    if stopped:
+        print(f"  PARTIAL: assembling {len(clips)} of {len(shots)} shots")
+        print(f"  stopped at {stopped}")
     final = d / "episode.mp4"
     x = C.CROSSFADE_SECONDS
     if len(clips) == 1 or x <= 0:
@@ -938,19 +1038,39 @@ def stage_assemble(eid):
     print(f"  -> {final}  ({len(clips)} clips, crossfade {x}s)")
 
 
-def stage_episode(eid):
-    """Interleaved shot-by-shot run.
+def stage_episode(eid, upto=None):
+    """Interleaved shot-by-shot run over whatever is NOT already accepted.
 
     Predecessor-pixel inheritance only works if clip N exists before frame N+1 is
     resolved, so frames and clips must alternate rather than run as separate passes.
     Each shot: resolve its first frame (inherit free, or generate), then render it.
+
+    Shots that are already ACCEPTED are skipped, not re-rendered. That is what makes
+    extending an episode cost only the seconds that do not exist yet.
+
+    `upto` caps how many NEW shots one run may generate. Spending is easier to authorise
+    in bounded slices than as an open-ended "render the episode", and a run that stops
+    early leaves a resumable episode rather than a half-charged mess.
     """
     d = ep_dir(eid)
     shots = json.loads((d / "shots.json").read_text())
     if report(validate(shots, load_ep(eid), BIBLE)):
         sys.exit("  plan has continuity errors")
-    for i, s in enumerate(shots):
-        print(f"\n── {s['id']} ({i+1}/{len(shots)}) ──")
+
+    done = frozen_prefix(eid, shots)
+    if done:
+        print(f"  {done} shot(s) already accepted — skipping, not re-rendering")
+    todo = shots[done:]
+    if upto is not None:
+        if upto < 1:
+            sys.exit("  --upto must be at least 1")
+        if len(todo) > upto:
+            print(f"  --upto {upto}: generating {upto} of {len(todo)} remaining shot(s)")
+            todo = todo[:upto]
+    if not todo:
+        print("  nothing to generate")
+    for i, s in enumerate(todo):
+        print(f"\n── {s['id']} ({done + i + 1}/{len(shots)}) ──")
         stage_frames(eid, only=s["id"])
         stage_video(eid, only=s["id"])
     stage_assemble(eid)
@@ -1060,9 +1180,17 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("stage", choices=STAGES)
     ap.add_argument("episode", nargs="?", help="episode id, e.g. E01 (not needed for portraits)")
+    ap.add_argument("--upto", type=int, default=None,
+                    help="episode stage: generate at most N new shots this run, so spend "
+                         "can be authorised in bounded slices")
     a = ap.parse_args()
     if a.stage not in ("portraits", "verify", "costs") and not a.episode:
         sys.exit(f"`{a.stage}` needs an episode id, e.g. make.py {a.stage} E01")
+    if a.upto is not None and a.stage != "episode":
+        sys.exit("--upto only applies to the `episode` stage")
     print(f"stage: {a.stage} {a.episode or ''}   spent: Rs {ledger()['spent_inr']:.2f}"
           f"/{C.BUDGET_INR}\n")
-    STAGES[a.stage](a.episode)
+    if a.stage == "episode":
+        stage_episode(a.episode, upto=a.upto)
+    else:
+        STAGES[a.stage](a.episode)

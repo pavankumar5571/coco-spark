@@ -502,6 +502,7 @@ def main():
 
     results += ledger_properties()
     results += contract_properties()
+    results += append_properties()
 
     print(f"\n  {sum(results)}/{len(results)} runtime properties hold")
     if not all(results):
@@ -612,6 +613,80 @@ def contract_properties():
         out += [False, False, False]
 
     shutil.rmtree(tmp, ignore_errors=True)
+    return out
+
+
+
+def _accept(d, sid):
+    pp = d / "clips" / f"{sid}.provenance.json"
+    prov = json.loads(pp.read_text()); prov["qc"] = "ACCEPTED"
+    pp.write_text(json.dumps(prov))
+
+
+def append_properties():
+    """Append-only: accepted footage is inventory and must survive extension untouched.
+
+    The failure these guard against is not a crash. It is quietly paying a second time for
+    seconds we already own, which is exactly what the previous project did for months.
+    """
+    import copy, yaml, camera
+    out = []
+    bible = yaml.safe_load((ROOT / "bible.yaml").read_text())
+
+    # --- pure: frozen shots come through camera assignment byte-identical -------------
+    tmp, make = fresh_env(10_000)
+    ep = make.load_ep("E01")
+    ep["requirements"] = [{"id": "cv", "type": "CAMERA_VARIATION", "strength": "MUST",
+                           "params": {"required_sizes": ["WIDE", "CLOSE"]}}]
+    ep["shots"] = 2
+    frozen_shot = _shots()[0]
+    frozen_shot["start_state"]["visual"]["shot_size"] = "WIDE"
+    frozen_shot["end_state"]["visual"]["shot_size"] = "WIDE"
+    new_shot = copy.deepcopy(frozen_shot); new_shot["id"] = "s02"
+    new_shot["coverage_role"] = "REACTION"
+    before = copy.deepcopy(frozen_shot)
+    assigned = camera.assign([frozen_shot, new_shot], ep, bible, frozen=1)
+    out.append(_ok("frozen shot survives camera assignment unchanged",
+                   assigned[0] == before))
+    out.append(_ok("a frozen WIDE satisfies the coverage requirement for the whole episode",
+                   assigned[0]["start_state"]["visual"]["shot_size"] == "WIDE"))
+    out.append(_ok("the new shot still gets its own framing assigned",
+                   assigned[1]["start_state"]["visual"].get("shot_size") is not None))
+
+    # --- the continuation contract states the real end state --------------------------
+    c = make.continuation_contract(frozen_shot)
+    out.append(_ok("continuation contract carries the frozen end state",
+                   "SITTING_UP" in c and frozen_shot["id"] in c))
+    out.append(_ok("continuation contract forbids restarting the numbering",
+                   "Do not restart at s01" in c))
+    shutil.rmtree(tmp, ignore_errors=True)
+
+    # --- frozen_prefix only counts ACCEPTED, current clips -----------------------------
+    tmp, make = fresh_env(10_000)
+    d = seed_episode(tmp, make, valid_frame=True, valid_clip=True)
+    shots = json.loads((d / "shots.json").read_text())
+    out.append(_ok("a clip that is merely PENDING_QC is not frozen inventory",
+                   make.frozen_prefix("E01", shots) == 0))
+    _accept(d, "s01")
+    out.append(_ok("an accepted, current clip IS frozen inventory",
+                   make.frozen_prefix("E01", shots) == 1))
+    make.write_atomic(d / "clips" / "s01.mp4", b"TAMPERED" * 8)
+    out.append(_ok("an accepted clip whose bytes changed is NOT frozen",
+                   make.frozen_prefix("E01", shots) == 0))
+    shutil.rmtree(tmp, ignore_errors=True)
+
+    # --- extending must not re-render what is already accepted -------------------------
+    tmp, make = fresh_env(10_000)
+    d = seed_episode(tmp, make, valid_frame=True, valid_clip=True)
+    _accept(d, "s01")
+    fake = FakeClient(); make.client = lambda: fake
+    try:
+        make.stage_episode("E01")
+    except BaseException:
+        pass
+    out.append(_ok("accepted shots are skipped, not re-rendered", fake.calls == 0))
+    shutil.rmtree(tmp, ignore_errors=True)
+
     return out
 
 
