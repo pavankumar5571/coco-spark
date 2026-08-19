@@ -22,6 +22,7 @@ from google.genai import types
 from PIL import Image
 
 import config as C
+import camera
 from schema import shot_plan_schema
 from validate import validate, report
 
@@ -141,7 +142,12 @@ HARD CONSTRAINTS. These come from production failures.
 5. PERSISTENT PROPS ONLY. The set of props may not change; anything present must be
    present throughout.
 6. ONE DOMINANT ACTION per shot, small and achievable.
-7. REUSE camera_setup_id whenever the camera has not physically moved.
+7. DO NOT choose camera framing. Declare each shot's coverage_role — what the shot is
+   FOR — and deterministic code will assign shot size, angle and camera setup from the
+   mode's coverage policy.
+     ESTABLISH  set the scene        GROUP      all characters together
+     SUBJECT    one character acts   REACTION   a character responds
+     DETAIL     a small important thing         RESOLUTION  the settling beat
 """
 
 
@@ -284,13 +290,22 @@ def stage_plan(eid):
     cast_lines = "\n".join(
         f"  {k} = {BIBLE['cast'][k]['name']}: {BIBLE['cast'][k]['features']}" for k in ep["cast"])
 
+    demands = camera.required_roles(ep, BIBLE)
+    role_demand = ""
+    if demands:
+        lines = ["COVERAGE REQUIREMENTS. This episode MUST include shots with these",
+                 "coverage_roles, or the plan is rejected:"]
+        for size, roles in demands:
+            lines.append(f"  at least one of {roles}   (so a {size} shot can be assigned)")
+        role_demand = "\n".join(lines) + "\n\n"
+
     prompt = f"""You are a storyboard director for a preschool animation channel.
 
 EPISODE: {ep['title']}  (mode: {ep['mode']})
 IDEA: {ep['idea']}
 SHOT COUNT: exactly {ep['shots']}
 
-MODE DIRECTION
+{role_demand}MODE DIRECTION
   allowed boundaries: {', '.join(mode.get('allowed_boundaries', ['CONTINUOUS']))}
   pacing: {mode['pacing']}
   camera allowed: {', '.join(mode['camera_allowed'])}
@@ -308,6 +323,11 @@ STYLE: {BIBLE['style_lock']}
 {PLANNER_RULES}
 {SHOT_SCHEMA.replace("{vocab}", vocab_block()).replace("{visual}", visual_block())}"""
 
+    # Prove the request is satisfiable before spending anything at all.
+    try:
+        camera.precheck(ep, BIBLE)
+    except camera.Unsatisfiable as e:
+        sys.exit(f"  UNSATISFIABLE_REQUIREMENT: {e}\n  Nothing planned, nothing spent.")
     schema = shot_plan_schema(BIBLE, ep)
     cl = client()
 
@@ -321,11 +341,20 @@ STYLE: {BIBLE['style_lock']}
                ((u.prompt_token_count / 1e6) * 0.10 +
                 (u.candidates_token_count / 1e6) * 0.40) * 88 if u else 1.0)
         d = json.loads(r.text)
-        return d.get("shots", []), d.get("requirement_results", {})
+        shots_ = d.get("shots", [])
+        try:
+            shots_ = camera.assign(shots_, ep, BIBLE)
+            return shots_, d.get("requirement_results", {}), None
+        except camera.Unsatisfiable as e:
+            return shots_, d.get("requirement_results", {}), str(e)
 
     print(f"  planning {ep['shots']} shots for {eid} (schema-enforced)...")
-    shots, results = call()
+    shots, results, cam_err = call()
     issues = validate(shots, ep, BIBLE, results)
+    if cam_err:
+        from validate import Issue
+        issues.append(Issue("ERROR", "COVERAGE_ROLES_INSUFFICIENT", "-", "coverage_role",
+            f"{cam_err}. Choose coverage_roles that permit the required sizes."))
     errs = report(issues)
 
     # EXACTLY ONE repair. An unbounded loop is the retry pathology that began this project.
@@ -334,11 +363,15 @@ STYLE: {BIBLE['style_lock']}
         payload = json.dumps([{"code": i.code, "shot_id": i.shot_id, "path": i.path,
                                "message": i.message}
                               for i in issues if i.severity == "ERROR"], indent=2)
-        shots, results = call(
+        shots, results, cam_err = call(
             "\n\nYour previous plan was REJECTED by a deterministic validator. Here is "
             "the machine-readable issue list. Fix exactly these and change nothing else.\n"
             + payload + "\n\nPrevious plan:\n" + json.dumps(shots, indent=2))
         issues = validate(shots, ep, BIBLE, results)
+        if cam_err:
+            from validate import Issue
+            issues.append(Issue("ERROR", "COVERAGE_ROLES_INSUFFICIENT", "-",
+                "coverage_role", cam_err))
         if report(issues):
             (d / "shots.rejected.json").write_text(json.dumps(shots, indent=2))
             sys.exit("\n  PLAN REJECTED after one repair. Nothing generated, nothing "
@@ -349,19 +382,12 @@ STYLE: {BIBLE['style_lock']}
     (d / "shots.provenance.json").write_text(json.dumps(
         {"status": "COMPLETE", "input_hash": ihash, "sha": sha_file(dest),
          "model": C.PLANNER_MODEL, "requirement_results": results}, indent=2))
-    u = getattr(resp, "usage_metadata", None)
-    charge("llm", f"plan:{eid}",
-           ((u.prompt_token_count / 1e6) * 0.10 + (u.candidates_token_count / 1e6) * 0.40) * 88
-           if u else 1.0)
     print(f"  -> {dest}  ({len(shots)} shots)")
     for s in shots:
         print(f"     {s['id']}: {s['motion'][:70]}")
 
 
-# ──────────────────────── continuity compiler ────────────────────────
-TRANSIENT = ("spatial", "appearance", "possession", "physical")
-
-
+# ──────────────────────── reference compiler ─────────────────────────
 def reference_policy(prev_shot, shot, bible):
     """One compiler, three outcomes. Replaces derive_continuity, which was LIVE AND STALE:
     it still read the prose-era keys spatial/appearance/possession/physical, none of which

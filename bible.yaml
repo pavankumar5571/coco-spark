@@ -73,8 +73,21 @@ visual_vocab:
   shot_size:    [WIDE, MEDIUM_WIDE, MEDIUM, CLOSE, EXTREME_CLOSE]
   camera_angle: [EYE_LEVEL, HIGH, LOW, OVER_SHOULDER]
 
+# The planner declares narrative INTENT (coverage_role). Deterministic code assigns the
+# camera. Coverage arithmetic — "at least one WIDE and one CLOSE across N shots" — is
+# mechanical once intent is known, and Gemini demonstrably cannot satisfy it even with
+# an enum and an explicit repair prompt.
+coverage_roles: [ESTABLISH, GROUP, SUBJECT, REACTION, DETAIL, RESOLUTION]
+
 modes:
   BEDTIME_STORY:
+    coverage:                             # role -> preferred size, then acceptable ones
+      ESTABLISH:  [MEDIUM_WIDE, WIDE]
+      GROUP:      [MEDIUM_WIDE, MEDIUM]
+      SUBJECT:    [MEDIUM, MEDIUM_WIDE]
+      REACTION:   [MEDIUM, CLOSE]
+      DETAIL:     [CLOSE]
+      RESOLUTION: [MEDIUM_WIDE, MEDIUM]
     allowed_boundaries: [CONTINUOUS]      # a bedtime scene is one unbroken moment
     pacing: slow, calm, gentle throughout; narration-led
     camera_allowed: [STATIC, SLOW_PUSH_IN, SLOW_PULL_BACK, GENTLE_PAN]
@@ -83,12 +96,26 @@ modes:
       Hold a single locked camera for the whole scene unless a change is dramatically
       motivated. No peril, no surprises, no loud events. End with the child asleep.
   SONG:
+    coverage:
+      ESTABLISH:  [WIDE]
+      GROUP:      [WIDE, MEDIUM_WIDE]
+      SUBJECT:    [MEDIUM, CLOSE]
+      REACTION:   [CLOSE, MEDIUM]
+      DETAIL:     [CLOSE, EXTREME_CLOSE]
+      RESOLUTION: [WIDE, MEDIUM_WIDE]
     allowed_boundaries: [CONTINUOUS, TIME_JUMP, MONTAGE, LOCATION_CHANGE]
     pacing: rhythmic and energetic, cut on musical phrases
     camera_allowed: [STATIC, SLOW_PUSH_IN, GENTLE_PAN, GENTLE_TRACK]
     camera_avoid: [handheld shake, rapid zoom]
     rules: Repeat the chorus. Keep actions simple and repeatable.
   STORY:
+    coverage:
+      ESTABLISH:  [WIDE, MEDIUM_WIDE]
+      GROUP:      [MEDIUM_WIDE, WIDE]
+      SUBJECT:    [MEDIUM]
+      REACTION:   [CLOSE, MEDIUM]
+      DETAIL:     [CLOSE]
+      RESOLUTION: [MEDIUM_WIDE, WIDE]
     allowed_boundaries: [CONTINUOUS, TIME_JUMP, LOCATION_CHANGE]
     pacing: narrative and action driven
     camera_allowed: [STATIC, SLOW_PUSH_IN, SLOW_PULL_BACK, GENTLE_PAN, GENTLE_TRACK]

@@ -1,0 +1,11 @@
+{
+  "status": "COMPLETE",
+  "input_hash": "6bb616a3e42e6fa4",
+  "sha": "b3bb54473baaa8d7",
+  "model": "gemini-3.5-flash-lite",
+  "requirement_results": {
+    "camera_variety": {
+      "status": "SATISFIED"
+    }
+  }
+}

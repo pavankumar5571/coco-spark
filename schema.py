@@ -30,16 +30,8 @@ def shot_plan_schema(bible, ep):
             "characters": {"type": "object",
                            "properties": {c: character for c in cast}},
             "props": {"type": "object"},
-            "visual": {
-                "type": "object",
-                "properties": {
-                    "camera_setup_id": {"type": "string"},
-                    **{k: _enum(v) for k, v in visual.items()},
-                },
-                "required": ["camera_setup_id", *visual.keys()],
-            },
         },
-        "required": ["location_id", "population", "characters", "props", "visual"],
+        "required": ["location_id", "population", "characters", "props"],
     }
 
     event = {
@@ -64,7 +56,7 @@ def shot_plan_schema(bible, ep):
             "cast": {"type": "array", "items": _enum(cast)},
             "frame": {"type": "string"},
             "motion": {"type": "string"},
-            "camera": {"type": "string"},
+            "coverage_role": _enum(bible.get("coverage_roles", ["SUBJECT"])),
             "boundary": {
                 "type": "object",
                 "properties": {
@@ -77,7 +69,7 @@ def shot_plan_schema(bible, ep):
             "start_state": state,
             "end_state": state,
         },
-        "required": ["id", "cast", "frame", "motion", "camera", "boundary",
+        "required": ["id", "cast", "frame", "motion", "coverage_role", "boundary",
                      "events", "start_state", "end_state"],
     }
 
