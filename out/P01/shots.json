@@ -1,0 +1,75 @@
+[
+  {
+    "id": "s01",
+    "cast": [
+      "coco"
+    ],
+    "coverage_role": "SUBJECT",
+    "focus": {
+      "type": "CHARACTER",
+      "ids": [
+        "coco"
+      ]
+    },
+    "frame": "Coco the Bear sits upright in the bed against the right wall, the patchwork quilt across his lap, facing the camera. The round window and bookshelf are on the left, the wooden chair beside the bed, the woven rug on the floor.",
+    "frame_compiled": "Medium shot, eye level, framed on coco. Coco the Bear sits upright in the bed against the right wall, the patchwork quilt across his lap, facing the camera. The round window and bookshelf are on the left, the wooden chair beside the bed, the woven rug on the floor.",
+    "motion": "Coco slowly lies down onto his side, lowering his head onto the pillow and settling under the patchwork quilt.",
+    "camera": "Locked static camera. No camera movement, no cut.",
+    "boundary": {
+      "type": "CONTINUOUS"
+    },
+    "events": [
+      {
+        "type": "STATE_CHANGE",
+        "entity": "coco",
+        "field": "posture",
+        "from": "SITTING_UP",
+        "to": "LYING_SIDE"
+      }
+    ],
+    "start_state": {
+      "location_id": "cottage_night",
+      "population": [
+        "coco"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "DROWSY",
+          "posture": "SITTING_UP",
+          "zone": "BED",
+          "facing": "CAMERA",
+          "expression": "SLEEPY"
+        }
+      },
+      "props": {},
+      "visual": {
+        "camera_setup_id": "COTTAGE_NIGHT_AXIS_A",
+        "composition_id": "CHARACTER:COCO",
+        "shot_size": "MEDIUM",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "end_state": {
+      "location_id": "cottage_night",
+      "population": [
+        "coco"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "DROWSY",
+          "posture": "LYING_SIDE",
+          "zone": "BED",
+          "facing": "CAMERA",
+          "expression": "SLEEPY"
+        }
+      },
+      "props": {},
+      "visual": {
+        "camera_setup_id": "COTTAGE_NIGHT_AXIS_A",
+        "composition_id": "CHARACTER:COCO",
+        "shot_size": "MEDIUM",
+        "camera_angle": "EYE_LEVEL"
+      }
+    }
+  }
+]

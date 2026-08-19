@@ -571,9 +571,14 @@ def reference_policy(prev_shot, shot, bible):
 
 
 # ───────────────────────────── portraits ─────────────────────────────
-def stage_portraits(_=None):
+def stage_portraits(only=None):
+    """`only` limits regeneration to named cast keys, so a controlled probe does not pay
+    to refresh characters it will never render."""
     cl = client()
+    wanted = set((only or "").split(",")) if only else None
     for key, c in BIBLE["cast"].items():
+        if wanted and key not in wanted:
+            continue
         dest = PORTRAITS / f"{key}.png"
         prov_p = PORTRAITS / f"{key}.provenance.json"
         # A portrait is identity authority for every frame downstream. Reusing one made
