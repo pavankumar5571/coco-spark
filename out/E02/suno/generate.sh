@@ -7,8 +7,9 @@
 # and handle it; you stay in control of that choice.
 #
 # Costs ~70 Suno credits. Nothing on the Rs 600 Gemini ledger.
-set -e
-cd "$(dirname "$0")/../../.."
+set -eo pipefail
+cd "$(cd "$(dirname "$0")/../../.." && pwd)"
+echo "working in: $PWD"
 SUNO="$(cd .. && pwd)/.tools/suno/v0.9.0/suno"
 
 "$SUNO" generate --json --wait --download out/E02/suno/audio \
@@ -18,3 +19,7 @@ SUNO="$(cd .. && pwd)/.tools/suno/v0.9.0/suno"
   --exclude "spoken narration, child choir, wide vibrato, belting, shouting, spooky, eerie, robotic, strained, distorted vocals, rap, heavy drums, long intro, long outro" \
   --lyrics-file out/E02/suno/lyrics.txt \
   | tee out/E02/suno/generation.json
+
+echo
+echo "track written to: $PWD/out/E02/suno/audio"
+ls -la out/E02/suno/audio

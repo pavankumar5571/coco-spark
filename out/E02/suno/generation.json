@@ -1,0 +1,50 @@
+{
+  "version": "1",
+  "status": "success",
+  "data": [
+    {
+      "id": "eb63dca0-0e30-46d7-b060-de18654aef36",
+      "title": "Five Little Stars",
+      "status": "complete",
+      "model_name": "chirp-fenix",
+      "audio_url": "https://cdn1.suno.ai/eb63dca0-0e30-46d7-b060-de18654aef36.mp3",
+      "video_url": "",
+      "image_url": "https://cdn2.suno.ai/image_eb63dca0-0e30-46d7-b060-de18654aef36.jpeg",
+      "created_at": "2026-08-19T18:47:56.615Z",
+      "play_count": 0,
+      "upvote_count": 0,
+      "metadata": {
+        "tags": "original preschool song at 72 BPM in a bright major key, warm natural adult female lead vocal, clear English diction, stable pitch, minimal vibrato, friendly moderate phrase speed, easy for ages two to six to imitate, Slow, warm lullaby. Soft acoustic guitar or celesta, brushed light percussion or none at all, no build, no key change, no big finish. It should be quieter at the end than at the start., female vocals",
+        "prompt": "[Verse 1]\nFive little stars are shining bright,\nPeeking through my window light.\nCoco counts them, one by one,\nSoftly now the day is done.\n\n[Chorus]\nTwinkle, twinkle, close your eyes,\nSleepy stars in sleepy skies.\nCount them with me, drift away,\nGoodnight, goodnight, till a brand new day.\n\n[Verse 2]\nFour little stars, then three, then two,\nOne last star is watching you.\nCoco yawns and snuggles deep,\nWarm and cosy, off to sleep.\n\n[Outro]\nGoodnight, goodnight, little bear,\nGoodnight, goodnight, everywhere.\n",
+        "duration": 83.8,
+        "avg_bpm": null,
+        "has_stem": false,
+        "is_remix": false,
+        "make_instrumental": false,
+        "type": "gen"
+      }
+    },
+    {
+      "id": "d4c3c558-ab1b-47e3-abed-8ec239b79e57",
+      "title": "Five Little Stars",
+      "status": "complete",
+      "model_name": "chirp-fenix",
+      "audio_url": "https://cdn1.suno.ai/d4c3c558-ab1b-47e3-abed-8ec239b79e57.mp3",
+      "video_url": "",
+      "image_url": "https://cdn2.suno.ai/image_d4c3c558-ab1b-47e3-abed-8ec239b79e57.jpeg",
+      "created_at": "2026-08-19T18:47:56.615Z",
+      "play_count": 0,
+      "upvote_count": 0,
+      "metadata": {
+        "tags": "original preschool song at 72 BPM in a bright major key, warm natural adult female lead vocal, clear English diction, stable pitch, minimal vibrato, friendly moderate phrase speed, easy for ages two to six to imitate, Slow, warm lullaby. Soft acoustic guitar or celesta, brushed light percussion or none at all, no build, no key change, no big finish. It should be quieter at the end than at the start., female vocals",
+        "prompt": "[Verse 1]\nFive little stars are shining bright,\nPeeking through my window light.\nCoco counts them, one by one,\nSoftly now the day is done.\n\n[Chorus]\nTwinkle, twinkle, close your eyes,\nSleepy stars in sleepy skies.\nCount them with me, drift away,\nGoodnight, goodnight, till a brand new day.\n\n[Verse 2]\nFour little stars, then three, then two,\nOne last star is watching you.\nCoco yawns and snuggles deep,\nWarm and cosy, off to sleep.\n\n[Outro]\nGoodnight, goodnight, little bear,\nGoodnight, goodnight, everywhere.\n",
+        "duration": 119.64,
+        "avg_bpm": null,
+        "has_stem": false,
+        "is_remix": false,
+        "make_instrumental": false,
+        "type": "gen"
+      }
+    }
+  ]
+}
