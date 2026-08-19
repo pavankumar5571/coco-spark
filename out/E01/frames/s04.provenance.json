@@ -1,0 +1,38 @@
+{
+  "status": "COMPLETE",
+  "source": "GENERATED",
+  "model": "gemini-3.1-flash-image",
+  "aspect": "16:9",
+  "input_hash": "495b2573a8b3d655",
+  "sha": "53e17a05a80d61c8",
+  "refs": [
+    "portraits/coco.png",
+    "E01/transitions/s03_LAST.png"
+  ],
+  "ref_ids": [
+    [
+      "identity",
+      "coco",
+      "a54f1abc63646919"
+    ],
+    [
+      "temporal",
+      "s03",
+      "32c6f0cca2b86e8a"
+    ]
+  ],
+  "revision": {
+    "commit": "7e87069f6fb812356c08614516b7c55da439c7d7",
+    "dirty": false,
+    "tag": null,
+    "sources": {
+      "make.py": "48fb0e6e39e605b2",
+      "validate.py": "735d13f9b05466d2",
+      "camera.py": "d584a57da7476037",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "7519260aaf0a4490",
+      "bible.yaml": "5ff9a482e3da5955"
+    }
+  },
+  "cost_inr": 5.0
+}

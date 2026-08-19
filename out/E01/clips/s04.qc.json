@@ -1,0 +1,52 @@
+{
+  "shot_id": "s04",
+  "status": "REJECTED_QC",
+  "findings": [
+    {
+      "category": "UNREQUESTED_VISUAL_ADDITION",
+      "evidence": "the room is rebuilt, not preserved: rectangular fringed rug -> round braided rug; tall dark bookshelf with vertical spines -> low bookcase with front-facing picture books; straight plank walls -> curved barrel walls; bed repositioned and reoriented",
+      "specified": "cottage_night declares FIXED GEOGRAPHY. s01 shows the canonical room and s04 is the same continuous moment in the same location.",
+      "severity": "BLOCKING"
+    },
+    {
+      "category": "UNREQUESTED_VISUAL_ADDITION",
+      "evidence": "legible lettering on the book covers in the bookcase",
+      "specified": "compiled constraint explicitly says: no text, letters, numbers, captions or watermarks",
+      "severity": "BLOCKING"
+    }
+  ],
+  "capability": {
+    "MOTION_PRIMITIVE": "PASS",
+    "IDENTITY_PRESERVATION": "PASS",
+    "WORLD_PRESERVATION": "FAIL"
+  },
+  "judged_by": "HUMAN",
+  "revision": {
+    "commit": "7e87069f6fb812356c08614516b7c55da439c7d7",
+    "dirty": false,
+    "tag": null,
+    "sources": {
+      "make.py": "48fb0e6e39e605b2",
+      "validate.py": "735d13f9b05466d2",
+      "camera.py": "d584a57da7476037",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "7519260aaf0a4490",
+      "bible.yaml": "5ff9a482e3da5955"
+    }
+  },
+  "diagnosis": {
+    "refs_available": [
+      [
+        "identity",
+        "coco"
+      ],
+      [
+        "temporal",
+        "s03"
+      ]
+    ],
+    "root_cause": "s04 is the first shot that had to show MORE of the world than its temporal reference contained. s03 is a CLOSE on a sleeping bear; pulling back to MEDIUM_WIDE required inventing everything outside that crop, and the model invented it differently from canon.",
+    "structural_gap": "We have canonical IDENTITY authority for characters (portraits) and NO canonical authority for locations. The room exists only as prose in the bible, and prose is not pixel authority \u2014 the same lesson the particles taught. A location plate is the missing analogue of a character portrait.",
+    "note": "This is not a TEMPORAL_REFERENCE defect in general. The WIDE->CLOSE direction (s01->s02) held perfectly, because narrowing needs no invention. It is specifically the widening direction that is unsupported."
+  }
+}

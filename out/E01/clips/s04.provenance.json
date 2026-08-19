@@ -1,0 +1,27 @@
+{
+  "status": "COMPLETE",
+  "qc": "REJECTED_QC",
+  "video_prompt": "ACTION: Coco remains fast asleep on his side in the bed under the patchwork quilt, breathing gently with the quilt rising and falling rhythmically in the quiet room.\nCAMERA: Locked static camera. Medium Wide shot at eye level, framed on coco.\nSTYLE: Bright 3D preschool animation, soft rounded shapes, warm saturated colours, gentle even lighting, simple friendly character design.\nCONSTRAINTS: clean still air, no floating particles, dust motes, sparkles or glows; only the specified characters and objects are present, no additional people, animals, toys or decorations; no text, letters, numbers, captions or watermarks; no rain, snow, fog or wind effects.",
+  "video_prompt_sha": "ef978a1dae04324b",
+  "negative_prompt": "floating particles, dust motes, sparkles, glows, bokeh, light shafts, haze, falling dust, glitter, embers, fireflies, extra people, extra animals, extra toys, extra furniture, extra decorations, text, letters, numbers, captions, subtitles, watermarks, logos, rain, snow, fog, mist, wind",
+  "enhance_prompt": null,
+  "seed": null,
+  "input_hash": "08dd3cf5c2f13590",
+  "sha": "c72ba39e0ea93034",
+  "model": "veo-3.1-lite-generate-preview",
+  "res": "720p",
+  "secs": 4,
+  "revision": {
+    "commit": "7e87069f6fb812356c08614516b7c55da439c7d7",
+    "dirty": false,
+    "tag": null,
+    "sources": {
+      "make.py": "48fb0e6e39e605b2",
+      "validate.py": "735d13f9b05466d2",
+      "camera.py": "d584a57da7476037",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "7519260aaf0a4490",
+      "bible.yaml": "5ff9a482e3da5955"
+    }
+  }
+}
