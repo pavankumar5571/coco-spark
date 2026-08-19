@@ -1,3 +1,0 @@
-file '/Users/pavanpalle/Documents/YT/mini/out/E01/clips/s01.mp4'
-file '/Users/pavanpalle/Documents/YT/mini/out/E01/clips/s02.mp4'
-file '/Users/pavanpalle/Documents/YT/mini/out/E01/clips/s03.mp4'
