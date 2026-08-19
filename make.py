@@ -97,15 +97,43 @@ def ledger():
     return json.loads(LEDGER.read_text()) if LEDGER.exists() else {"spent_inr": 0.0, "ops": []}
 
 
-def charge(kind, detail, inr):
-    inr = inr * getattr(C, "SAFETY_MARGIN", 1.0)   # estimates have drifted before
+def reserve(kind, detail, inr):
+    """Hold the FULL safety-margined cost BEFORE the provider is invoked.
+
+    The previous pattern checked a raw estimate, called Google, and applied the safety
+    margin afterwards — so a call could be authorised, billed by the provider, and only
+    then discovered to exceed the cap. Money must be committed locally before it can be
+    committed remotely.
+    """
+    worst = inr * getattr(C, "SAFETY_MARGIN", 1.0)
     L = ledger()
-    if L["spent_inr"] + inr > C.BUDGET_INR:
-        sys.exit(f"BUDGET STOP: {L['spent_inr']:.2f} + {inr:.2f} exceeds {C.BUDGET_INR}")
-    L["spent_inr"] += inr
-    L["ops"].append({"kind": kind, "detail": detail, "inr": inr, "at": time.strftime("%F %T")})
+    if L["spent_inr"] + worst > C.BUDGET_INR:
+        sys.exit(f"  BUDGET STOP: reserving {worst:.2f} on top of {L['spent_inr']:.2f} "
+                 f"would exceed the cap {C.BUDGET_INR}. Provider NOT called.")
+    L["spent_inr"] += worst
+    L["ops"].append({"kind": kind, "detail": detail, "inr": worst, "state": "RESERVED",
+                     "at": time.strftime("%F %T")})
     LEDGER.write_text(json.dumps(L, indent=2))
-    print(f"    spent {inr:.2f}   total {L['spent_inr']:.2f}/{C.BUDGET_INR}")
+    print(f"    reserved {worst:.2f}   total {L['spent_inr']:.2f}/{C.BUDGET_INR}")
+    return len(L["ops"]) - 1
+
+
+def settle(idx, actual=None):
+    """Mark a reservation spent. Release it if the call never happened."""
+    L = ledger()
+    op = L["ops"][idx]
+    if actual is None:                       # call failed -> give the money back
+        L["spent_inr"] -= op["inr"]
+        op["state"] = "RELEASED"
+    else:
+        op["state"] = "SPENT"
+    LEDGER.write_text(json.dumps(L, indent=2))
+
+
+def charge(kind, detail, inr):
+    """Reserve-then-settle in one step, for calls that cannot partially fail."""
+    idx = reserve(kind, detail, inr)
+    settle(idx, inr)
 
 
 def gen_image(cl, prompt, refs, dest):
@@ -414,13 +442,25 @@ def stage_portraits(_=None):
     cl = client()
     for key, c in BIBLE["cast"].items():
         dest = PORTRAITS / f"{key}.png"
+        prov_p = PORTRAITS / f"{key}.provenance.json"
+        # A portrait is identity authority for every frame downstream. Reusing one made
+        # from an older bible or style silently poisons the whole episode.
+        ihash = input_hash(character=c, style=BIBLE["style_lock"], model=C.IMAGE_MODEL,
+                           aspect=C.IMAGE_ASPECT)
+        ok, why = usable(dest, prov_p, ihash)
+        if ok:
+            print(f"  {key}: valid, skipping"); continue
         if dest.exists():
-            print(f"  {key}: exists, skipping"); continue
+            print(f"  {key}: REGENERATING — {why}")
         print(f"  {key}: generating canonical portrait")
         gen_image(cl, f"{BIBLE['style_lock']}\n\nFull-body character reference sheet on a "
                       f"plain white background. Front view, neutral standing pose, neutral "
                       f"expression, even lighting, no shadows, no props, no scenery.\n\n"
                       f"CHARACTER: {c['features']}", [], dest)
+        prov_p.write_text(json.dumps(
+            {"status": "COMPLETE", "source": "GENERATED", "input_hash": ihash,
+             "sha": sha_file(dest), "model": C.IMAGE_MODEL,
+             "cost_inr": C.INR_PER_IMAGE}, indent=2))
         charge("image", f"portrait:{key}", C.INR_PER_IMAGE)
 
 
@@ -461,8 +501,15 @@ def stage_frames(eid, only=None):
         # Copying it is free, pixel-exact, and cannot drift. Asking an image model to
         # reconstruct that continuity is both a cost and a risk we do not need to take.
         if policy[idx][0] == "PREDECESSOR_PIXELS":
-            tail = d / "transitions" / f"{shots[idx-1]['id']}_LAST.png"
-            if tail.exists():
+            prev_id = shots[idx - 1]["id"]
+            tail = d / "transitions" / f"{prev_id}_LAST.png"
+            tail_prov = d / "transitions" / f"{prev_id}_LAST.provenance.json"
+            tail_ok, tail_why = usable(tail, tail_prov,
+                                       input_hash(clip=prev_id, shot=shots[idx - 1],
+                                                  model=C.VIDEO_MODEL))
+            if not tail_ok and tail.exists():
+                print(f"  {shot['id']}: tail unusable ({tail_why}) — generating instead")
+            if tail_ok:
                 write_atomic(dest, tail.read_bytes())
                 prov_p.write_text(json.dumps(
                     {"status": "COMPLETE", "source": "PREDECESSOR_PIXELS",
@@ -524,14 +571,15 @@ def preflight(eid, shots, d):
             fail.append(f"{s['id']}: frame not provably current ({why})")
     if C.VIDEO_SECONDS not in (4, 6, 8):
         fail.append(f"duration {C.VIDEO_SECONDS}s is not a provider-supported value")
-    est = len(shots) * C.INR_PER_VID_SEC * C.VIDEO_SECONDS
+    worst = len(shots) * C.INR_PER_VID_SEC * C.VIDEO_SECONDS * getattr(C, "SAFETY_MARGIN", 1.0)
     spent = ledger()["spent_inr"]
-    if spent + est > C.BUDGET_INR:
-        fail.append(f"estimated Rs {est:.2f} would exceed the cap")
+    if spent + worst > C.BUDGET_INR:
+        fail.append(f"WORST-CASE Rs {worst:.2f} (margin applied) would exceed the cap "
+                    f"{C.BUDGET_INR} at Rs {spent:.2f} spent")
     print(f"    contract: {C.PROVIDER_SURFACE} / {C.VIDEO_MODEL} / {C.VIDEO_RES} / "
           f"{C.VIDEO_SECONDS}s / audio-in-prompt=NO")
-    print(f"    cost:     {len(shots)} clips x Rs {C.INR_PER_VID_SEC*C.VIDEO_SECONDS:.2f} "
-          f"= Rs {est:.2f}   (spent {spent:.2f}/{C.BUDGET_INR})")
+    print(f"    cost:     {len(shots)} clips, worst case Rs {worst:.2f} with margin "
+          f"(spent {spent:.2f}/{C.BUDGET_INR})")
     for f in fail:
         print(f"    x {f}")
     if fail:
@@ -551,13 +599,21 @@ def stage_video(eid, only=None):
     for shot in shots:
         frame = d / "frames" / f"{shot['id']}.png"
         dest = d / "clips" / f"{shot['id']}.mp4"
+        prov_p = d / "clips" / f"{shot['id']}.provenance.json"
         if not frame.exists(): sys.exit(f"missing frame {frame}")
+        chash = input_hash(shot=shot, frame_sha=sha_file(frame), model=C.VIDEO_MODEL,
+                           res=C.VIDEO_RES, secs=C.VIDEO_SECONDS)
+        ok, why = usable(dest, prov_p, chash)
+        if ok:
+            print(f"  {shot['id']}: clip valid, skipping"); continue
         if dest.exists():
-            print(f"  {shot['id']}: exists, skipping"); continue
+            print(f"  {shot['id']}: RE-RENDERING — {why}")
         # no audio direction: the audio spine is separate
         prompt = (f"ACTION: {shot['motion']}\nCAMERA: {shot['camera']}\n"
                   f"STYLE: {BIBLE['style_lock']}")
         print(f"  {shot['id']}: generating clip")
+        res_idx = reserve("video", f"clip:{eid}/{shot['id']}",
+                          C.INR_PER_VID_SEC * C.VIDEO_SECONDS)
         op = cl.models.generate_videos(
             model=C.VIDEO_MODEL, prompt=prompt,
             image=types.Image.from_file(location=str(frame)),
@@ -568,20 +624,40 @@ def stage_video(eid, only=None):
         while not op.done:
             time.sleep(5); op = cl.operations.get(op)
         if op.error:
+            settle(res_idx, None)          # call failed -> release the reservation
             print(f"    FAILED: {op.error}"); continue
         v = op.response.generated_videos[0]
         cl.files.download(file=v.video)
-        dest.write_bytes(v.video.video_bytes)
-        os.system(f'ffmpeg -v error -y -sseof -0.1 -i "{dest}" -frames:v 1 '
-                  f'"{d / "transitions" / (dest.stem + "_LAST.png")}" 2>/dev/null')
+        write_atomic(dest, v.video.video_bytes)
+        settle(res_idx, C.INR_PER_VID_SEC * C.VIDEO_SECONDS)
+        prov_p.write_text(json.dumps(
+            {"status": "COMPLETE", "input_hash": chash, "sha": sha_file(dest),
+             "model": C.VIDEO_MODEL, "res": C.VIDEO_RES, "secs": C.VIDEO_SECONDS},
+            indent=2))
+        tail = d / "transitions" / f"{shot['id']}_LAST.png"
+        os.system(f'ffmpeg -v error -y -sseof -0.1 -i "{dest}" -frames:v 1 "{tail}" 2>/dev/null')
+        if tail.exists():
+            (d / "transitions" / f"{shot['id']}_LAST.provenance.json").write_text(json.dumps(
+                {"status": "COMPLETE", "sha": sha_file(tail), "from_clip": dest.name,
+                 "input_hash": input_hash(clip=shot["id"], shot=shot, model=C.VIDEO_MODEL)},
+                indent=2))
         print(f"    -> {dest.name}")
-        charge("video", f"clip:{eid}/{shot['id']}", C.INR_PER_VID_SEC * C.VIDEO_SECONDS)
 
 
 # ────────────────────────────── assemble ─────────────────────────────
 def stage_assemble(eid):
     d = ep_dir(eid)
-    clips = sorted((d / "clips").glob("*.mp4"))
+    shots = json.loads((d / "shots.json").read_text())
+    clips = []
+    for s in shots:
+        c = d / "clips" / f"{s['id']}.mp4"
+        ok, why = usable(c, d / "clips" / f"{s['id']}.provenance.json",
+                         input_hash(shot=s, frame_sha=sha_file(d / "frames" / f"{s['id']}.png"),
+                                    model=C.VIDEO_MODEL, res=C.VIDEO_RES,
+                                    secs=C.VIDEO_SECONDS)) if c.exists() else (False, "missing")
+        if not ok:
+            sys.exit(f"  refusing to assemble: {s['id']} clip is not provably current ({why})")
+        clips.append(c)
     if not clips: sys.exit(f"no clips in {d/'clips'}")
     final = d / "episode.mp4"
     x = C.CROSSFADE_SECONDS
