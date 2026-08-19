@@ -1,0 +1,54 @@
+{
+  "kind": "LOCATION_PLATE_QC",
+  "location_id": "cottage_night",
+  "attempt": 2,
+  "plate_sha": "47a3c296ece118c0",
+  "judged_by": "HUMAN",
+  "status": "REJECTED_QC",
+  "probes": {
+    "LOCATION_IDENTITY": "PASS",
+    "WORLD_GEOGRAPHY": "PASS",
+    "TECHNICAL_VALIDITY": "PASS",
+    "TEXT_HALLUCINATION": "PASS",
+    "STYLE_CONFORMANCE": "PASS",
+    "PERSISTENT_OBJECTS": "FAIL",
+    "UNREQUESTED_ENTITIES": "FAIL",
+    "CANON_AGREEMENT": "FAIL"
+  },
+  "canon_agreement": {
+    "walls": "CONTRADICTION",
+    "round window": "MATCH",
+    "bed": "MATCH",
+    "patchwork quilt": "MATCH",
+    "wooden chair": "MATCH",
+    "woven rug": "MATCH",
+    "low bookshelf": "MATCH",
+    "floor": "CONTRADICTION",
+    "lamp light": "CONTRADICTION"
+  },
+  "canon_agreement_reasons": [
+    "CONTRADICTS accepted footage: floor, lamp light, walls"
+  ],
+  "findings": [
+    {
+      "probe": "PERSISTENT_OBJECTS",
+      "severity": "BLOCKING",
+      "detail": "THE BOOKSHELF IS STILL CROPPED BY THE LEFT FRAME EDGE. That is the one defect this attempt was bought to fix, and the second candidate in a row to leave it in place. The world was not extended leftward at all: the shelf unit meets the left edge in the candidate exactly as it does in s01."
+    },
+    {
+      "probe": "UNREQUESTED_ENTITIES",
+      "severity": "BLOCKING",
+      "detail": "Two objects added that exist in neither the bible nor the source frame: a wall-mounted shelf plank carrying a row of about six books, on wall that s01 shows BARE between the bookshelf and the window; and a wooden floor lantern standing left of the chair, on floor s01 shows EMPTY. The prompt said 'Do not add people, animals, furniture, decoration or props'."
+    },
+    {
+      "probe": "CANON_AGREEMENT",
+      "severity": "BLOCKING",
+      "detail": "walls and floor CONTRADICT accepted footage \u2014 surfaces observed empty in s01-s03 are now occupied. lamp light CONTRADICTS: s01 shows a warm glow with NO fixture in frame, the candidate instantiates a visible lantern as its source. Every other declared object MATCHES, including the bookshelf's visible portion, the rug (rectangular, fringed), the chair (slat back, splayed legs), the bed frame and the quilt."
+    }
+  ],
+  "what_worked": "Character removal is CLEAN \u2014 Coco is gone, the pillow, sheet fold and quilt are completed plausibly underneath, and no ghost or smear remains. Object FORM was preserved where it was visible: this is a materially better result than attempt 001, which invented a round braided rug and a different chair. Image-to-image DID hold form. It did not hold the frame, and it did not hold restraint.",
+  "root_cause": "Two changes were requested and the provider performed one of them. Removal \u2014 a change WITHIN the observed pixels \u2014 succeeded. Extension \u2014 a change to the EXTENT of the world, which no reference pixel constrains \u2014 was ignored for the fifth consecutive time a framing guarantee has been asked for in prose. Conditioning on accepted pixels fixed the failure mode of attempt 001 (invented form) and left the failure mode of s04 (prose cannot pin what is not in a reference) exactly where it was.",
+  "self_attribution": "The lantern is partly my defect, not only the provider's. My persistent_objects list named 'lamp light' among the OBJECTS to preserve, and the compiled prompt therefore asked the model to preserve the design, materials, shape and proportions of a thing that has no visible form in the source. A list that names lighting as an object invites the model to draw one.",
+  "consequence_for_design": "FALSIFIED, per the condition fixed in advance with GPT before spending: generated canonical plates are a dead end for cottage_night on this provider. No attempt 003. E01/s04 must either be redesigned inside pixels already known authoritative, or the accepted 12 seconds ship as they are.",
+  "supersedes_reason": null
+}

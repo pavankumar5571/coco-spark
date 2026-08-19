@@ -1,0 +1,31 @@
+{
+  "status": "COMPLETE",
+  "kind": "LOCATION_PLATE_CANDIDATE",
+  "canonical": false,
+  "location_id": "cottage_night",
+  "location_version": 1,
+  "attempt": 2,
+  "source": "DERIVED_FROM_ACCEPTED_FRAME",
+  "derived_from": "E01/s01",
+  "source_frame_sha": "d7a254874096c381",
+  "image_prompt": "Image 0 is the established look of this place, taken from accepted footage.\n\nKeep the established viewpoint, perspective, lighting and mood, and the visible design, materials, shape and proportions of every object, exactly as shown in Image 0 \u2014 walls, round window, bed, patchwork quilt, wooden chair, woven rug, low bookshelf, floor and lamp light.\n\nFor any object currently cut off by a frame edge, preserve its visible portion exactly and extend only the previously unseen portion needed to complete it.\n\nMake exactly two changes and nothing else:\n1. Remove Coco the Bear completely, leaving the place exactly as it would look unoccupied.\n2. Extend the picture outward beyond its current edges so that every object sits fully inside the frame with clear space around it and nothing is cut off by an edge.\n\nDo not redesign, restyle or replace anything. Do not add people, animals, furniture, decoration or props. No text or lettering.",
+  "image_prompt_sha": "c6c1cc00db39a4b7",
+  "sha": "47a3c296ece118c0",
+  "model": "gemini-3.1-flash-image",
+  "aspect": "16:9",
+  "compiler": "3",
+  "revision": {
+    "commit": "d8a84d962f36c21b1d2c5611666a87eb212a742a",
+    "dirty": false,
+    "tag": null,
+    "sources": {
+      "make.py": "f96ae68fe01ef808",
+      "validate.py": "735d13f9b05466d2",
+      "camera.py": "9631f4435b8365cc",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "186311fe0be2b96b",
+      "bible.yaml": "bff8b1eeced90751"
+    }
+  },
+  "cost_inr": 5.0
+}
