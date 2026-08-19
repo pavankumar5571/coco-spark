@@ -147,14 +147,14 @@ def seed_episode(tmp, make, valid_frame=True, valid_clip=False):
     return d
 
 
-def run_stage(name, stage, budget, setup, expect_calls=0):
+def run_stage(name, stage, budget, setup, expect_calls=0, **stage_kw):
     tmp, make = fresh_env(budget)
     shutil.copytree(ROOT / "episodes", tmp.parent / "eps", dirs_exist_ok=True)
     fake = FakeClient()
     make.client = lambda: fake
     try:
         setup(tmp, make)
-        getattr(make, stage)("E01")
+        getattr(make, stage)("E01", **stage_kw)
     except SystemExit:
         pass
     except Exception:
@@ -338,6 +338,59 @@ def main():
         (d / "clips" / "s01.provenance.json").unlink()
     results.append(run_stage("clip without provenance -> refuse to assemble",
         "stage_assemble", 10_000, no_clip_prov, 0))
+
+    # ── ChatGPT's A-D: inheritance identity + truncated-context regression ────
+    def two_shot(tmp, mk, break_tail=False, bad_prev_hash=False):
+        """s01 rendered with a tail; s02 would INHERIT it (identical material+visual)."""
+        import copy, config
+        d = seed_episode(tmp, mk, valid_clip=True)
+        shots = json.loads((d / "shots.json").read_text())
+        s2 = copy.deepcopy(shots[0]); s2["id"] = "s02"
+        shots.append(s2)
+        (d / "shots.json").write_text(json.dumps(shots))
+        clip = d / "clips" / "s01.mp4"
+        tail = d / "transitions" / "s01_LAST.png"
+        mk.write_atomic(tail, _valid_png())
+        (d / "transitions" / "s01_LAST.provenance.json").write_text(json.dumps(
+            {"status": "COMPLETE", "sha": mk.sha_file(tail),
+             "input_hash": mk.input_hash(source_clip_sha=mk.sha_file(clip),
+                                         extractor="ffmpeg-sseof-0.1-v1")}))
+        if break_tail:
+            mk.write_atomic(tail, _valid_png() + b"\x02")     # tail bytes changed
+        if bad_prev_hash:
+            pv = d / "frames" / "s01.provenance.json"
+            j = json.loads(pv.read_text()); j["input_hash"] = "0" * 16
+            pv.write_text(json.dumps(j))
+        return d
+
+    # A. s02 inherits from a valid tail -> free, zero paid calls
+    results.append(run_stage("A inherited frame from valid tail -> zero image calls",
+        "stage_frames", 10_000, lambda tmp, mk: two_shot(tmp, mk), 0))
+
+    # B. inherited frame must go stale when the SOURCE TAIL changes
+    def inherited_then_tail_changes(tmp, mk):
+        d = two_shot(tmp, mk)
+        import make as _m
+        _m.stage_frames("E01")                     # produce the inherited s02
+        tail = d / "transitions" / "s01_LAST.png"
+        mk.write_atomic(tail, _valid_png() + b"\x03")   # source pixels now different
+    results.append(run_stage("B source tail changed -> inherited frame regenerates",
+        "stage_frames", 10_000, inherited_then_tail_changes, 1))
+
+    # C. tail unusable AND predecessor frame stale -> refuse, spend nothing
+    # C. A stale predecessor is REGENERATED rather than consumed. The invariant is that
+    # no stale reference reaches a paid call, not that the run refuses to proceed.
+    results.append(run_stage("C unusable tail + stale predecessor -> both regenerate",
+        "stage_frames", 10_000,
+        lambda tmp, mk: two_shot(tmp, mk, break_tail=True, bad_prev_hash=True), 2))
+
+    # D. targeted video on shot 2 must not treat it as the first shot
+    def targeted_second(tmp, mk):
+        d = two_shot(tmp, mk)
+        import make as _m
+        _m.stage_frames("E01")                     # both frames now exist and are current
+    results.append(run_stage("D targeted stage_video(only=s02) keeps full context",
+        "stage_video", 10_000, targeted_second, 1, only="s02"))
 
     print(f"\n  {sum(results)}/{len(results)} runtime properties hold")
     if not all(results):

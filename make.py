@@ -83,11 +83,15 @@ def frame_identity(d, shot, bible, loc, prev_stem=None, policy=None):
     for key in shot["cast"]:
         pth = PORTRAITS / f"{key}.png"
         ref_ids.append(("identity", key, sha_file(pth) if pth.exists() else None))
-    if prev_stem and policy == "TEMPORAL_REFERENCE":
+    if prev_stem and policy in ("TEMPORAL_REFERENCE", "PREDECESSOR_PIXELS"):
         tail = d / "transitions" / f"{prev_stem}_LAST.png"
         frame = d / "frames" / f"{prev_stem}.png"
         src = tail if tail.exists() else frame
-        ref_ids.append(("temporal", prev_stem, sha_file(src) if src.exists() else None))
+        # PREDECESSOR_PIXELS COPIES these bytes, so the inherited frame's identity must be
+        # transitively bound to them. Without this, a changed source tail leaves the
+        # inherited frame looking current while its actual pixels came from elsewhere.
+        role = "inherited" if policy == "PREDECESSOR_PIXELS" else "temporal"
+        ref_ids.append((role, prev_stem, sha_file(src) if src.exists() else None))
     return ref_ids, input_hash(shot=shot, bible=bible, model=C.IMAGE_MODEL,
                                aspect=C.IMAGE_ASPECT, loc=loc, refs=ref_ids,
                                compiler=C.FRAME_COMPILER_VERSION)
@@ -534,10 +538,14 @@ def stage_frames(eid, only=None):
             prev = d / "frames" / f"{shot['id']}.png"; continue
         dest = d / "frames" / f"{shot['id']}.png"
         prov_p = d / "frames" / f"{shot['id']}.provenance.json"
-        # NOTE: computed AFTER refs are resolved, because the ordered reference identities
-        # are part of what makes this a different paid request.
-        ihash = None
-        ok, why = (False, "reference identity not yet resolved")
+        _, ihash = frame_identity(d, shot, BIBLE, loc,
+                                   prev_stem=shots[idx - 1]["id"] if idx else None,
+                                   policy=policy[idx][0])
+        ok, why = usable(dest, prov_p, ihash)
+        if ok:
+            print(f"  {shot['id']}: valid, skipping"); prev = dest; continue
+        if dest.exists():
+            print(f"  {shot['id']}: RECOMPUTING — {why}")
 
 
         # A CONTINUOUS edit whose material state is unchanged has no new information to
@@ -562,6 +570,9 @@ def stage_frames(eid, only=None):
                 prov_p.write_text(json.dumps(
                     {"status": "COMPLETE", "source": "PREDECESSOR_PIXELS",
                      "from": tail.name, "input_hash": ihash, "sha": sha_file(dest),
+                     "ref_ids": frame_identity(d, shot, BIBLE, loc,
+                                               prev_stem=shots[idx - 1]["id"],
+                                               policy="PREDECESSOR_PIXELS")[0],
                      "reason": "CONTINUOUS boundary, material + visual state unchanged",
                      "cost_inr": 0}, indent=2))
                 print(f"  {shot['id']}: INHERITED from {tail.name} (free, pixel-exact)")
@@ -598,23 +609,17 @@ def stage_frames(eid, only=None):
                 refs.append(ptail); ref_ids.append(("temporal", prev.stem, sha_file(ptail)))
             else:
                 # never fall back to an unproven predecessor frame
-                prev_prov = d / "frames" / f"{prev.stem}.provenance.json"
-                if not prev_prov.exists() or json.loads(prev_prov.read_text()
-                        ).get("status") != "COMPLETE":
-                    sys.exit(f"  {shot['id']}: no proven temporal reference available "
-                             f"(tail unusable and {prev.name} unproven)")
+                _, prev_want = frame_identity(d, shots[idx - 1], BIBLE, loc,
+                    prev_stem=shots[idx - 2]["id"] if idx >= 2 else None,
+                    policy=policy[idx - 1][0])
+                pfok, pfwhy = usable(prev, d / "frames" / f"{prev.stem}.provenance.json",
+                                     prev_want)
+                if not pfok:
+                    sys.exit(f"  {shot['id']}: no proven temporal reference (tail "
+                             f"unusable and {prev.name} not current: {pfwhy})")
                 refs.append(prev); ref_ids.append(("temporal", prev.stem, sha_file(prev)))
             legend.append(f"Image {len(refs)-1}: the previous shot. Continue directly from "
                           f"it: identical camera, geometry and lighting.")
-
-        _, ihash = frame_identity(d, shot, BIBLE, loc,
-                                  prev_stem=prev.stem if prev else None,
-                                  policy=policy[idx][0])
-        ok, why = usable(dest, prov_p, ihash)
-        if ok:
-            print(f"  {shot['id']}: valid, skipping"); prev = dest; continue
-        if dest.exists():
-            print(f"  {shot['id']}: RECOMPUTING — {why}")
 
         prompt = ("\n".join(legend) + f"\n\n{BIBLE['style_lock']}\n\n"
                   f"LOCATION (identical in every shot): {loc['description']}\n\n"
@@ -633,7 +638,10 @@ def stage_frames(eid, only=None):
 
 
 # ─────────────────────────────── video ───────────────────────────────
-def preflight(eid, shots, d):
+def preflight(eid, shots, d, targets=None):
+    """`shots` is ALWAYS the full episode plan. `targets` names which shots are about to
+    make paid calls. Truncating the plan would make shot 2 look like shot 1 and therefore
+    CANONICAL_ONLY, silently miscomputing frame identity on the normal interleaved path."""
     """Everything provable for free, asserted before a single rupee is spent."""
     print("  PREFLIGHT")
     fail = []
@@ -642,6 +650,8 @@ def preflight(eid, shots, d):
     policy = [reference_policy(shots[i - 1] if i else None, s, BIBLE)
               for i, s in enumerate(shots)]
     for i, s in enumerate(shots):
+        if targets and s["id"] not in targets:
+            continue
         f = d / "frames" / f"{s['id']}.png"
         prov = d / "frames" / f"{s['id']}.provenance.json"
         _, want = frame_identity(d, s, BIBLE, loc,
@@ -652,14 +662,15 @@ def preflight(eid, shots, d):
             fail.append(f"{s['id']}: frame not provably current ({why})")
     if C.VIDEO_SECONDS not in (4, 6, 8):
         fail.append(f"duration {C.VIDEO_SECONDS}s is not a provider-supported value")
-    worst = len(shots) * C.INR_PER_VID_SEC * C.VIDEO_SECONDS * getattr(C, "SAFETY_MARGIN", 1.0)
+    n_target = len([s for s in shots if not targets or s["id"] in targets])
+    worst = n_target * C.INR_PER_VID_SEC * C.VIDEO_SECONDS * getattr(C, "SAFETY_MARGIN", 1.0)
     spent = ledger()["spent_inr"]
     if spent + worst > C.BUDGET_INR:
         fail.append(f"WORST-CASE Rs {worst:.2f} (margin applied) would exceed the cap "
                     f"{C.BUDGET_INR} at Rs {spent:.2f} spent")
     print(f"    contract: {C.PROVIDER_SURFACE} / {C.VIDEO_MODEL} / {C.VIDEO_RES} / "
           f"{C.VIDEO_SECONDS}s / audio-in-prompt=NO")
-    print(f"    cost:     {len(shots)} clips, worst case Rs {worst:.2f} with margin "
+    print(f"    cost:     {n_target} clips, worst case Rs {worst:.2f} with margin "
           f"(spent {spent:.2f}/{C.BUDGET_INR})")
     for f in fail:
         print(f"    x {f}")
@@ -673,9 +684,10 @@ def stage_video(eid, only=None):
     shots = json.loads((d / "shots.json").read_text())
     if report(validate(shots, load_ep(eid), BIBLE)):
         sys.exit("  plan has continuity errors")
+    # full plan for context, targets for scope — never truncate continuity context
+    preflight(eid, shots, d, targets=[only] if only else None)
     if only:
         shots = [s for s in shots if s["id"] == only]
-    preflight(eid, shots, d)
     cl = client()
     for shot in shots:
         frame = d / "frames" / f"{shot['id']}.png"
