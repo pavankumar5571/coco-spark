@@ -136,7 +136,18 @@ def charge(kind, detail, inr):
     settle(idx, inr)
 
 
-def gen_image(cl, prompt, refs, dest):
+def gen_image(cl, prompt, refs, dest, kind="image", detail=""):
+    """Reserve BEFORE the provider is invoked. The image path previously called Google
+    first and charged afterwards — the same budget race already fixed for video."""
+    res_idx = reserve(kind, detail or dest.name, C.INR_PER_IMAGE)
+    try:
+        return _gen_image_inner(cl, prompt, refs, dest, res_idx)
+    except BaseException:
+        settle(res_idx, None)          # any failure releases the hold
+        raise
+
+
+def _gen_image_inner(cl, prompt, refs, dest, res_idx):
     resp = cl.models.generate_content(
         model=C.IMAGE_MODEL,
         contents=[Image.open(p) for p in refs] + [prompt],
@@ -147,7 +158,8 @@ def gen_image(cl, prompt, refs, dest):
     )
     for part in resp.candidates[0].content.parts:
         if getattr(part, "inline_data", None):
-            dest.write_bytes(part.inline_data.data)
+            write_atomic(dest, part.inline_data.data)
+            settle(res_idx, C.INR_PER_IMAGE)
             print(f"    -> {dest.name}  {Image.open(dest).size}")
             return
     raise RuntimeError(f"no image returned for {dest.name}")
@@ -456,12 +468,12 @@ def stage_portraits(_=None):
         gen_image(cl, f"{BIBLE['style_lock']}\n\nFull-body character reference sheet on a "
                       f"plain white background. Front view, neutral standing pose, neutral "
                       f"expression, even lighting, no shadows, no props, no scenery.\n\n"
-                      f"CHARACTER: {c['features']}", [], dest)
+                      f"CHARACTER: {c['features']}", [], dest,
+                      kind="image", detail=f"portrait:{key}")
         prov_p.write_text(json.dumps(
             {"status": "COMPLETE", "source": "GENERATED", "input_hash": ihash,
              "sha": sha_file(dest), "model": C.IMAGE_MODEL,
              "cost_inr": C.INR_PER_IMAGE}, indent=2))
-        charge("image", f"portrait:{key}", C.INR_PER_IMAGE)
 
 
 # ────────────────────────────── frames ───────────────────────────────
@@ -504,9 +516,13 @@ def stage_frames(eid, only=None):
             prev_id = shots[idx - 1]["id"]
             tail = d / "transitions" / f"{prev_id}_LAST.png"
             tail_prov = d / "transitions" / f"{prev_id}_LAST.provenance.json"
-            tail_ok, tail_why = usable(tail, tail_prov,
-                                       input_hash(clip=prev_id, shot=shots[idx - 1],
-                                                  model=C.VIDEO_MODEL))
+            # The tail must never reconstruct a weaker idea of what produced it than the
+            # clip's own cache key. Its identity is the SOURCE CLIP's checksum, so a clip
+            # regenerated from a changed frame can never be matched by an old tail.
+            src_clip = d / "clips" / f"{prev_id}.mp4"
+            tail_key = input_hash(source_clip_sha=sha_file(src_clip) if src_clip.exists()
+                                  else None, extractor="ffmpeg-sseof-0.1-v1")
+            tail_ok, tail_why = usable(tail, tail_prov, tail_key)
             if not tail_ok and tail.exists():
                 print(f"  {shot['id']}: tail unusable ({tail_why}) — generating instead")
             if tail_ok:
@@ -530,8 +546,13 @@ def stage_frames(eid, only=None):
         # Temporal reference only when the compiler says this shot inherits transient
         # state. Chaining has a real provenance/cache cost, so it must earn its use.
         if prev and policy[idx][0] == "TEMPORAL_REFERENCE":
-            tail = d / "transitions" / f"{prev.stem}_LAST.png"
-            refs.append(tail if tail.exists() else prev)
+            # A tail rejected for inheritance must not sneak in as a reference either.
+            ptail = d / "transitions" / f"{prev.stem}_LAST.png"
+            psrc = d / "clips" / f"{prev.stem}.mp4"
+            pok, _ = usable(ptail, d / "transitions" / f"{prev.stem}_LAST.provenance.json",
+                            input_hash(source_clip_sha=sha_file(psrc) if psrc.exists()
+                                       else None, extractor="ffmpeg-sseof-0.1-v1"))
+            refs.append(ptail if pok else prev)
             legend.append(f"Image {len(refs)-1}: the previous shot. Continue directly from "
                           f"it: identical camera, geometry and lighting.")
 
@@ -542,13 +563,12 @@ def stage_frames(eid, only=None):
                   "colour, clothing, proportions and face. Only the characters named above "
                   "are present. No text or lettering.")
         print(f"  {shot['id']}: generating first frame ({len(refs)} refs)")
-        gen_image(cl, prompt, refs, dest)
+        gen_image(cl, prompt, refs, dest, kind="image", detail=f"frame:{eid}/{shot['id']}")
         prov_p.write_text(json.dumps(
             {"status": "COMPLETE", "source": "GENERATED", "model": C.IMAGE_MODEL,
              "aspect": C.IMAGE_ASPECT, "input_hash": ihash, "sha": sha_file(dest),
              "refs": [str(r.relative_to(OUT)) for r in refs],
              "cost_inr": C.INR_PER_IMAGE}, indent=2))
-        charge("image", f"frame:{eid}/{shot['id']}", C.INR_PER_IMAGE)
         prev = dest
 
 
@@ -614,34 +634,43 @@ def stage_video(eid, only=None):
         print(f"  {shot['id']}: generating clip")
         res_idx = reserve("video", f"clip:{eid}/{shot['id']}",
                           C.INR_PER_VID_SEC * C.VIDEO_SECONDS)
-        op = cl.models.generate_videos(
-            model=C.VIDEO_MODEL, prompt=prompt,
-            image=types.Image.from_file(location=str(frame)),
-            config=types.GenerateVideosConfig(
-                resolution=C.VIDEO_RES, aspect_ratio=C.VIDEO_ASPECT,
-                duration_seconds=C.VIDEO_SECONDS),
-        )
-        while not op.done:
-            time.sleep(5); op = cl.operations.get(op)
-        if op.error:
-            settle(res_idx, None)          # call failed -> release the reservation
-            print(f"    FAILED: {op.error}"); continue
-        v = op.response.generated_videos[0]
-        cl.files.download(file=v.video)
-        write_atomic(dest, v.video.video_bytes)
-        settle(res_idx, C.INR_PER_VID_SEC * C.VIDEO_SECONDS)
-        prov_p.write_text(json.dumps(
-            {"status": "COMPLETE", "input_hash": chash, "sha": sha_file(dest),
-             "model": C.VIDEO_MODEL, "res": C.VIDEO_RES, "secs": C.VIDEO_SECONDS},
-            indent=2))
-        tail = d / "transitions" / f"{shot['id']}_LAST.png"
-        os.system(f'ffmpeg -v error -y -sseof -0.1 -i "{dest}" -frames:v 1 "{tail}" 2>/dev/null')
-        if tail.exists():
-            (d / "transitions" / f"{shot['id']}_LAST.provenance.json").write_text(json.dumps(
-                {"status": "COMPLETE", "sha": sha_file(tail), "from_clip": dest.name,
-                 "input_hash": input_hash(clip=shot["id"], shot=shot, model=C.VIDEO_MODEL)},
+        settled = False
+        try:
+            op = cl.models.generate_videos(
+                model=C.VIDEO_MODEL, prompt=prompt,
+                image=types.Image.from_file(location=str(frame)),
+                config=types.GenerateVideosConfig(
+                    resolution=C.VIDEO_RES, aspect_ratio=C.VIDEO_ASPECT,
+                    duration_seconds=C.VIDEO_SECONDS),
+            )
+            while not op.done:
+                time.sleep(5); op = cl.operations.get(op)
+            if op.error:
+                raise RuntimeError(f"provider error: {op.error}")
+            v = op.response.generated_videos[0]
+            cl.files.download(file=v.video)
+            write_atomic(dest, v.video.video_bytes)
+            settle(res_idx, C.INR_PER_VID_SEC * C.VIDEO_SECONDS); settled = True
+
+            prov_p.write_text(json.dumps(
+                {"status": "COMPLETE", "input_hash": chash, "sha": sha_file(dest),
+                 "model": C.VIDEO_MODEL, "res": C.VIDEO_RES, "secs": C.VIDEO_SECONDS},
                 indent=2))
-        print(f"    -> {dest.name}")
+            tail = d / "transitions" / f"{shot['id']}_LAST.png"
+            os.system(f'ffmpeg -v error -y -sseof -0.1 -i "{dest}" -frames:v 1 '
+                      f'"{tail}" 2>/dev/null')
+            if tail.exists():
+                (d / "transitions" / f"{shot['id']}_LAST.provenance.json").write_text(
+                    json.dumps({"status": "COMPLETE", "sha": sha_file(tail),
+                                "from_clip": dest.name,
+                                "input_hash": input_hash(source_clip_sha=sha_file(dest),
+                                    extractor="ffmpeg-sseof-0.1-v1")}, indent=2))
+            print(f"    -> {dest.name}")
+        except Exception as e:
+            print(f"    FAILED: {e}")
+        finally:
+            if not settled:
+                settle(res_idx, None)      # deterministic ledger state on ANY exception
 
 
 # ────────────────────────────── assemble ─────────────────────────────
