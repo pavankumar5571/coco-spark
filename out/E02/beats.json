@@ -1,7 +1,7 @@
 {
   "kind": "EPISODE_BEAT_MAP",
   "episode": "E02",
-  "note": "Fifteen cuts over seven paid pictures. A beat names the phrase it starts on and ends when the next begins, so the song sets every length. Pictures are REUSED with different framing where the lyric returns to the same idea; the frame changes on every phrase even though only seven pictures are bought. Exactly one beat is generated, it is capped at the 4s a clip actually lasts, and the phrase after it is covered free by that clip's own last frame. Beat starts name SUNG phrases, never section labels \u2014 a label shares its timestamp with the line under it and would create a zero-length cut.",
+  "note": "Fifteen cuts over seven paid pictures. A beat names the phrase it starts on and ends when the next begins, so the song sets every length. Pictures are REUSED with different framing where the lyric returns to the same idea; the frame changes on every phrase even though only seven pictures are bought. Exactly one beat is generated, it is capped at the 4s a clip actually lasts, and the phrase after it is covered free by that clip's own last frame. Beat starts name SUNG phrases, never section labels \u2014 a label shares its timestamp with the line under it and would create a zero-length cut. The window is ONE bought picture; the star COUNT is drawn deterministically on top of it, so five really is five and the same five never move. Asking a generator for an exact count is the one instruction we have never tried, and the other repo already carries a FINAL COUNT AUDIT clause begging for three ducks and never four.",
   "beats": [
     {
       "from_phrase": 0,
@@ -11,7 +11,8 @@
       },
       "move": "PUSH_IN",
       "visual_change": "CAMERA_ONLY",
-      "state": "wide room at night, five stars in the round window, Coco awake in bed"
+      "state": "wide room at night, five stars in the round window, Coco awake in bed",
+      "stars": 5
     },
     {
       "from_phrase": 2,
@@ -21,7 +22,8 @@
       },
       "move": "DRIFT_RIGHT",
       "visual_change": "CAMERA_ONLY",
-      "state": "the round window filling the frame, five stars bright"
+      "state": "the round window filling the frame, five stars bright",
+      "stars": 5
     },
     {
       "from_phrase": 3,
@@ -51,7 +53,8 @@
       },
       "move": "PUSH_IN",
       "visual_change": "CAMERA_ONLY",
-      "state": "back to the window for the chorus"
+      "state": "back to the window for the chorus",
+      "stars": 5
     },
     {
       "from_phrase": 7,
@@ -77,31 +80,56 @@
       "from_phrase": 9,
       "source": {
         "kind": "STILL",
-        "id": 4
+        "id": 1
       },
       "move": "HOLD",
       "visual_change": "NONE",
-      "state": "the window, four stars now"
+      "state": "the window, four stars now",
+      "stars": 5
     },
     {
       "from_phrase": 11,
       "source": {
         "kind": "STILL",
-        "id": 4
+        "id": 1
       },
       "move": "PUSH_IN",
       "visual_change": "CAMERA_ONLY",
-      "state": "closer as the count comes down"
+      "state": "closer as the count comes down",
+      "stars": 4
+    },
+    {
+      "at": 37.19,
+      "source": {
+        "kind": "STILL",
+        "id": 1
+      },
+      "move": "HOLD",
+      "stars": 3,
+      "visual_change": "NONE",
+      "state": "three stars, on the word 'three'"
+    },
+    {
+      "at": 37.9,
+      "source": {
+        "kind": "STILL",
+        "id": 1
+      },
+      "move": "HOLD",
+      "stars": 2,
+      "visual_change": "NONE",
+      "state": "two stars, on the word 'two'"
     },
     {
       "from_phrase": 12,
       "source": {
         "kind": "STILL",
-        "id": 5
+        "id": 1
       },
       "move": "HOLD",
       "visual_change": "NONE",
-      "state": "one last star, alone in the window"
+      "state": "one last star, alone in the window",
+      "stars": 1
     },
     {
       "from_phrase": 13,
@@ -142,7 +170,8 @@
       },
       "move": "PULL_BACK",
       "visual_change": "CAMERA_ONLY",
-      "state": "the whole room again, one star, the closing image"
+      "state": "the whole room again, one star, the closing image",
+      "stars": 1
     }
   ]
 }

@@ -2341,6 +2341,56 @@ def stage_bed(eid):
     print(f"    now: python3 make.py assemble {eid} && python3 make.py audio {eid}")
 
 
+STAR_OVERLAY_VERSION = "1"
+
+
+def draw_counted_stars(src, dest, count, box, seed_positions=None, size=None):
+    """Draw EXACTLY `count` stars into a declared box. Free, exact, repeatable.
+
+    A counting song lives or dies on the count being right, and asking a generator for
+    exactly five of something is the one instruction this project has never even tried —
+    though Pavan's other repo already carries a FINAL COUNT AUDIT clause begging a model to
+    render three ducks and never four, which tells you how that goes.
+
+    So the count is not requested. It is DRAWN. The generated still supplies a night sky;
+    arithmetic supplies the five stars, then four, then three. The child can count them
+    because they are countable, and the same five sit in the same places every time.
+    """
+    from PIL import Image, ImageDraw
+    im = Image.open(src).convert("RGBA")
+    x0, y0, x1, y1 = box
+    w, h = x1 - x0, y1 - y0
+    size = size or max(5, int(min(w, h) * 0.055))
+    # fixed, hand-placed positions inside the box, as fractions. Stars disappear from the
+    # END of the list, so the ones that remain never move — a star that jumps when its
+    # neighbour vanishes is a star the child cannot keep counting.
+    # placed inside the PANES, never on the glazing bars. A star sitting on the wooden
+    # cross reads as a decoration stuck to the window rather than a star in the sky, and
+    # the child is being asked to count the sky.
+    spots = seed_positions or [(0.26, 0.26), (0.71, 0.24), (0.25, 0.69),
+                               (0.72, 0.70), (0.40, 0.13)]
+    layer = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    import math
+    for fx, fy in spots[:max(0, int(count))]:
+        cx, cy = x0 + fx * w, y0 + fy * h
+        r, rin = size, size * 0.40
+        # glow FIRST, star on top of it. The other way round buries the shape under its
+        # own halo, which is how the first attempt produced five soft discs and no stars.
+        for k, a in ((2.2, 26), (1.4, 46)):
+            d.ellipse([cx - r * k, cy - r * k, cx + r * k, cy + r * k],
+                      fill=(255, 246, 200, a))
+        pts = []
+        for i in range(10):
+            ang = math.pi / 2 + i * math.pi / 5
+            rad = r if i % 2 == 0 else rin
+            pts.append((cx + rad * math.cos(ang), cy - rad * math.sin(ang)))
+        d.polygon(pts, fill=(255, 252, 232, 255))
+    out = Image.alpha_composite(im, layer).convert("RGB")
+    out.save(dest)
+    return dest
+
+
 ANIMATIC_VERSION = "1"
 
 
@@ -2366,16 +2416,23 @@ def beat_segments(eid):
     segs = []
     for i, b in enumerate(beats):
         b.setdefault("source", {"kind": "STILL", "id": i})
-        start = at.get(b["from_phrase"])
+        # a beat lands on a PHRASE, or — when the picture must count along with the voice —
+        # on a WORD. "Four little stars, then three, then two" is one phrase and three
+        # numbers, and a star vanishing 0.7s after the last one is not a cut, it is the
+        # room agreeing with the song.
+        def _time_of(beat):
+            return beat["at"] if "at" in beat else at.get(beat.get("from_phrase"))
+        start = _time_of(b)
         if start is None:
-            sys.exit(f"  beat {i} names phrase {b['from_phrase']}, which does not exist")
+            sys.exit(f"  beat {i} names phrase {b.get('from_phrase')}, which does not exist")
         if i == 0:
             # picture must cover the instrumental pickup too. The first beat starts when
             # the TRACK starts, not when the first word does, or the episode opens on
             # black for two and a half seconds.
             start = 0.0
-        nxt = beats[i + 1]["from_phrase"] if i + 1 < len(beats) else None
-        end = at.get(nxt, runtime) if nxt is not None else runtime
+        end = _time_of(beats[i + 1]) if i + 1 < len(beats) else runtime
+        if end is None:
+            sys.exit(f"  beat {i + 1} has no phrase or time")
         segs.append({**b, "start": round(start, 2), "end": round(end, 2),
                      "seconds": round(end - start, 2)})
     return segs, runtime
@@ -2397,7 +2454,7 @@ def stage_beats(eid):
                "TAIL_OF": f"tail of beat {s['source'].get('beat')}"}[s["source"]["kind"]]
         print(f"    {s['start']:6.2f}-{s['end']:6.2f} ({s['seconds']:5.2f}s) "
               f"{s['move']:11s} {tag:16s} {s['state'][:34]}")
-        for p in pm[s["from_phrase"]:]:
+        for p in pm[s.get("from_phrase", len(pm)):]:
             if p["at"] >= s["end"]:
                 break
             if not p["text"].startswith("["):
