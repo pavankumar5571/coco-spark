@@ -14,10 +14,13 @@ VIDEO_ASPECT  = "16:9"
 INR_PER_IMAGE   = 5.0    # MEASURED-ish; was 3.5 (underestimated)
 INR_PER_VID_SEC = 8.0    # MEASURED: ~Rs 32/4s clip, was 4.4 (underestimated ~2x)
 
-# Ledger 327.29 + the approved E01 opening slice (169.50 worst case, fully reserved
-# before the first paid call). A CEILING, NOT A TARGET: if a reservation will not fit,
-# that means STOP, not raise the cap. NOT the account balance.
-BUDGET_INR = 500.0   # The cap is per-experiment on purpose: an open cap is how the
+# Ledger 470.52 + a purpose-built cottage_night plate (7.50) + the E01 closing shot
+# (7.50 frame + 48.00 clip). Raised by Pavan to 600 to buy the plate BEFORE re-rendering
+# s04, because our own plate QC graded the existing authority WEAK on the exact object
+# that broke that shot.
+# A CEILING, NOT A TARGET: if a reservation will not fit, that means STOP, not raise the
+# cap. NOT the account balance.
+BUDGET_INR = 600.0   # The cap is per-experiment on purpose: an open cap is how the
                      # previous project reached Rs 30,000. (Account had ~Rs 2433.)
 
 # Every generation-parameter lever we hoped for is refused by this model. NO parameter on
