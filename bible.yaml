@@ -80,8 +80,19 @@ visual_vocab:
 coverage_roles: [ESTABLISH, GROUP, SUBJECT, REACTION, DETAIL, RESOLUTION]
 focus_types:    [CHARACTER, GROUP, PROP, ENVIRONMENT]
 
+# Generic visual constraints. NOT provider-specific negatives — the prompt compiler
+# translates these per provider. A magical story can allow sparkles; a realistic
+# educational scene forbids them. Learned from the P01 probe, where Veo added floating
+# luminous particles present in no prompt, bible entry or location description.
+visual_constraints:
+  ambient_effects:    NONE      # NONE | SUBTLE | ALLOWED
+  background_entities: NONE     # no unspecified people, animals or props
+  text_overlay:       NONE
+  weather_effects:    NONE
+
 modes:
   BEDTIME_STORY:
+    visual_constraints: {ambient_effects: NONE, background_entities: NONE}
     coverage:                             # role -> preferred size, then acceptable ones
       ESTABLISH:  [MEDIUM_WIDE, WIDE]
       GROUP:      [MEDIUM_WIDE, MEDIUM]

@@ -23,6 +23,8 @@ from PIL import Image
 
 import config as C
 import camera
+import qc
+from compile_prompt import veo_constraint_clause
 from schema import shot_plan_schema
 from validate import validate, report
 
@@ -752,7 +754,8 @@ def stage_video(eid, only=None):
             print(f"  {shot['id']}: RE-RENDERING — {why}")
         # no audio direction: the audio spine is separate
         prompt = (f"ACTION: {shot['motion']}\nCAMERA: {shot['camera']}\n"
-                  f"STYLE: {BIBLE['style_lock']}")
+                  f"STYLE: {BIBLE['style_lock']}\n"
+                  f"{veo_constraint_clause(BIBLE, load_ep(eid)['mode'])}")
         print(f"  {shot['id']}: generating clip")
         res_idx = reserve("video", f"clip:{eid}/{shot['id']}",
                           C.INR_PER_VID_SEC * C.VIDEO_SECONDS)
@@ -775,7 +778,8 @@ def stage_video(eid, only=None):
             settle(res_idx, C.INR_PER_VID_SEC * C.VIDEO_SECONDS); settled = True
 
             prov_p.write_text(json.dumps(
-                {"status": "COMPLETE", "input_hash": chash, "sha": sha_file(dest),
+                {"status": "COMPLETE", "qc": "PENDING_QC",
+                 "input_hash": chash, "sha": sha_file(dest),
                  "model": C.VIDEO_MODEL, "res": C.VIDEO_RES, "secs": C.VIDEO_SECONDS,
                  "revision": build_revision()},
                 indent=2))
@@ -809,6 +813,11 @@ def stage_assemble(eid):
                                     secs=C.VIDEO_SECONDS)) if c.exists() else (False, "missing")
         if not ok:
             sys.exit(f"  refusing to assemble: {s['id']} clip is not provably current ({why})")
+        verdict = json.loads((d / "clips" / f"{s['id']}.provenance.json").read_text()
+                             ).get("qc", "PENDING_QC")
+        if verdict != "ACCEPTED":
+            sys.exit(f"  refusing to assemble: {s['id']} is {verdict}. QC failure is "
+                     f"terminal — it never triggers regeneration.")
         clips.append(c)
     if not clips: sys.exit(f"no clips in {d/'clips'}")
     final = d / "episode.mp4"
