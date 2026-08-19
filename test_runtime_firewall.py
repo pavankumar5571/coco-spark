@@ -1031,6 +1031,26 @@ def audio_properties():
     out.append(_ok("a pervasive-mote finding now REJECTS the clip",
                    v.status == "REJECTED_QC"))
 
+    # the deterministic renderers must be provably rigid — that is their whole advantage
+    import tempfile as _tf
+    tdir = Path(_tf.mkdtemp())
+    still = tdir / "s.png"
+    make.write_atomic(still, (Path("out/E01/frames/s01.png").read_bytes()
+                              if Path("out/E01/frames/s01.png").exists() else _valid_png()))
+    held = tdir / "hold.mp4"
+    if make.render_beat(still, held, 2.0, "HOLD", 320, 180, 24):
+        m = make.measure_camera_lock(str(held))
+        out.append(_ok("a HOLD beat does not move at all",
+                       m["dx"] == 0 and m["dy"] == 0))
+    panned = tdir / "pan.mp4"
+    if make.render_beat(still, panned, 2.0, "DRIFT_LEFT", 320, 180, 24):
+        m2 = make.measure_camera_lock(str(panned))
+        out.append(_ok("a programmed pan is a RIGID translation, not a deformation",
+                       m2["confident"] and not m2["still"]))
+    out.append(_ok("an unknown camera move is refused, not improvised",
+                   "SWOOP" not in (make.BIBLE.get("camera_moves") or {})))
+    shutil.rmtree(tdir, ignore_errors=True)
+
     # economics must be knowable BEFORE generation, and a plan that does not fit must say
     # so rather than discover it mid-render
     e = make.estimate_episode("E01")

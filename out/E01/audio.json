@@ -31,16 +31,16 @@
     "means": "independently generated per-clip audio is not a continuous bed"
   },
   "revision": {
-    "commit": "56afed9d6af734bdd1b2bb0d8356a51bb86cb8a7",
+    "commit": "f28ab462461c614ac35b8dfa05f148551ac9de47",
     "dirty": true,
     "tag": null,
     "sources": {
-      "make.py": "9a9b2755fadb9962",
-      "validate.py": "735d13f9b05466d2",
+      "make.py": "15cb82b07f5c2bae",
+      "validate.py": "2575ced36821ab6a",
       "camera.py": "9631f4435b8365cc",
-      "schema.py": "01e444c6c344289c",
+      "schema.py": "0ba81e3b7e46fe69",
       "config.py": "a71ba387b9f3a9f9",
-      "bible.yaml": "9e109ea05a2761b8"
+      "bible.yaml": "9065f801b00b168c"
     }
   }
 }

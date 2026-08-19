@@ -1604,6 +1604,21 @@ def measure_camera_lock(clip, search=12, step=2, grid=3, structure_only=False):
     shutil_rmtree(tmp)
     if not offsets:
         return None
+    # FIT A ZOOM before calling anything unstable. Tiles that disagree wildly are not
+    # necessarily a deforming world: under a slow push-in every tile moves AWAY from the
+    # centre, so the offsets are inconsistent as translations and perfectly consistent as
+    # one scale change. Fitting it is the difference between "the room is dissolving" and
+    # "the camera crept forward 2%", and only one of those is repairable.
+    centres = [((gx + 0.5) * tw - w / 2, (gy + 0.5) * th - h / 2)
+               for gy in range(grid) for gx in range(grid)]
+    centres = centres[:len(offsets)] if len(centres) >= len(offsets) else centres
+    num = sum(rx * dx + ry * dy for (rx, ry), (dx, dy) in zip(centres, offsets))
+    den = sum(rx * rx + ry * ry for rx, ry in centres)
+    c = num / den if den else 0.0
+    raw_err = sum(abs(dx) + abs(dy) for dx, dy in offsets) / len(offsets)
+    zoom_err = sum(abs(dx - c * rx) + abs(dy - c * ry)
+                   for (rx, ry), (dx, dy) in zip(centres, offsets)) / len(offsets)
+
     xs = sorted(o[0] for o in offsets); ys = sorted(o[1] for o in offsets)
     mx, my = xs[len(xs) // 2], ys[len(ys) // 2]
     # agreement WITHIN A TOLERANCE, not exact equality. Tiles land a pixel or two apart
@@ -1611,8 +1626,14 @@ def measure_camera_lock(clip, search=12, step=2, grid=3, structure_only=False):
     # would report disagreement on a camera move that every tile actually saw.
     agree = sum(1 for dx, dy in offsets
                 if abs(dx - mx) <= 2 and abs(dy - my) <= 2) / len(offsets)
+    # a zoom is only claimed when modelling it EXPLAINS most of the motion. Otherwise the
+    # honest answer stays "no single motion explains this".
+    explains = (raw_err - zoom_err) / raw_err if raw_err > 0.5 else 0.0
+    scale = round((1 - c) * 100, 2)          # >100 = pushed in, <100 = pulled back
     return {"dx": mx, "dy": my, "tiles": len(offsets), "grid_tiles": grid * grid,
             "structure_only": structure_only,
+            "zoom_percent": scale, "zoom_explains": round(explains, 2),
+            "is_zoom": explains >= 0.35 and abs(scale - 100) >= 0.5,
             "agreement": round(agree, 2),
             "per_tile": offsets,
             "still": (mx, my) == (0, 0),
@@ -1624,6 +1645,90 @@ def measure_camera_lock(clip, search=12, step=2, grid=3, structure_only=False):
 def shutil_rmtree(p):
     import shutil as _sh
     _sh.rmtree(p, ignore_errors=True)
+
+
+STABILIZER_VERSION = "1"
+
+
+def stabilized_identity(source_sha, zoom_percent):
+    return input_hash(source_clip_sha=source_sha, zoom_percent=zoom_percent,
+                      stabilizer=STABILIZER_VERSION)
+
+
+def stage_stabilize(eid):
+    """Remove the camera move nobody asked for. Rs 0, deterministic, reversible.
+
+    Veo adds a slow push-in to shots specified as locked cameras — measured at 2.2% on
+    E01/s01 and 2.9% on s04 over four seconds. It is RIGID, which is the whole point: a
+    rigid motion can be undone by an equal and opposite one, and the picture underneath is
+    the picture we paid for.
+
+    The paid clip is NEVER touched. A stabilised copy is written alongside it with
+    provenance naming the source and the correction, exactly like the closing hold. Accepted
+    inventory stays byte-identical; what changes is which file the master is cut from.
+    """
+    d = ep_dir(eid)
+    shots = json.loads((d / "shots.json").read_text())
+    out_dir = d / "stabilized"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for s in shots:
+        c = d / "clips" / f"{s['id']}.mp4"
+        if not c.exists() or clip_verdict(d, s["id"]) != "ACCEPTED":
+            continue
+        m = measure_camera_lock(c)
+        if not m or not m.get("is_zoom"):
+            print(f"  {s['id']}: no unrequested zoom to remove")
+            continue
+        k = m["zoom_percent"] / 100.0 - 1.0
+        secs = media_duration(c)
+        w, h, fps = video_geometry(c)
+        n = max(2, int(round(secs * fps)))
+        dest = out_dir / f"{s['id']}.mp4"
+        prov = out_dir / f"{s['id']}.provenance.json"
+        ident = stabilized_identity(sha_file(c), m["zoom_percent"])
+        ok, _why = usable(dest, prov, ident)
+        if ok:
+            print(f"  {s['id']}: already stabilised and current")
+            continue
+        # start zoomed in by exactly the drift and ease back to 1.0, so the two motions
+        # cancel and the delivered frame is the same size it always was
+        z = f"(1+{k})/(1+{k}*on/{n - 1})"
+        vf = (f"zoompan=z='{z}':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+              f"s={w}x{h}:fps={fps}")
+        rc = os.system(f'ffmpeg -nostdin -y -i "{c}" -vf "{vf}" -c:v libx264 -crf 20 '
+                       f'-preset medium -pix_fmt yuv420p -an "{dest}" 2>/dev/null')
+        if rc != 0 or not dest.exists():
+            print(f"  {s['id']}: ffmpeg could not stabilise")
+            continue
+        after = measure_camera_lock(dest)
+        prov.write_text(json.dumps(
+            {"status": "COMPLETE", "kind": "STABILIZED_CLIP", "episode": eid,
+             "shot": s["id"], "origin": "DERIVED_FROM_ACCEPTED_CLIP",
+             "source_clip_sha": sha_file(c), "removed_zoom_percent": m["zoom_percent"],
+             "before": {"zoom_percent": m["zoom_percent"], "agreement": m["agreement"]},
+             "after": {"zoom_percent": after["zoom_percent"],
+                       "agreement": after["agreement"]},
+             "input_hash": ident, "sha": sha_file(dest), "cost_inr": 0,
+             "stabilizer": STABILIZER_VERSION, "revision": build_revision()}, indent=2))
+        print(f"  {s['id']}: removed a {m['zoom_percent'] - 100:+.1f}% push-in — "
+              f"tile agreement {m['agreement']:.2f} -> {after['agreement']:.2f}")
+
+
+def provable_stabilized(eid, sid):
+    """The stabilised copy of a clip, only if it provably came from the CURRENT paid one."""
+    d = ep_dir(eid)
+    dest = d / "stabilized" / f"{sid}.mp4"
+    prov = d / "stabilized" / f"{sid}.provenance.json"
+    src = d / "clips" / f"{sid}.mp4"
+    if not (dest.exists() and prov.exists() and src.exists()):
+        return None
+    try:
+        pv = json.loads(prov.read_text())
+    except Exception:
+        return None
+    ok, _why = usable(dest, prov,
+                      stabilized_identity(sha_file(src), pv.get("removed_zoom_percent")))
+    return dest if ok else None
 
 
 def stage_lock(eid):
@@ -1643,7 +1748,11 @@ def stage_lock(eid):
         if not m:
             print(f"  {s['id']}: could not measure")
             continue
-        if not m["confident"]:
+        if m.get("is_zoom"):
+            direction = "PUSHED IN" if m["zoom_percent"] > 100 else "PULLED BACK"
+            verdict = (f"{direction} {abs(m['zoom_percent'] - 100):.1f}% "
+                       f"({int(m['zoom_explains'] * 100)}% of the motion is that zoom)")
+        elif not m["confident"]:
             # tiles disagreeing means NO single translation explains the frame. That is
             # not a camera drift and must not be reported as one — it is an unstable
             # picture, and saying which kind it is needs eyes, not arithmetic.
@@ -1948,6 +2057,70 @@ def video_geometry(path):
         return int(w), int(h), round(int(num) / int(den or 1), 3)
     except ValueError:
         sys.exit(f"  could not read geometry from {path}")
+
+
+BEAT_RENDERER_VERSION = "1"
+
+
+def beat_identity(source_sha, seconds, move, w, h, fps, fade_out):
+    """Identity of a deterministically rendered beat. ALLOW-LIST of causal inputs."""
+    return input_hash(source_frame_sha=source_sha, seconds=round(float(seconds), 3),
+                      move=move, w=w, h=h, fps=fps, fade_out=round(float(fade_out), 3),
+                      renderer=BEAT_RENDERER_VERSION)
+
+
+def render_beat(still, dest, seconds, move="HOLD", w=None, h=None, fps=24,
+                fade_out=0.0):
+    """Render a beat from ONE still, offline. Rs 0, and the room provably cannot move.
+
+    This is the whole point of the hybrid grammar: a beat whose only visual change is the
+    camera — or nothing at all — has no business being generated. Nothing is regenerating
+    the room here, so the instability we measured in E01/s01 and s04 cannot occur. It is
+    not a cheaper way to make the same thing; for these beats it is a BETTER way.
+
+    HOLD is not a degenerate case of a move. It is the correct rendering of a beat where
+    nothing changes, and it is the one thing a generative model cannot be asked for — a
+    request to hold still is a request that has failed on this provider every time.
+    """
+    spec = (BIBLE.get("camera_moves") or {}).get(move)
+    if spec is None:
+        sys.exit(f"  '{move}' is not a camera move in the bible")
+    from PIL import Image
+    src_w, src_h = Image.open(still).size
+    w, h = w or src_w, h or src_h
+    seconds = round(float(seconds), 3)
+    frames = max(2, int(round(seconds * fps)))
+    kind, amount = spec.get("kind", "NONE"), float(spec.get("amount", 0.0))
+
+    if kind == "ZOOM" and amount:
+        # a pull-back starts wide and ends tight-free: begin zoomed IN and ease out, so the
+        # frame never has to invent pixels outside the still
+        start = 1.0 + max(0.0, -amount) / 100.0
+        end = 1.0 + max(0.0, amount) / 100.0
+        z = f"{start}+({end}-{start})*on/{frames - 1}"
+        vf = (f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+              f"d={frames}:s={w}x{h}:fps={fps}")
+    elif kind in ("PAN_X", "PAN_Y") and amount:
+        # a pan needs somewhere to pan TO, so hold a small zoom throughout and move the
+        # window inside it. Panning a 1:1 image would slide black in from the edge.
+        pad = 1.0 + abs(amount) / 100.0 + 0.02
+        travel = amount / 100.0
+        if kind == "PAN_X":
+            x = f"(iw/zoom-iw/zoom/{pad})/2+({travel})*iw/zoom*on/{frames - 1}"
+            y = "ih/2-(ih/zoom/2)"
+        else:
+            x = "iw/2-(iw/zoom/2)"
+            y = f"(ih/zoom-ih/zoom/{pad})/2+({travel})*ih/zoom*on/{frames - 1}"
+        vf = (f"zoompan=z='{pad}':x='{x}':y='{y}':d={frames}:s={w}x{h}:fps={fps}")
+    else:
+        vf = f"scale={w}:{h},loop=loop={frames}:size=1:start=0,fps={fps}"
+
+    if fade_out and fade_out > 0:
+        vf += f",fade=t=out:st={max(0.0, seconds - fade_out)}:d={fade_out}"
+    rc = os.system(f'ffmpeg -nostdin -y -loop 1 -i "{still}" -vf "{vf}" -t {seconds} '
+                   f'-c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -an '
+                   f'-r {fps} "{dest}" 2>/dev/null')
+    return rc == 0 and Path(dest).exists()
 
 
 def ending_identity(source_sha, w, h, fps):
@@ -2323,6 +2496,12 @@ def stage_assemble(eid):
         if not ok:
             stopped = f"{s['id']} clip is not provably current ({why})"; break
         verdict = clip_verdict(d, s["id"])
+        if verdict == "ACCEPTED":
+            # a stabilised copy, when one provably came from this exact paid clip. The
+            # paid file is untouched; only the file the master is cut from changes.
+            fixed = provable_stabilized(eid, s["id"])
+            if fixed:
+                c = fixed
         if verdict != "ACCEPTED":
             stopped = (f"{s['id']} is {verdict}. QC failure is terminal — it never "
                        f"triggers regeneration.")
@@ -2510,7 +2689,7 @@ def stage_costs(episode=None):
 STAGES = {"verify": stage_verify, "plan": stage_plan, "portraits": stage_portraits, "frames": stage_frames,
           "video": stage_video, "assemble": stage_assemble, "episode": stage_episode,
           "costs": stage_costs, "audio": stage_audio, "bed": stage_bed,
-          "ending": stage_ending, "estimate": stage_estimate, "release": stage_release, "contact": stage_contact, "lock": stage_lock,
+          "ending": stage_ending, "estimate": stage_estimate, "release": stage_release, "contact": stage_contact, "lock": stage_lock, "stabilize": stage_stabilize,
           # dispatched explicitly below: these take a LOCATION id, not an episode id
           "plate-candidate": None, "plate-approve": None}
 

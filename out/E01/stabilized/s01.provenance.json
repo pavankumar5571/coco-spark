@@ -1,0 +1,34 @@
+{
+  "status": "COMPLETE",
+  "kind": "STABILIZED_CLIP",
+  "episode": "E01",
+  "shot": "s01",
+  "origin": "DERIVED_FROM_ACCEPTED_CLIP",
+  "source_clip_sha": "eb62f011d755fdf8",
+  "removed_zoom_percent": 102.22,
+  "before": {
+    "zoom_percent": 102.22,
+    "agreement": 0.11
+  },
+  "after": {
+    "zoom_percent": 100.5,
+    "agreement": 0.67
+  },
+  "input_hash": "92ec41bbca08cb10",
+  "sha": "200e7b36f7e8daa8",
+  "cost_inr": 0,
+  "stabilizer": "1",
+  "revision": {
+    "commit": "f28ab462461c614ac35b8dfa05f148551ac9de47",
+    "dirty": true,
+    "tag": null,
+    "sources": {
+      "make.py": "15cb82b07f5c2bae",
+      "validate.py": "2575ced36821ab6a",
+      "camera.py": "9631f4435b8365cc",
+      "schema.py": "0ba81e3b7e46fe69",
+      "config.py": "a71ba387b9f3a9f9",
+      "bible.yaml": "9065f801b00b168c"
+    }
+  }
+}

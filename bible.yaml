@@ -303,3 +303,17 @@ renderers:
       environmental rigidity is NOT among the things this renderer has demonstrated. The
       two widest generated clips in the archive are the two unstable ones. Prefer a
       deterministic renderer for beats whose content is the WORLD rather than a character.
+
+# DETERMINISTIC CAMERA MOVES for beats that no generator needs to touch. Offline ffmpeg
+# arithmetic over an accepted still: free, repeatable, and — unlike a generated clip — the
+# room provably cannot reshape itself, because nothing is regenerating it.
+#
+# Written as intent plus magnitude, so a mode can be gentle and a different mode brisk
+# without a second implementation.
+camera_moves:
+  HOLD:        {kind: NONE,  amount: 0.0,  says: the image is held, perfectly still}
+  PUSH_IN:     {kind: ZOOM,  amount: 6.0,  says: the camera moves slowly toward the subject}
+  PULL_BACK:   {kind: ZOOM,  amount: -6.0, says: the camera eases slowly away}
+  DRIFT_LEFT:  {kind: PAN_X, amount: -4.0, says: the frame drifts gently to the left}
+  DRIFT_RIGHT: {kind: PAN_X, amount: 4.0,  says: the frame drifts gently to the right}
+  RISE:        {kind: PAN_Y, amount: -3.0, says: the frame lifts gently upward}
