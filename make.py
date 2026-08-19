@@ -1561,6 +1561,16 @@ def measure_camera_lock(clip, search=12, step=2, grid=3):
             if inner[2] <= inner[0] or inner[3] <= inner[1]:
                 continue
             ref = a.crop(inner)
+            # A FEATURELESS tile — a flat wooden wall — has no alignment signal at all:
+            # every offset fits equally, it votes 0,0 by default, and it would make a
+            # close-up on a plain wall look like the steadiest shot we ever made. Only
+            # textured tiles get a vote.
+            hist = ref.histogram()
+            total = sum(hist) or 1
+            mean = sum(i * c for i, c in enumerate(hist)) / total
+            var = sum(c * (i - mean) ** 2 for i, c in enumerate(hist)) / total
+            if var < 120:
+                continue
             best = None
             for dy in range(-search, search + 1, step):
                 for dx in range(-search, search + 1, step):
@@ -1578,7 +1588,8 @@ def measure_camera_lock(clip, search=12, step=2, grid=3):
     # would report disagreement on a camera move that every tile actually saw.
     agree = sum(1 for dx, dy in offsets
                 if abs(dx - mx) <= 2 and abs(dy - my) <= 2) / len(offsets)
-    return {"dx": mx, "dy": my, "tiles": len(offsets), "agreement": round(agree, 2),
+    return {"dx": mx, "dy": my, "tiles": len(offsets), "grid_tiles": grid * grid,
+            "agreement": round(agree, 2),
             "per_tile": offsets,
             "still": (mx, my) == (0, 0),
             # a shift most tiles agree on is the CAMERA; one or two tiles disagreeing is
@@ -1620,7 +1631,8 @@ def stage_lock(eid):
         flag = ("" if (m["confident"] and m["still"]) or not wanted
                 else "   <- asked for a LOCKED camera")
         print(f"  {s['id']}: {verdict}  ({int(m['agreement'] * 100)}% of "
-              f"{m['tiles']} tiles agree){flag}")
+              f"{m['tiles']} textured tiles agree, "
+              f"{m['grid_tiles'] - m['tiles']} too flat to vote){flag}")
 
 
 CONTACT_SHEET_VERSION = "1"

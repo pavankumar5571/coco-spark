@@ -1,0 +1,291 @@
+{
+  "kind": "CAMERA_LOCK_SWEEP",
+  "n": 6,
+  "question": "are clips whose first frame was INHERITED steadier than clips generated from scratch?",
+  "answer": "NOT SUPPORTED at this n. One inherited clip (E01/s03, STABLE) against five generated (2 STABLE, 3 UNSTABLE) cannot separate the hypothesis from chance.",
+  "measured_on": "2026-08-19",
+  "rows": [
+    {
+      "clip": "E01/s01",
+      "first_frame": "GENERATED",
+      "dx": 6,
+      "dy": 0,
+      "agreement": 0.11,
+      "textured_tiles": 9,
+      "state": "UNSTABLE",
+      "per_tile": [
+        [
+          10,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          -10,
+          6
+        ],
+        [
+          12,
+          0
+        ],
+        [
+          6,
+          0
+        ],
+        [
+          -6,
+          -2
+        ],
+        [
+          12,
+          -4
+        ],
+        [
+          0,
+          -6
+        ],
+        [
+          -2,
+          -12
+        ]
+      ]
+    },
+    {
+      "clip": "E01/s02",
+      "first_frame": "GENERATED",
+      "dx": 0,
+      "dy": 0,
+      "agreement": 0.56,
+      "textured_tiles": 9,
+      "state": "STABLE",
+      "per_tile": [
+        [
+          0,
+          0
+        ],
+        [
+          6,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          -12,
+          -12
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          -2,
+          12
+        ],
+        [
+          6,
+          2
+        ]
+      ]
+    },
+    {
+      "clip": "E01/s03",
+      "first_frame": "GENERATED",
+      "dx": 0,
+      "dy": 0,
+      "agreement": 0.67,
+      "textured_tiles": 9,
+      "state": "STABLE",
+      "per_tile": [
+        [
+          0,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          0,
+          12
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          4
+        ],
+        [
+          0,
+          12
+        ]
+      ]
+    },
+    {
+      "clip": "E01/s04",
+      "first_frame": "GENERATED",
+      "dx": 2,
+      "dy": 0,
+      "agreement": 0.11,
+      "textured_tiles": 9,
+      "state": "UNSTABLE",
+      "per_tile": [
+        [
+          12,
+          8
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          -12,
+          6
+        ],
+        [
+          12,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          -10,
+          0
+        ],
+        [
+          12,
+          -6
+        ],
+        [
+          -6,
+          -10
+        ],
+        [
+          -12,
+          -10
+        ]
+      ]
+    },
+    {
+      "clip": "P01/s01",
+      "first_frame": "GENERATED",
+      "dx": 0,
+      "dy": 0,
+      "agreement": 1.0,
+      "textured_tiles": 9,
+      "state": "STABLE",
+      "per_tile": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "clip": "P01B/s01",
+      "first_frame": "GENERATED",
+      "dx": 2,
+      "dy": -2,
+      "agreement": 0.0,
+      "textured_tiles": 9,
+      "state": "UNSTABLE",
+      "per_tile": [
+        [
+          12,
+          10
+        ],
+        [
+          -4,
+          8
+        ],
+        [
+          -2,
+          8
+        ],
+        [
+          12,
+          -2
+        ],
+        [
+          6,
+          -2
+        ],
+        [
+          -12,
+          -4
+        ],
+        [
+          12,
+          -10
+        ],
+        [
+          2,
+          -8
+        ],
+        [
+          -12,
+          -12
+        ]
+      ]
+    }
+  ]
+}
