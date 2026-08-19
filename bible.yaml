@@ -27,6 +27,8 @@ cast:
 locations:
   cottage_night:
     name: Coco's Cottage (night)
+    version: 1            # bump DELIBERATELY on a material redesign;
+                          # canon belongs to (location_id, version)
     description: >-
       A cosy one-room cottage interior at night: honey-coloured wooden walls, a round
       window showing a deep blue starry sky, a small bed with a patchwork quilt, a small
@@ -37,6 +39,8 @@ locations:
       chair beside the bed on its LEFT, woven rug centre floor. Never mirror or flip.
   meadow_day:
     name: Spark Meadow
+    version: 1            # bump DELIBERATELY on a material redesign;
+                          # canon belongs to (location_id, version)
     description: >-
       An open sunny meadow, short bright green grass, scattered white daisies, one large
       round-topped oak tree on the right, a low wooden fence at the back, rolling hills

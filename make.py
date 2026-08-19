@@ -532,14 +532,32 @@ def shot_location(shot):
     return ((shot.get("start_state") or {}).get("location_id")) or None
 
 
-def location_plate_paths(location_id):
-    """V1 has ONE immutable canonical visual authority per location.
+def location_version(location_id):
+    """Which VERSION of a place this is. Canon belongs to (location_id, version).
 
-    Never overwrite a plate: a future visual redesign must become a NEW VERSION rather
-    than silently changing what already-published episodes meant.
+    Recorded now, deliberately ahead of the machinery that will use it, because
+    provenance is immutable: a plate written today without a version can never gain one,
+    and the first real redesign would then have no way to say which world an old episode
+    was filmed in. Version SELECTION is not built — there is exactly one version of
+    everything — and will not be until a second version actually exists.
+
+    Explicit, never derived from prose. Changing punctuation must not create a new world.
+    """
+    return (BIBLE["locations"].get(location_id) or {}).get("version", 1)
+
+
+def location_plate_paths(location_id):
+    """Where a location's canonical plate lives. PURE — creates nothing.
+
+    This used to mkdir as a side effect, so merely ASKING whether a plate existed created
+    a directory for it, including for locations that do not exist. An accessor that
+    mutates the filesystem makes "does this exist?" unanswerable, because asking creates
+    the answer. Directories are created at write time only.
+
+    One immutable canonical plate per location: a visual redesign must become a NEW
+    VERSION rather than silently changing what already-published episodes meant.
     """
     base = LOCATION_PLATES / location_id
-    base.mkdir(parents=True, exist_ok=True)
     return base / "canonical.png", base / "canonical.provenance.json"
 
 
@@ -568,6 +586,11 @@ def prove_location_plate(location_id):
                        f"not '{location_id}'"), plate, pv
     if pv.get("canonical") is not True:
         return False, "plate is not marked canonical", plate, pv
+    want_v = location_version(location_id)
+    got_v = pv.get("location_version")
+    if got_v is not None and got_v != want_v:
+        return False, (f"plate is for {location_id} v{got_v}, the bible now declares "
+                       f"v{want_v}"), plate, pv
     if pv.get("sha") != sha_file(plate):
         return False, "location plate checksum mismatch", plate, pv
     return True, "valid", plate, pv
@@ -642,10 +665,12 @@ def promote_location_plate(eid, shot_id):
         sys.exit(f"  {location_id}: canonical plate already exists with DIFFERENT pixels. "
                  f"Canon is immutable; create an explicit new version instead.")
 
+    dest.parent.mkdir(parents=True, exist_ok=True)     # creation belongs to the writer
     write_atomic(dest, frame.read_bytes())
     payload = {
         "status": "COMPLETE", "kind": "LOCATION_PLATE", "canonical": True,
         "location_id": location_id,
+        "location_version": location_version(location_id),
         "source": "CANONICALIZED_FROM_ACCEPTED_FRAME",
         "source_episode": eid, "source_shot": shot_id,
         "source_frame_sha": source_sha,

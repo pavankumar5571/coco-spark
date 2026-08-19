@@ -28,5 +28,7 @@
     }
   },
   "canonicalized_at": "2026-08-19 09:35:52",
-  "cost_inr": 0
+  "cost_inr": 0,
+  "location_version": 1,
+  "version_note": "stamped after the fact; this plate was created before the field existed"
 }

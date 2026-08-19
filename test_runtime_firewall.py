@@ -144,6 +144,7 @@ def seed_episode(tmp, make, valid_frame=True, valid_clip=False):
     lid = make.shot_location(shots[0])
     if lid:
         plate, pprov = make.location_plate_paths(lid)
+        plate.parent.mkdir(parents=True, exist_ok=True)   # the writer creates the dir
         make.write_atomic(plate, _valid_png())
         pprov.write_text(json.dumps(
             {"status": "COMPLETE", "kind": "LOCATION_PLATE", "canonical": True,
@@ -799,6 +800,15 @@ def plate_properties():
     prov.write_text(_j.dumps(pv2))
     ok, _why, *_ = make.prove_location_plate(loc_id)
     out.append(_ok("a plate from another location is rejected", not ok))
+    prov.write_text(_j.dumps(pv))
+
+    # canon belongs to (location_id, version), so a plate from another version is not
+    # authority for this one — recorded now, ahead of the machinery that will select
+    # versions, because provenance cannot be retrofitted
+    pv3 = _j.loads(prov.read_text()); pv3["location_version"] = 99
+    prov.write_text(_j.dumps(pv3))
+    ok, _why, *_ = make.prove_location_plate(loc_id)
+    out.append(_ok("a plate from another location VERSION is rejected", not ok))
     prov.write_text(_j.dumps(pv))
 
     # canon is immutable: same pixels idempotent, different pixels refused
