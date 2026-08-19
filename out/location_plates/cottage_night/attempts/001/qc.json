@@ -1,0 +1,37 @@
+{
+  "kind": "LOCATION_PLATE_QC",
+  "location_id": "cottage_night",
+  "attempt": 1,
+  "plate_sha": "a77ca1934c978b93",
+  "judged_by": "HUMAN",
+  "status": "REJECTED_QC",
+  "probes": {
+    "LOCATION_IDENTITY": "PASS",
+    "WORLD_GEOGRAPHY": "PASS",
+    "TEXT_HALLUCINATION": "PASS",
+    "TECHNICAL_VALIDITY": "PASS",
+    "PERSISTENT_OBJECTS": "FAIL",
+    "UNREQUESTED_ENTITIES": "FAIL",
+    "STYLE_CONFORMANCE": "FAIL"
+  },
+  "findings": [
+    {
+      "probe": "PERSISTENT_OBJECTS",
+      "severity": "BLOCKING",
+      "detail": "the bookshelf is STILL cropped by the left frame edge \u2014 the single defect this candidate was bought to fix. The prompt said verbatim 'Every object named above must be COMPLETELY visible within the frame' and 'Nothing may touch or extend beyond the frame edges'. Ignored."
+    },
+    {
+      "probe": "UNREQUESTED_ENTITIES",
+      "severity": "BLOCKING",
+      "detail": "added objects the bible does not list: curtains on the window, and a bedside table with a drawer. cottage_night names walls, round window, bed with patchwork quilt, small wooden chair, woven rug, low bookshelf and warm low lamp light. No characters, so the character defect IS fixed."
+    },
+    {
+      "probe": "STYLE_CONFORMANCE",
+      "severity": "BLOCKING",
+      "detail": "it contradicts canon the audience has already seen. In the ACCEPTED and assembled s01-s03 the rug is RECTANGULAR with fringe; here it is ROUND and braided. The chair is a simple stool-back there and a rustic slat-back here. Adopting this as authority would put every future frame in conflict with the twelve seconds we have already published-quality accepted."
+    }
+  ],
+  "root_cause": "A plate generated from PROSE reproduces the original defect. Prose pins arrangement and cannot pin form \u2014 that is exactly what s04 proved. This candidate obeyed the geography perfectly and invented the form, because form was never in the text to obey.",
+  "consequence_for_design": "For a location that ALREADY has accepted footage, the plate must be CONDITIONED ON that footage rather than re-imagined from text. Otherwise the plate and the published episodes disagree, and the plate wins for every future frame. The correct next attempt uses s01's accepted frame as an image reference \u2014 same room, same forms, character removed, camera pulled back far enough that nothing is cropped.",
+  "supersedes_reason": null
+}

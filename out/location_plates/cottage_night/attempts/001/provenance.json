@@ -1,0 +1,29 @@
+{
+  "status": "COMPLETE",
+  "kind": "LOCATION_PLATE_CANDIDATE",
+  "canonical": false,
+  "location_id": "cottage_night",
+  "location_version": 1,
+  "attempt": 1,
+  "source": "GENERATED_LOCATION_PLATE",
+  "image_prompt": "Bright 3D preschool animation, soft rounded shapes, warm saturated colours, gentle even lighting, simple friendly character design.\n\nA single wide establishing view of an EMPTY room, photographed straight on with nothing cropped.\n\nWORLD: A cosy one-room cottage interior at night: honey-coloured wooden walls, a round window showing a deep blue starry sky, a small bed with a patchwork quilt, a small wooden chair beside the bed, a woven rug, a low bookshelf. Warm low lamp light.\n\nWORLD GEOGRAPHY: FIXED LAYOUT: round window on the LEFT wall, low bookshelf FAR LEFT, bed against the RIGHT wall with its head-end toward the BACK-RIGHT, wooden chair beside the bed on its LEFT, woven rug centre floor. Never mirror or flip.\n\nEvery object named above must be COMPLETELY visible within the frame, including its full shape and design. Nothing may touch or extend beyond the frame edges. No people, no animals, no characters of any kind. No text or lettering. This image defines what this place looks like.",
+  "image_prompt_sha": "10b7b6772d68ace0",
+  "sha": "a77ca1934c978b93",
+  "model": "gemini-3.1-flash-image",
+  "aspect": "16:9",
+  "compiler": "1",
+  "revision": {
+    "commit": "748d948b4990f5a737960f21f9efa236cb3f9e89",
+    "dirty": false,
+    "tag": null,
+    "sources": {
+      "make.py": "f478fb23003a0a74",
+      "validate.py": "735d13f9b05466d2",
+      "camera.py": "9631f4435b8365cc",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "186311fe0be2b96b",
+      "bible.yaml": "7d123ffed6bdc46d"
+    }
+  },
+  "cost_inr": 5.0
+}

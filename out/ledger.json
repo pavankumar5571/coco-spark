@@ -1,5 +1,5 @@
 {
-  "spent_inr": 470.52164039999997,
+  "spent_inr": 475.52164039999997,
   "ops": [
     {
       "kind": "image",
@@ -402,6 +402,15 @@
       "state": "SPENT",
       "at": "2026-08-19 09:02:25",
       "episode": "E01"
+    },
+    {
+      "kind": "image",
+      "detail": "plate:cottage_night/001",
+      "inr": 5.0,
+      "reserved": 7.5,
+      "state": "SPENT",
+      "at": "2026-08-19 10:22:16",
+      "episode": "cottage_night"
     }
   ],
   "reconciliations": [
