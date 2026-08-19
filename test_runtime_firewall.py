@@ -128,13 +128,11 @@ def seed_episode(tmp, make, valid_frame=True, valid_clip=False):
     loc = bible["locations"][(ep.get("locations") or [ep["location"]])[0]]
     f = d / "frames" / "s01.png"
     make.write_atomic(f, _valid_png())
-    # the frame identity now includes the ORDERED reference identities, so the fixture
-    # must build it the same way the pipeline does or it is stale by construction
+    # Call the REAL identity function. Duplicating the formula here is the same mistake
+    # that silently broke preflight: two copies drift the moment the real one changes.
     ref_ids = [("identity", k, make.sha_file(make.PORTRAITS / f"{k}.png"))
                for k in shots[0]["cast"]]
-    ih = make.input_hash(shot=shots[0], bible=bible, model=config.IMAGE_MODEL,
-                         aspect=config.IMAGE_ASPECT, loc=loc, refs=ref_ids,
-                         compiler=config.FRAME_COMPILER_VERSION)
+    ih = make.frame_identity(shots[0], bible, loc, ref_ids)
     (d / "frames" / "s01.provenance.json").write_text(json.dumps(
         {"status": "COMPLETE", "sha": make.sha_file(f),
          "input_hash": ih if valid_frame else "0" * 16}))
