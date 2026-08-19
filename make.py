@@ -1522,7 +1522,7 @@ def _mean_abs_diff(a, b):
     return sum(i * c for i, c in enumerate(h)) / max(1, sum(h))
 
 
-def measure_camera_lock(clip, search=12, step=2, grid=3):
+def measure_camera_lock(clip, search=12, step=2, grid=3, structure_only=False):
     """How far the WORLD moved between a clip's first and last frame. Free, deterministic.
 
     Whole-frame alignment does not work, and finding that out cost nothing: the subject
@@ -1547,9 +1547,19 @@ def measure_camera_lock(clip, search=12, step=2, grid=3):
     if not (f0.exists() and f1.exists()):
         shutil_rmtree(tmp)
         return None
-    from PIL import Image, ImageChops
+    from PIL import Image, ImageChops, ImageFilter
     A = Image.open(f0).convert("L")
     B = Image.open(f1).convert("L")
+    if structure_only:
+        # STRUCTURE, not sparkle. The particles we just proved pervasive are small, bright
+        # and moving — exactly the signal a translation search locks onto. Blur them away
+        # and what is left is walls, window, bed and floor. If a shot is still unstable
+        # after this, the WORLD is moving, which is a far more serious finding than motes.
+        A = A.filter(ImageFilter.GaussianBlur(3)).resize(
+            (A.width // 2, A.height // 2), Image.LANCZOS)
+        B = B.filter(ImageFilter.GaussianBlur(3)).resize(
+            (B.width // 2, B.height // 2), Image.LANCZOS)
+        search = max(4, search // 2)
     w, h = A.size
     tw, th = w // grid, h // grid
     offsets = []
@@ -1589,6 +1599,7 @@ def measure_camera_lock(clip, search=12, step=2, grid=3):
     agree = sum(1 for dx, dy in offsets
                 if abs(dx - mx) <= 2 and abs(dy - my) <= 2) / len(offsets)
     return {"dx": mx, "dy": my, "tiles": len(offsets), "grid_tiles": grid * grid,
+            "structure_only": structure_only,
             "agreement": round(agree, 2),
             "per_tile": offsets,
             "still": (mx, my) == (0, 0),
