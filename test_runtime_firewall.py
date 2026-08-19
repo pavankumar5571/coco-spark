@@ -84,6 +84,82 @@ def run(name, budget, setup=None, expect_calls=0):
     return ok
 
 
+# ── frame / video / assembly paths ───────────────────────────────────────────
+def _shots():
+    import copy
+    s = {
+        "id": "s01", "cast": ["coco"], "coverage_role": "SUBJECT",
+        "frame": "f", "motion": "m", "camera": "static",
+        "boundary": {"type": "CONTINUOUS"}, "events": [],
+        "start_state": {
+            "location_id": "cottage_night", "population": ["coco"],
+            "characters": {"coco": {"awareness": "AWAKE", "posture": "SITTING_UP",
+                                    "zone": "BED"}},
+            "props": {},
+            "visual": {"camera_setup_id": "A", "shot_size": "MEDIUM",
+                       "camera_angle": "EYE_LEVEL"}},
+    }
+    s["end_state"] = copy.deepcopy(s["start_state"])
+    return [s]
+
+
+def seed_episode(tmp, make, valid_frame=True, valid_clip=False):
+    """Build a working episode dir: shots.json, portrait, frame (+ optional clip)."""
+    import config, yaml
+    d = tmp / "E01"
+    for sub in ("frames", "clips", "transitions"):
+        (d / sub).mkdir(parents=True, exist_ok=True)
+    shots = _shots()
+    (d / "shots.json").write_text(json.dumps(shots))
+
+    bible = make.BIBLE
+    for key, c in bible["cast"].items():
+        dest = make.PORTRAITS / f"{key}.png"
+        make.write_atomic(dest, _valid_png())
+        (make.PORTRAITS / f"{key}.provenance.json").write_text(json.dumps(
+            {"status": "COMPLETE", "sha": make.sha_file(dest),
+             "input_hash": make.input_hash(character=c, style=bible["style_lock"],
+                 model=config.IMAGE_MODEL, aspect=config.IMAGE_ASPECT)}))
+
+    ep = make.load_ep("E01")
+    loc = bible["locations"][(ep.get("locations") or [ep["location"]])[0]]
+    f = d / "frames" / "s01.png"
+    make.write_atomic(f, _valid_png())
+    ih = make.input_hash(shot=shots[0], bible=bible, model=config.IMAGE_MODEL,
+                         aspect=config.IMAGE_ASPECT, loc=loc)
+    (d / "frames" / "s01.provenance.json").write_text(json.dumps(
+        {"status": "COMPLETE", "sha": make.sha_file(f),
+         "input_hash": ih if valid_frame else "0" * 16}))
+
+    if valid_clip:
+        c = d / "clips" / "s01.mp4"
+        make.write_atomic(c, b"FAKEMP4" * 32)
+        (d / "clips" / "s01.provenance.json").write_text(json.dumps(
+            {"status": "COMPLETE", "sha": make.sha_file(c),
+             "input_hash": make.input_hash(shot=shots[0], frame_sha=make.sha_file(f),
+                 model=config.VIDEO_MODEL, res=config.VIDEO_RES,
+                 secs=config.VIDEO_SECONDS)}))
+    return d
+
+
+def run_stage(name, stage, budget, setup, expect_calls=0):
+    tmp, make = fresh_env(budget)
+    shutil.copytree(ROOT / "episodes", tmp.parent / "eps", dirs_exist_ok=True)
+    fake = FakeClient()
+    make.client = lambda: fake
+    try:
+        setup(tmp, make)
+        getattr(make, stage)("E01")
+    except SystemExit:
+        pass
+    except Exception:
+        pass
+    ok = fake.calls == expect_calls
+    print(f"  {'PASS' if ok else 'FAIL'}  {name:52s} calls={fake.calls} (want {expect_calls})")
+    shutil.rmtree(tmp, ignore_errors=True)
+    return ok
+
+
 def main():
     results = []
 
@@ -145,6 +221,49 @@ def main():
             pv.write_text(json.dumps(d))
     results.append(run("PARTIAL status -> regenerate all", budget=10_000,
                        setup=partial, expect_calls=n_cast))
+
+    # ── frame path ──────────────────────────────────────────────────────────
+    results.append(run_stage("stale frame hash -> no video call", "stage_video", 10_000,
+        lambda tmp, mk: seed_episode(tmp, mk, valid_frame=False), 0))
+
+    def bad_checksum(tmp, mk):
+        d = seed_episode(tmp, mk)
+        (d / "frames" / "s01.png").write_bytes(_valid_png() + b"\x00")
+    results.append(run_stage("altered frame checksum -> no video call", "stage_video",
+        10_000, bad_checksum, 0))
+
+    def no_frame_prov(tmp, mk):
+        d = seed_episode(tmp, mk)
+        (d / "frames" / "s01.provenance.json").unlink()
+    results.append(run_stage("missing frame provenance -> no video call", "stage_video",
+        10_000, no_frame_prov, 0))
+
+    results.append(run_stage("budget below video reservation -> no video call",
+        "stage_video", 1.0, lambda tmp, mk: seed_episode(tmp, mk), 0))
+
+    # CONTROL. Without this every "0 calls" result above could be passing vacuously —
+    # a stage that exits early for an unrelated reason also makes zero calls.
+    results.append(run_stage("CONTROL valid frame + funded -> exactly one video call",
+        "stage_video", 10_000, lambda tmp, mk: seed_episode(tmp, mk), 1))
+
+    results.append(run_stage("CONTROL valid clip cached -> no duplicate video call",
+        "stage_video", 10_000,
+        lambda tmp, mk: seed_episode(tmp, mk, valid_clip=True), 0))
+
+    # ── clip / assembly path ────────────────────────────────────────────────
+    def stale_clip(tmp, mk):
+        d = seed_episode(tmp, mk, valid_clip=True)
+        pv = d / "clips" / "s01.provenance.json"
+        j = json.loads(pv.read_text()); j["input_hash"] = "0" * 16
+        pv.write_text(json.dumps(j))
+    results.append(run_stage("stale clip -> refuse to assemble", "stage_assemble",
+        10_000, stale_clip, 0))
+
+    def no_clip_prov(tmp, mk):
+        d = seed_episode(tmp, mk, valid_clip=True)
+        (d / "clips" / "s01.provenance.json").unlink()
+    results.append(run_stage("clip without provenance -> refuse to assemble",
+        "stage_assemble", 10_000, no_clip_prov, 0))
 
     print(f"\n  {sum(results)}/{len(results)} runtime properties hold")
     if not all(results):
