@@ -1,0 +1,28 @@
+{
+  "character": "coco",
+  "views": {
+    "front": {
+      "path": "assets/tripo/coco/coco_front.png",
+      "source_content_h": 421,
+      "scaled_to": 901
+    },
+    "three_quarter": {
+      "path": "assets/tripo/coco/coco_three_quarter.png",
+      "source_content_h": 424,
+      "scaled_to": 901
+    },
+    "side": {
+      "path": "assets/tripo/coco/coco_side.png",
+      "source_content_h": 425,
+      "scaled_to": 901
+    },
+    "back": {
+      "path": "assets/tripo/coco/coco_back.png",
+      "source_content_h": 420,
+      "scaled_to": 901
+    }
+  },
+  "canvas": 1024,
+  "background": "transparent",
+  "scale_normalised_on": "content_height"
+}
