@@ -643,8 +643,12 @@ def promote_location_plate(eid, shot_id):
         "cost_inr": 0,
     }
     write_atomic(dest_prov, json.dumps(payload, indent=2).encode())
+    try:
+        shown = dest.relative_to(ROOT)
+    except ValueError:
+        shown = dest              # a plate store outside the repo is legitimate
     print(f"  {location_id}: CANONICALIZED_FROM_ACCEPTED_FRAME {eid}/{shot_id} "
-          f"-> {dest.relative_to(ROOT)}  Rs 0")
+          f"-> {shown}  Rs 0")
 
 
 def clip_verdict(d, sid):

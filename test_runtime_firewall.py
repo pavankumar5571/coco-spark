@@ -210,8 +210,7 @@ def main():
         for key, c in bible["cast"].items():
             dest = make.PORTRAITS / f"{key}.png"
             make.write_atomic(dest, _valid_png())
-            ih = make.input_hash(character=c, style=bible["style_lock"],
-                                 model=config.IMAGE_MODEL, aspect=config.IMAGE_ASPECT)
+            ih = make.portrait_identity(c, bible)   # the REAL function, never a copy
             (make.PORTRAITS / f"{key}.provenance.json").write_text(json.dumps(
                 {"status": "COMPLETE", "input_hash": ih, "sha": make.sha_file(dest)}))
     results.append(run("valid cache -> no duplicate spend", budget=10_000,
@@ -302,9 +301,7 @@ def main():
         mk.write_atomic(dest, buf.getvalue())
         (mk.PORTRAITS / f"{key}.provenance.json").write_text(json.dumps(
             {"status": "COMPLETE", "sha": mk.sha_file(dest),
-             "input_hash": mk.input_hash(character=mk.BIBLE["cast"][key],
-                 style=mk.BIBLE["style_lock"], model=config.IMAGE_MODEL,
-                 aspect=config.IMAGE_ASPECT)}))
+             "input_hash": mk.portrait_identity(mk.BIBLE["cast"][key], mk.BIBLE)}))
     results.append(run_stage("portrait replaced -> dependent frame regenerates",
         "stage_frames", 10_000, portrait_swapped, 1))
 
