@@ -125,8 +125,13 @@ def seed_episode(tmp, make, valid_frame=True, valid_clip=False):
     loc = bible["locations"][(ep.get("locations") or [ep["location"]])[0]]
     f = d / "frames" / "s01.png"
     make.write_atomic(f, _valid_png())
+    # the frame identity now includes the ORDERED reference identities, so the fixture
+    # must build it the same way the pipeline does or it is stale by construction
+    ref_ids = [("identity", k, make.sha_file(make.PORTRAITS / f"{k}.png"))
+               for k in shots[0]["cast"]]
     ih = make.input_hash(shot=shots[0], bible=bible, model=config.IMAGE_MODEL,
-                         aspect=config.IMAGE_ASPECT, loc=loc)
+                         aspect=config.IMAGE_ASPECT, loc=loc, refs=ref_ids,
+                         compiler=config.FRAME_COMPILER_VERSION)
     (d / "frames" / "s01.provenance.json").write_text(json.dumps(
         {"status": "COMPLETE", "sha": make.sha_file(f),
          "input_hash": ih if valid_frame else "0" * 16}))
@@ -240,6 +245,75 @@ def main():
 
     results.append(run_stage("budget below video reservation -> no video call",
         "stage_video", 1.0, lambda tmp, mk: seed_episode(tmp, mk), 0))
+
+    # ── reference integrity: the portrait -> frame dependency ───────────────
+    def bad_portrait_sha(tmp, mk):
+        seed_episode(tmp, mk)
+        first = sorted(mk.PORTRAITS.glob("*.png"))[0]
+        first.write_bytes(_valid_png() + b"\x01")     # checksum no longer matches
+    results.append(run_stage("altered portrait checksum -> no frame call", "stage_frames",
+        10_000, bad_portrait_sha, 0))
+
+    def stale_portrait_prov(tmp, mk):
+        seed_episode(tmp, mk)
+        for pv in mk.PORTRAITS.glob("*.provenance.json"):
+            j = json.loads(pv.read_text()); j["input_hash"] = "0" * 16
+            pv.write_text(json.dumps(j))
+    results.append(run_stage("stale portrait provenance -> no frame call", "stage_frames",
+        10_000, stale_portrait_prov, 0))
+
+    def portrait_swapped(tmp, mk):
+        """Same bible, same model — but the portrait BYTES changed. The dependent frame
+        must go stale, because its identity authority is different."""
+        d = seed_episode(tmp, mk)
+        import config
+        key = "coco"
+        dest = mk.PORTRAITS / f"{key}.png"
+        import io
+        from PIL import Image as _I
+        buf = io.BytesIO(); _I.new("RGB", (8, 8), (1, 2, 3)).save(buf, "PNG")
+        mk.write_atomic(dest, buf.getvalue())
+        (mk.PORTRAITS / f"{key}.provenance.json").write_text(json.dumps(
+            {"status": "COMPLETE", "sha": mk.sha_file(dest),
+             "input_hash": mk.input_hash(character=mk.BIBLE["cast"][key],
+                 style=mk.BIBLE["style_lock"], model=config.IMAGE_MODEL,
+                 aspect=config.IMAGE_ASPECT)}))
+    results.append(run_stage("portrait replaced -> dependent frame regenerates",
+        "stage_frames", 10_000, portrait_swapped, 1))
+
+    results.append(run_stage("CONTROL current refs + missing frame -> ONE image call",
+        "stage_frames", 10_000,
+        lambda tmp, mk: (seed_episode(tmp, mk),
+                         (tmp / "E01" / "frames" / "s01.png").unlink()), 1))
+
+    results.append(run_stage("CONTROL same frame + same refs -> no duplicate image call",
+        "stage_frames", 10_000, lambda tmp, mk: seed_episode(tmp, mk), 0))
+
+    results.append(run_stage("budget below planner reservation -> no planner call",
+        "stage_plan", 0.5, lambda tmp, mk: seed_episode(tmp, mk), 0))
+
+    # ── tail integrity, proven with a locally-made mp4, no Veo required ──────
+    def stale_tail(tmp, mk):
+        """s02 would inherit s01's tail. The tail is valid for the ORIGINAL clip; then the
+        clip changes. The stale tail must not be consumed — s02 regenerates instead."""
+        import copy
+        d = seed_episode(tmp, mk, valid_clip=True)
+        shots = json.loads((d / "shots.json").read_text())
+        s2 = copy.deepcopy(shots[0]); s2["id"] = "s02"
+        shots.append(s2)
+        (d / "shots.json").write_text(json.dumps(shots))
+        clip = d / "clips" / "s01.mp4"
+        tail = d / "transitions" / "s01_LAST.png"
+        mk.write_atomic(tail, _valid_png())
+        (d / "transitions" / "s01_LAST.provenance.json").write_text(json.dumps(
+            {"status": "COMPLETE", "sha": mk.sha_file(tail),
+             "input_hash": mk.input_hash(source_clip_sha=mk.sha_file(clip),
+                                         extractor="ffmpeg-sseof-0.1-v1")}))
+        clip.write_bytes(b"DIFFERENTMP4" * 32)   # source changed; tail now orphaned
+    # s01 is cached and current, so exactly one call: s02, generated rather than
+    # inheriting the orphaned tail.
+    results.append(run_stage("source clip changed -> orphaned tail not inherited",
+        "stage_frames", 10_000, stale_tail, 1))
 
     # CONTROL. Without this every "0 calls" result above could be passing vacuously —
     # a stage that exits early for an unrelated reason also makes zero calls.

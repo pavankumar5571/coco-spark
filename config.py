@@ -23,3 +23,10 @@ PLANNER_MODEL = "gemini-3.5-flash-lite"
 # The ledger is an ESTIMATE and has already drifted 1.64x against real billing once.
 # It is a guard, never an authority. Reconcile against AI Studio before trusting it.
 SAFETY_MARGIN = 1.5      # every estimate is inflated by this before it is charged
+
+# Explicit contract versions. Bump on ANY semantic change to the corresponding compiler,
+# so a cached artifact made under older behaviour is invalidated. Clearer than pretending
+# the code is immutable or trying to hash source automatically.
+PLAN_CONTRACT_VERSION  = "1"
+FRAME_COMPILER_VERSION = "1"
+PLANNER_MAX_INR        = 3.0    # conservative reservation; token cost is unknown up front

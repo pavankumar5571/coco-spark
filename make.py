@@ -72,6 +72,27 @@ def usable(dest: Path, prov_path: Path, expect_hash: str):
     return True, "valid"
 
 
+def frame_identity(d, shot, bible, loc, prev_stem=None, policy=None):
+    """Single source of truth for what makes a first frame a distinct paid request.
+
+    Returns (ref_ids, input_hash). stage_frames and preflight MUST both use this; two
+    copies of the formula drift, and that drift silently rejected every frame the moment
+    ordered reference identity was added.
+    """
+    ref_ids = []
+    for key in shot["cast"]:
+        pth = PORTRAITS / f"{key}.png"
+        ref_ids.append(("identity", key, sha_file(pth) if pth.exists() else None))
+    if prev_stem and policy == "TEMPORAL_REFERENCE":
+        tail = d / "transitions" / f"{prev_stem}_LAST.png"
+        frame = d / "frames" / f"{prev_stem}.png"
+        src = tail if tail.exists() else frame
+        ref_ids.append(("temporal", prev_stem, sha_file(src) if src.exists() else None))
+    return ref_ids, input_hash(shot=shot, bible=bible, model=C.IMAGE_MODEL,
+                               aspect=C.IMAGE_ASPECT, loc=loc, refs=ref_ids,
+                               compiler=C.FRAME_COMPILER_VERSION)
+
+
 def ep_dir(eid): 
     d = OUT / eid
     for sub in ("frames", "clips", "transitions"):
@@ -318,7 +339,8 @@ def stage_plan(eid):
     d = ep_dir(eid)
     dest = d / "shots.json"
     ep = load_ep(eid)
-    ihash = input_hash(ep=ep, bible=BIBLE, model=C.PLANNER_MODEL, rules=PLANNER_RULES)
+    ihash = input_hash(ep=ep, bible=BIBLE, model=C.PLANNER_MODEL, rules=PLANNER_RULES,
+                       schema=SHOT_SCHEMA, contract=C.PLAN_CONTRACT_VERSION)
     ok, why = usable(dest, d / "shots.provenance.json", ihash)
     if ok:
         print(f"  shots.json valid ({len(json.loads(dest.read_text()))} shots), skipping")
@@ -372,14 +394,24 @@ STYLE: {BIBLE['style_lock']}
     cl = client()
 
     def call(extra=""):
+        # The invariant is universal: no paid provider call before reservation. Planning
+        # is cheap, but tolerating the exception here preserves the exact defect class
+        # that caused the overdraft.
+        res_idx = reserve("llm", f"plan:{eid}", C.PLANNER_MAX_INR)
+        try:
+            return _call_inner(extra, res_idx)
+        except BaseException:
+            settle(res_idx, None); raise
+
+    def _call_inner(extra, res_idx):
         r = cl.models.generate_content(
             model=C.PLANNER_MODEL, contents=prompt + extra,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json", response_schema=schema))
         u = getattr(r, "usage_metadata", None)
-        charge("llm", f"plan:{eid}",
-               ((u.prompt_token_count / 1e6) * 0.10 +
-                (u.candidates_token_count / 1e6) * 0.40) * 88 if u else 1.0)
+        actual = (((u.prompt_token_count / 1e6) * 0.10 +
+                   (u.candidates_token_count / 1e6) * 0.40) * 88) if u else 1.0
+        settle(res_idx, actual)          # reconcile the conservative hold
         d = json.loads(r.text)
         shots_ = d.get("shots", [])
         try:
@@ -497,16 +529,16 @@ def stage_frames(eid, only=None):
     prev = None
     for idx, shot in enumerate(shots):
         if only and shot["id"] != only:
+            # A skipped predecessor may still become a reference. Record it, but the
+            # proof happens where it is consumed, not here.
             prev = d / "frames" / f"{shot['id']}.png"; continue
         dest = d / "frames" / f"{shot['id']}.png"
         prov_p = d / "frames" / f"{shot['id']}.provenance.json"
-        ihash = input_hash(shot=shot, bible=BIBLE, model=C.IMAGE_MODEL,
-                           aspect=C.IMAGE_ASPECT, loc=loc)
-        ok, why = usable(dest, prov_p, ihash)
-        if ok:
-            print(f"  {shot['id']}: valid, skipping"); prev = dest; continue
-        if dest.exists():
-            print(f"  {shot['id']}: RECOMPUTING — {why}")
+        # NOTE: computed AFTER refs are resolved, because the ordered reference identities
+        # are part of what makes this a different paid request.
+        ihash = None
+        ok, why = (False, "reference identity not yet resolved")
+
 
         # A CONTINUOUS edit whose material state is unchanged has no new information to
         # generate: the next shot literally begins on the previous clip's final frame.
@@ -536,11 +568,21 @@ def stage_frames(eid, only=None):
                 prev = dest; continue
             print(f"  {shot['id']}: would inherit, but {tail.name} not rendered yet")
 
-        refs, legend = [], []
+        refs, legend, ref_ids = [], [], []
         for key in shot["cast"]:                              # identity anchors FIRST
             p = PORTRAITS / f"{key}.png"
-            if not p.exists(): sys.exit(f"missing portrait {p} — run `make.py portraits`")
+            # A reference must be PROVEN CURRENT at the moment it becomes input to a paid
+            # request. Existence is not proof: a portrait regenerated from the same bible
+            # has a different SHA and is a different identity authority.
+            pok, pwhy = usable(p, PORTRAITS / f"{key}.provenance.json",
+                               input_hash(character=BIBLE["cast"][key],
+                                          style=BIBLE["style_lock"], model=C.IMAGE_MODEL,
+                                          aspect=C.IMAGE_ASPECT))
+            if not pok:
+                sys.exit(f"  portrait for '{key}' is not provably current ({pwhy}) — "
+                         f"run `make.py portraits` before spending on frames")
             refs.append(p)
+            ref_ids.append(("identity", key, sha_file(p)))
             legend.append(f"Image {len(refs)-1}: canonical reference for "
                           f"{BIBLE['cast'][key]['name']}")
         # Temporal reference only when the compiler says this shot inherits transient
@@ -552,9 +594,27 @@ def stage_frames(eid, only=None):
             pok, _ = usable(ptail, d / "transitions" / f"{prev.stem}_LAST.provenance.json",
                             input_hash(source_clip_sha=sha_file(psrc) if psrc.exists()
                                        else None, extractor="ffmpeg-sseof-0.1-v1"))
-            refs.append(ptail if pok else prev)
+            if pok:
+                refs.append(ptail); ref_ids.append(("temporal", prev.stem, sha_file(ptail)))
+            else:
+                # never fall back to an unproven predecessor frame
+                prev_prov = d / "frames" / f"{prev.stem}.provenance.json"
+                if not prev_prov.exists() or json.loads(prev_prov.read_text()
+                        ).get("status") != "COMPLETE":
+                    sys.exit(f"  {shot['id']}: no proven temporal reference available "
+                             f"(tail unusable and {prev.name} unproven)")
+                refs.append(prev); ref_ids.append(("temporal", prev.stem, sha_file(prev)))
             legend.append(f"Image {len(refs)-1}: the previous shot. Continue directly from "
                           f"it: identical camera, geometry and lighting.")
+
+        _, ihash = frame_identity(d, shot, BIBLE, loc,
+                                  prev_stem=prev.stem if prev else None,
+                                  policy=policy[idx][0])
+        ok, why = usable(dest, prov_p, ihash)
+        if ok:
+            print(f"  {shot['id']}: valid, skipping"); prev = dest; continue
+        if dest.exists():
+            print(f"  {shot['id']}: RECOMPUTING — {why}")
 
         prompt = ("\n".join(legend) + f"\n\n{BIBLE['style_lock']}\n\n"
                   f"LOCATION (identical in every shot): {loc['description']}\n\n"
@@ -567,7 +627,7 @@ def stage_frames(eid, only=None):
         prov_p.write_text(json.dumps(
             {"status": "COMPLETE", "source": "GENERATED", "model": C.IMAGE_MODEL,
              "aspect": C.IMAGE_ASPECT, "input_hash": ihash, "sha": sha_file(dest),
-             "refs": [str(r.relative_to(OUT)) for r in refs],
+             "refs": [str(r.relative_to(OUT)) for r in refs], "ref_ids": ref_ids,
              "cost_inr": C.INR_PER_IMAGE}, indent=2))
         prev = dest
 
@@ -579,14 +639,15 @@ def preflight(eid, shots, d):
     fail = []
     ep = load_ep(eid)
     loc = BIBLE["locations"][(ep.get("locations") or [ep["location"]])[0]]
-    for s in shots:
+    policy = [reference_policy(shots[i - 1] if i else None, s, BIBLE)
+              for i, s in enumerate(shots)]
+    for i, s in enumerate(shots):
         f = d / "frames" / f"{s['id']}.png"
         prov = d / "frames" / f"{s['id']}.provenance.json"
-        # the SAME integrity proof resume uses — a stale-but-present frame must never
-        # reach a paid call. Fixing this in stage_frames and not here was the same
-        # instance-not-class mistake twice in one session.
-        ok, why = usable(f, prov, input_hash(shot=s, bible=BIBLE, model=C.IMAGE_MODEL,
-                                             aspect=C.IMAGE_ASPECT, loc=loc))
+        _, want = frame_identity(d, s, BIBLE, loc,
+                                 prev_stem=shots[i - 1]["id"] if i else None,
+                                 policy=policy[i][0])
+        ok, why = usable(f, prov, want)
         if not ok:
             fail.append(f"{s['id']}: frame not provably current ({why})")
     if C.VIDEO_SECONDS not in (4, 6, 8):
