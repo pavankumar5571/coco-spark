@@ -14,6 +14,16 @@
     python make.py portraits       canonical identity anchors, once per channel
     python make.py episode E01     interleaved: frame -> clip -> frame -> clip -> assemble
 
+## Operating rule
+
+Every abstraction must be justified EITHER by an observed failure OR by a clearly stated
+invariant whose violation would be materially harmful. The first half blocks speculative
+complexity; the second half stops us waiting to lose money before implementing an obvious
+safety property.
+
+Review standard: adversarial. Most defects in this codebase were found when one reviewer
+tried to falsify another's confidence, reading source rather than summaries.
+
 ## Design rules, each learned from a real failure
 
 1. STATE says what is true. EVENTS say why it changed. Every discontinuity must be
@@ -56,3 +66,18 @@ E01 rendered end to end.
 Known gaps: the planner silently ignores brief instructions it does not satisfy (asked
 for camera variation, returned all WIDE); props are declared in the schema but the
 planner does not populate them; no post-video semantic QC; no billing reconciliation.
+
+
+## Evidence state, 2026-08-19
+
+    deterministic path        heavily exercised offline, 16/16 + 29/29
+    motion primitive          PROVEN ONCE  (P01, SITTING_UP -> LYING_SIDE)
+    identity preservation     PROVEN ONCE  (P01)
+    world preservation        PROVEN ONCE  (P01)
+    clip publishability       REJECTED     (P01, UNREQUESTED_VISUAL_ADDITION)
+    prevention for that class IMPLEMENTED, NEVER VALIDATED AGAINST THE PROVIDER
+    automated semantic judge  intentionally absent — one observation is not a threshold
+    actual provider debit     UNRESOLVED
+
+Other motion classes, multi-character interaction, prop transfer, walking and dialogue are
+deliberately untested.
