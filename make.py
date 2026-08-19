@@ -169,11 +169,19 @@ def resolve_frame_refs(d, shots, idx, bible, loc, policy):
     return RefResolution(paths, ref_ids)
 
 
+# Only the parts of the bible that can change a FIRST FRAME. visual_constraints and the
+# per-mode video policy affect the video prompt and cannot alter an image, so hashing them
+# invalidated valid frames — the same over-broad-guard mistake as checking the whole
+# working tree for source cleanliness.
+FRAME_BIBLE_KEYS = ("cast", "locations", "style_lock", "state_vocab", "visual_vocab")
+
+
 def frame_identity(shot, bible, loc, ref_ids):
     """Identity of a first frame as a paid request. Takes ALREADY-RESOLVED references."""
-    return input_hash(shot=shot, bible=bible, model=C.IMAGE_MODEL,
-                      aspect=C.IMAGE_ASPECT, loc=loc, refs=ref_ids,
-                      compiler=C.FRAME_COMPILER_VERSION)
+    return input_hash(shot=shot,
+                      bible={k: bible.get(k) for k in FRAME_BIBLE_KEYS},
+                      model=C.IMAGE_MODEL, aspect=C.IMAGE_ASPECT, loc=loc,
+                      refs=ref_ids, compiler=C.FRAME_COMPILER_VERSION)
 
 
 def frame_identity_from(shots, idx, d, bible, loc):
