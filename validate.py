@@ -88,19 +88,40 @@ def check_events_explain_changes(shots, bible):
 
         for who in set(_chars(ss)) & set(_chars(es)):
             a, b = _chars(ss)[who] or {}, _chars(es)[who] or {}
-            if a.get("zone") != b.get("zone") and not _has(s, type="MOVE", entity=who):
-                out.append(Issue("ERROR", "ZONE_CHANGE_WITHOUT_EVENT", sid,
-                    f"characters.{who}.zone",
-                    f"{who} moves {a.get('zone')} -> {b.get('zone')} with no MOVE event"))
+            if a.get("zone") != b.get("zone"):
+                if not _has(s, type="MOVE", entity=who,
+                            from_zone=a.get("zone"), to_zone=b.get("zone")):
+                    out.append(Issue("ERROR", "EVENT_DOES_NOT_EXPLAIN_DELTA", sid,
+                        f"characters.{who}.zone",
+                        f"{who} moves {a.get('zone')} -> {b.get('zone')} but no MOVE event "
+                        f"matches that exact from/to"))
+            # every OTHER material dimension also needs a typed event (Option B)
+            for dim in material:
+                if dim == "zone":
+                    continue
+                if a.get(dim) and b.get(dim) and a[dim] != b[dim]:
+                    if not _has(s, type="STATE_CHANGE", entity=who, field=dim,
+                                **{"from": a[dim], "to": b[dim]}):
+                        out.append(Issue("ERROR", "EVENT_DOES_NOT_EXPLAIN_DELTA", sid,
+                            f"characters.{who}.{dim}",
+                            f"{who}.{dim} {a[dim]} -> {b[dim]} with no matching "
+                            f"STATE_CHANGE event"))
 
+        # the prop SET may not change: no CREATE/REMOVE event exists in v1
+        if set(_props(ss)) != set(_props(es)):
+            out.append(Issue("ERROR", "PROP_SET_CHANGED", sid, "props",
+                f"props appear/disappear within the shot "
+                f"({sorted(set(_props(ss)) ^ set(_props(es)))}); v1 has no CREATE/REMOVE "
+                f"event, so the prop set must be constant"))
         for obj in set(_props(ss)) & set(_props(es)):
-            if _props(ss)[obj] != _props(es)[obj] and not (
-                    _has(s, type="TRANSFER", object=obj) or
-                    _has(s, type="STATE_CHANGE", entity=obj)):
-                out.append(Issue("ERROR", "PROP_CHANGE_WITHOUT_EVENT", sid,
+            a, b = _props(ss)[obj], _props(es)[obj]
+            if a != b and not (_has(s, type="TRANSFER", object=obj, **{"from": a, "to": b})
+                               or _has(s, type="STATE_CHANGE", entity=obj,
+                                       **{"from": a, "to": b})):
+                out.append(Issue("ERROR", "EVENT_DOES_NOT_EXPLAIN_DELTA", sid,
                     f"props.{obj}",
-                    f"{obj} changes {_props(ss)[obj]} -> {_props(es)[obj]} with no "
-                    f"TRANSFER or STATE_CHANGE event"))
+                    f"{obj} changes {a} -> {b} but no TRANSFER/STATE_CHANGE event "
+                    f"matches that exact from/to"))
 
         # ACROSS the boundary into this shot
         if i == 0:
@@ -131,6 +152,10 @@ def check_events_explain_changes(shots, bible):
                         f"characters.{who}.{dim}",
                         f"{who}.{dim} {a[dim]} -> {b[dim]} across a CONTINUOUS cut. "
                         f"The transition is never shown; it must happen inside a shot."))
+        if set(_props(pe)) != set(_props(ss)):
+            out.append(Issue("ERROR", "PROP_SET_CHANGED", sid, "props",
+                f"prop set changes across a CONTINUOUS cut "
+                f"({sorted(set(_props(pe)) ^ set(_props(ss)))})"))
         for obj in set(_props(pe)) & set(_props(ss)):
             if _props(pe)[obj] != _props(ss)[obj]:
                 out.append(Issue("ERROR", "MATERIAL_JUMP_ACROSS_CUT", sid,
@@ -157,6 +182,50 @@ def check_boundaries(shots, bible, ep):
         elif t != "CONTINUOUS":
             out.append(Issue("WARN", "DELIBERATE_DISCONTINUITY", s.get("id"),
                 "boundary", f"{t}: {b['reason'][:60]}"))
+    return out
+
+
+REQUIRED_CHAR_DIMS = ("awareness", "posture", "zone")
+
+
+def check_completeness(shots, ep, bible):
+    """A plan must not pass by saying LESS. Every representation of who is present must
+    agree: shot.cast, population, characters.keys() and events[].entity."""
+    out = []
+    req_visual = set(bible.get("visual_vocab", {})) | {"camera_setup_id"}
+    for s in shots:
+        sid = s.get("id")
+        for which in ("start_state", "end_state"):
+            st = s.get(which) or {}
+            pop, chars = _pop(st), _chars(st)
+            if not st.get("location_id"):
+                out.append(Issue("ERROR", "SHOT_WITHOUT_LOCATION_ID", sid,
+                    f"{which}.location_id", "location is continuity authority; it is required"))
+            if pop != set(chars):
+                out.append(Issue("ERROR", "REPRESENTATION_MISMATCH", sid,
+                    f"{which}.population", f"population {sorted(pop)} != "
+                    f"characters {sorted(chars)}"))
+            if not pop:
+                out.append(Issue("ERROR", "EMPTY_POPULATION", sid,
+                    f"{which}.population", "no characters declared"))
+            for who, dims in chars.items():
+                missing = [d for d in REQUIRED_CHAR_DIMS if not (dims or {}).get(d)]
+                if missing:
+                    out.append(Issue("ERROR", "INCOMPLETE_CHARACTER_STATE", sid,
+                        f"{which}.characters.{who}", f"missing {missing}"))
+            vis = st.get("visual") or {}
+            missing_v = [k for k in req_visual if not vis.get(k)]
+            if missing_v:
+                out.append(Issue("ERROR", "INCOMPLETE_VISUAL_STATE", sid,
+                    f"{which}.visual", f"missing {missing_v}"))
+        # everyone referenced anywhere must be a declared episode cast member
+        referenced = set(s.get("cast") or []) | _pop(s.get("start_state")) | \
+                     _pop(s.get("end_state")) | \
+                     {e.get("entity") for e in _events(s) if e.get("entity")}
+        for who in referenced - set(ep["cast"]):
+            if who in bible.get("cast", {}) or who not in (bible.get("props") or {}):
+                out.append(Issue("ERROR", "ENTITY_NOT_IN_EPISODE_CAST", sid, "cast/state/events",
+                    f"'{who}' is referenced but not in the episode cast {ep['cast']}"))
     return out
 
 
@@ -198,7 +267,8 @@ def check_locations(shots, ep):
 
 
 def validate(shots, ep, bible):
-    return (check_entities(shots, ep, bible)
+    return (check_completeness(shots, ep, bible)
+            + check_entities(shots, ep, bible)
             + check_vocab(shots, bible)
             + check_boundaries(shots, bible, ep)
             + check_events_explain_changes(shots, bible)

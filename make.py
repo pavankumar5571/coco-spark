@@ -225,11 +225,24 @@ def inherit_predecessor_pixels(prev_shot, shot, bible):
     # visual state must be unchanged
     pv = (prev_shot.get("end_state") or {}).get("visual") or {}
     sv = (shot.get("start_state") or {}).get("visual") or {}
-    for dim in list(bible.get("visual_vocab", {})) + ["camera_setup_id"]:
-        if pv.get(dim) != sv.get(dim):
+    # Redundant with the validator ON PURPOSE. This is the only function whose failure
+    # mode is a valid-looking but WRONG frame rather than a missing one, so it re-proves
+    # every precondition rather than trusting an upstream guarantee.
+    req = list(bible.get("visual_vocab", {})) + ["camera_setup_id"]
+    if not pv or not sv:
+        return False                      # unknown composition -> never assume sameness
+    for dim in req:
+        if not pv.get(dim) or not sv.get(dim):
+            return False                  # incomplete visual contract -> never inherit
+        if pv[dim] != sv[dim]:
             return False
-    if not pv and not sv:
-        return False        # unknown composition -> do not assume it is identical
+    pes, sss = prev_shot.get("end_state") or {}, shot.get("start_state") or {}
+    if pes.get("location_id") != sss.get("location_id"):
+        return False
+    if set(pes.get("population") or []) != set(sss.get("population") or []):
+        return False
+    if (pes.get("props") or {}) != (sss.get("props") or {}):
+        return False
     material = {k for k, v in bible.get("state_vocab", {}).items() if v.get("material")}
     a = (prev_shot.get("end_state") or {}).get("characters") or {}
     b = (shot.get("start_state") or {}).get("characters") or {}
@@ -317,35 +330,25 @@ STYLE: {BIBLE['style_lock']}
 TRANSIENT = ("spatial", "appearance", "possession", "physical")
 
 
-def derive_continuity(shots):
-    """Decide per shot whether it needs its predecessor's pixels.
+def reference_policy(prev_shot, shot, bible):
+    """One compiler, three outcomes. Replaces derive_continuity, which was LIVE AND STALE:
+    it still read the prose-era keys spatial/appearance/possession/physical, none of which
+    exist in the typed schema, so it silently reported "no transient state carried" for
+    every shot regardless of content.
 
-    Derived, never authored. A shot needs the previous frame only when it inherits
-    TRANSIENT state that canonical references cannot express — where a character is
-    standing, what they are holding, whether the door is open. Identity, location and
-    fixed geography all come from the bible, so they never justify chaining.
+      PREDECESSOR_PIXELS  nothing changed at all -> the frame IS the previous last frame
+      TEMPORAL_REFERENCE  continuous, but composition or state moved -> generate, using
+                          the predecessor as a temporal hint plus canonical authority
+      CANONICAL_ONLY      deliberate discontinuity -> canonical references only
     """
-    out = []
-    for i, s in enumerate(shots):
-        if i == 0:
-            out.append({"needs_predecessor": False, "reason": "first shot"}); continue
-        prev_end = shots[i - 1].get("end_state") or {}
-        start = s.get("start_state") or {}
-
-        if prev_end.get("environment") and start.get("environment") and \
-                prev_end["environment"] != start["environment"]:
-            out.append({"needs_predecessor": False,
-                        "reason": "LOCATION_CHANGE — use canonical environment"}); continue
-
-        carried = [k for k in TRANSIENT
-                   if start.get(k) and start.get(k) == prev_end.get(k)]
-        if carried:
-            out.append({"needs_predecessor": True,
-                        "reason": f"STATE_DEPENDENCY on {'+'.join(carried)}"})
-        else:
-            out.append({"needs_predecessor": False,
-                        "reason": "no transient state carried — canonical only"})
-    return out
+    if prev_shot is None:
+        return "CANONICAL_ONLY", "first shot"
+    btype = (shot.get("boundary") or {}).get("type", "CONTINUOUS")
+    if btype != "CONTINUOUS":
+        return "CANONICAL_ONLY", f"deliberate {btype}"
+    if inherit_predecessor_pixels(prev_shot, shot, bible):
+        return "PREDECESSOR_PIXELS", "continuous, nothing changed across the edit"
+    return "TEMPORAL_REFERENCE", "continuous, but composition or state changed"
 
 
 # ───────────────────────────── portraits ─────────────────────────────
@@ -371,10 +374,10 @@ def stage_frames(eid, only=None):
         sys.exit("  plan has continuity errors — fix or replan before spending")
     loc = BIBLE["locations"][ep["location"]]
     cl = client()
-    cont = derive_continuity(shots)
-    for s, c in zip(shots, cont):
-        print(f"  {s['id']}: {'CHAIN' if c['needs_predecessor'] else 'canonical'} "
-              f"— {c['reason']}")
+    policy = [reference_policy(shots[i-1] if i else None, s, BIBLE)
+              for i, s in enumerate(shots)]
+    for s, (mode, why) in zip(shots, policy):
+        print(f"  {s['id']}: {mode:19s} — {why}")
 
     # regenerating frames invalidates everything derived from them
     for stale in list((d / "clips").glob("*.mp4")) + list((d / "transitions").glob("*.png")):
@@ -399,7 +402,7 @@ def stage_frames(eid, only=None):
         # generate: the next shot literally begins on the previous clip's final frame.
         # Copying it is free, pixel-exact, and cannot drift. Asking an image model to
         # reconstruct that continuity is both a cost and a risk we do not need to take.
-        if idx and inherit_predecessor_pixels(shots[idx - 1], shot, BIBLE):
+        if policy[idx][0] == "PREDECESSOR_PIXELS":
             tail = d / "transitions" / f"{shots[idx-1]['id']}_LAST.png"
             if tail.exists():
                 write_atomic(dest, tail.read_bytes())
@@ -421,7 +424,7 @@ def stage_frames(eid, only=None):
                           f"{BIBLE['cast'][key]['name']}")
         # Temporal reference only when the compiler says this shot inherits transient
         # state. Chaining has a real provenance/cache cost, so it must earn its use.
-        if prev and cont[shots.index(shot)]["needs_predecessor"]:
+        if prev and policy[idx][0] == "TEMPORAL_REFERENCE":
             tail = d / "transitions" / f"{prev.stem}_LAST.png"
             refs.append(tail if tail.exists() else prev)
             legend.append(f"Image {len(refs)-1}: the previous shot. Continue directly from "
@@ -449,13 +452,18 @@ def preflight(eid, shots, d):
     """Everything provable for free, asserted before a single rupee is spent."""
     print("  PREFLIGHT")
     fail = []
+    ep = load_ep(eid)
+    loc = BIBLE["locations"][(ep.get("locations") or [ep["location"]])[0]]
     for s in shots:
         f = d / "frames" / f"{s['id']}.png"
-        if not f.exists():
-            fail.append(f"{s['id']}: no first frame")
         prov = d / "frames" / f"{s['id']}.provenance.json"
-        if not prov.exists():
-            fail.append(f"{s['id']}: no reference provenance recorded")
+        # the SAME integrity proof resume uses — a stale-but-present frame must never
+        # reach a paid call. Fixing this in stage_frames and not here was the same
+        # instance-not-class mistake twice in one session.
+        ok, why = usable(f, prov, input_hash(shot=s, bible=BIBLE, model=C.IMAGE_MODEL,
+                                             aspect=C.IMAGE_ASPECT, loc=loc))
+        if not ok:
+            fail.append(f"{s['id']}: frame not provably current ({why})")
     if C.VIDEO_SECONDS not in (4, 6, 8):
         fail.append(f"duration {C.VIDEO_SECONDS}s is not a provider-supported value")
     est = len(shots) * C.INR_PER_VID_SEC * C.VIDEO_SECONDS
