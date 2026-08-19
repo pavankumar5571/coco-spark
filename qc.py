@@ -18,6 +18,26 @@ CATEGORIES = (
     "UNREQUESTED_VISUAL_ADDITION",   # observed: P01 floating particles, 2026-08-19
 )
 
+# PROVIDER CAPABILITY and CLIP PUBLISHABILITY are different measurements and must never
+# be collapsed. P01 is not a failed motion probe: it is MOTION_PRIMITIVE=PASS and
+# CLIP_ACCEPTANCE=REJECTED_QC simultaneously. Merging them would, months from now, make
+# Veo look like it has a poor motion success rate when the real defect was generative
+# additions.
+CAPABILITY_PROBES = (
+    "MOTION_PRIMITIVE",       # did the requested transition occur
+    "IDENTITY_PRESERVATION",  # did the character survive the motion
+    "WORLD_PRESERVATION",     # did set geometry survive the motion
+)
+
+# Prevention implemented from a hypothesis is NOT prevention demonstrated. Anything listed
+# here is untested against the provider, and must not be treated as solved.
+UNTESTED_PREVENTION = {
+    "UNREQUESTED_VISUAL_ADDITION":
+        "compile_prompt.veo_constraint_clause emits a no-particles constraint. "
+        "IMPLEMENTED 2026-08-19, NEVER VALIDATED AGAINST THE PROVIDER — we deliberately "
+        "did not spend to test it. Do not assume it works.",
+}
+
 
 @dataclass
 class QCFinding:
@@ -32,14 +52,22 @@ class QCVerdict:
     status: str                       # ACCEPTED | REJECTED_QC
     findings: list = field(default_factory=list)
     revision: dict = field(default_factory=dict)
+    capability: dict = field(default_factory=dict)   # probe -> PASS | FAIL | NOT_TESTED
+    judged_by: str = "HUMAN"          # automated judging needs labelled examples first
 
     def to_json(self):
         return {"shot_id": self.shot_id, "status": self.status,
                 "findings": [f.__dict__ for f in self.findings],
+                "capability": self.capability, "judged_by": self.judged_by,
                 "revision": self.revision}
 
 
-def decide(shot_id, findings, revision=None):
-    """No score, no threshold. Either the output matches the spec or it does not."""
+def decide(shot_id, findings, revision=None, capability=None, judged_by="HUMAN"):
+    """No score, no threshold. Either the output matches the spec or it does not.
+
+    `capability` records what the clip proved about the PROVIDER, independently of whether
+    the clip itself is publishable.
+    """
     bad = [f for f in findings if f.category in CATEGORIES]
-    return QCVerdict(shot_id, "REJECTED_QC" if bad else "ACCEPTED", bad, revision or {})
+    return QCVerdict(shot_id, "REJECTED_QC" if bad else "ACCEPTED", bad, revision or {},
+                     capability or {}, judged_by)
