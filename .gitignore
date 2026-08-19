@@ -9,6 +9,7 @@ __pycache__/
 out/*/clips/*
 out/*/frames/*
 out/*/transitions/*
+out/location_plates/*/*.png
 out/*/probe/*
 out/*/postfx/*
 out/*/qcframes/*
@@ -25,3 +26,5 @@ out/*/concat.txt
 !out/*/frames/*.provenance.json
 !out/*/baseline/*.provenance.json
 !out/*/baseline/*.qc.json
+!out/location_plates/*/*.provenance.json
+!out/location_plates/*/*.qc.json

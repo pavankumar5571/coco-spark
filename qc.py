@@ -125,6 +125,20 @@ TESTED_PREVENTION = {
 }
 
 
+# A location plate is not a clip and must not be judged with clip semantics. It is
+# long-lived authority: every future frame in that location inherits object FORM from it,
+# so a defect here is not one bad shot, it is a bad world that keeps being right.
+PLATE_PROBES = (
+    "LOCATION_IDENTITY",     # is this recognisably the place the bible describes
+    "WORLD_GEOGRAPHY",       # does the arrangement match the declared FIXED LAYOUT
+    "PERSISTENT_OBJECTS",    # is every persistent object FULLY visible and legible as form
+    "STYLE_CONFORMANCE",     # does it obey style_lock
+    "TEXT_HALLUCINATION",    # any lettering at all is blocking
+    "UNREQUESTED_ENTITIES",  # characters or props that are not part of the place
+    "TECHNICAL_VALIDITY",    # dimensions, format, not corrupt
+)
+
+
 @dataclass
 class QCFinding:
     category: str

@@ -1,0 +1,32 @@
+{
+  "kind": "LOCATION_PLATE_QC",
+  "location_id": "cottage_night",
+  "plate_sha": "d7a254874096c381",
+  "judged_by": "HUMAN",
+  "probes": {
+    "LOCATION_IDENTITY": "PASS",
+    "WORLD_GEOGRAPHY": "PASS",
+    "STYLE_CONFORMANCE": "PASS",
+    "TEXT_HALLUCINATION": "PASS",
+    "TECHNICAL_VALIDITY": "PASS",
+    "PERSISTENT_OBJECTS": "WEAK",
+    "UNREQUESTED_ENTITIES": "FAIL"
+  },
+  "status": "ACCEPTED_WITH_LIMITATIONS",
+  "findings": [
+    {
+      "probe": "PERSISTENT_OBJECTS",
+      "severity": "WEAK",
+      "detail": "the bookshelf is cropped by the LEFT frame edge, so its full design is not visible. This plate is therefore weak authority for the exact object that mutated in s04 (tall dark shelf with vertical spines -> low bookcase with front-facing picture books). The rug, chair, bed, window and walls are fully visible and are strong authority.",
+      "consequence": "a wide shot may still reinvent the bookshelf despite the plate"
+    },
+    {
+      "probe": "UNREQUESTED_ENTITIES",
+      "severity": "BLOCKING_IN_PRINCIPLE",
+      "detail": "Coco is present in the plate, sitting up in the bed. A world plate is sent as authority for what the PLACE looks like; this one also shows a character in a specific posture and position.",
+      "consequence": "every frame receiving this plate also receives a picture of Coco in bed, which may bias composition or posture in shots where he is elsewhere. Portraits are deliberately isolated on plain white with no scenery for exactly this reason; this is the inverse mistake."
+    }
+  ],
+  "decision": "KEEP IN SERVICE, LIMITATIONS RECORDED. It is strictly better than the prose-only authority that produced the s04 failure, and it cost Rs 0. It is NOT the plate this location should end up with: a purpose-generated plate would show the empty room with every persistent object fully in frame and no characters. That is one image when we choose to buy it.",
+  "grandfathered": "This plate entered canon by CANONICALIZED_FROM_ACCEPTED_FRAME before a plate QC contract existed. Its clip verdict judged a CLIP \u2014 motion, identity, world, additions \u2014 and passed with a TOLERATED particle finding. Nobody had examined it as world authority until now."
+}
