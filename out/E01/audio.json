@@ -1,0 +1,46 @@
+{
+  "kind": "EPISODE_AUDIO",
+  "episode": "E01",
+  "picture_seconds": 15.0,
+  "audio_seconds": 15.0,
+  "delivered_lufs": -14.0,
+  "target_lufs": -14.0,
+  "spine": [
+    "bed"
+  ],
+  "probes": {
+    "PROGRAMME_LOUDNESS": "PASS",
+    "AUDIO_SPANS_PICTURE": "PASS",
+    "NO_PROVIDER_AUDIO": "PASS",
+    "UNREQUESTED_SPEECH": "NOT_TESTED"
+  },
+  "detail": {
+    "PROGRAMME_LOUDNESS": "-14.0 LUFS (+0.0 LU)",
+    "AUDIO_SPANS_PICTURE": "audio 15.0s covers picture 15.0s",
+    "NO_PROVIDER_AUDIO": "provider audio stripped at assemble",
+    "UNREQUESTED_SPEECH": "a human must listen; no automated judgement exists"
+  },
+  "provider_observation": {
+    "observation": "OBSERVED",
+    "spread_lu": 13.4,
+    "per_clip": {
+      "s01": -17.2,
+      "s02": -30.6,
+      "s03": -27.4
+    },
+    "means": "independently generated per-clip audio is not a continuous bed"
+  },
+  "revision": {
+    "commit": "56afed9d6af734bdd1b2bb0d8356a51bb86cb8a7",
+    "dirty": true,
+    "tag": null,
+    "sources": {
+      "make.py": "9a9b2755fadb9962",
+      "validate.py": "735d13f9b05466d2",
+      "camera.py": "9631f4435b8365cc",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "a71ba387b9f3a9f9",
+      "bible.yaml": "9e109ea05a2761b8"
+    }
+  }
+}

@@ -263,3 +263,68 @@ def plate_probe_completeness(probes):
     if extra:
         reasons.append("unknown probes: " + ", ".join(sorted(extra)))
     return (not reasons), reasons
+
+
+# ---------------------------------------------------------------------------
+# AUDIO. Every probe above this line LOOKS. None of them listens, and E01 was accepted,
+# assembled and called publish-quality with a 13.4 LU volume lurch at its first cut that
+# nobody had measured. A preschool audience notices bad audio in one second.
+#
+# Two different questions, deliberately separated:
+#
+#   the DELIVERED programme   is what the audience hears. These probes BLOCK.
+#   the PROVIDER's native audio  is a by-product we discard. Measuring it says something
+#                                about the provider, never about the episode, so those
+#                                results are OBSERVATIONS and block nothing.
+AUDIO_PROBES = (
+    "PROGRAMME_LOUDNESS",    # delivered integrated loudness is at our house target
+    "AUDIO_SPANS_PICTURE",   # the spine covers the whole episode, with no silent tail
+    "NO_PROVIDER_AUDIO",     # nothing of the generator's own soundtrack survived
+    "UNREQUESTED_SPEECH",    # any voice, word or gibberish, in a wordless piece
+)
+
+PROVIDER_AUDIO_OBSERVATIONS = (
+    "NATIVE_LOUDNESS_SPREAD",   # how far apart independently generated clips landed
+)
+
+
+def programme_loudness(measured, target, tolerance):
+    """PURE. Is the delivered mix at the house target?
+
+    `measured` is None when there is no audio at all, which is a FAIL rather than a pass:
+    an episode that ships silent has not met the target, it has skipped it.
+    """
+    if measured is None:
+        return "FAIL", "no audio stream in the delivered episode"
+    off = round(measured - target, 1)
+    if abs(off) > tolerance:
+        return "FAIL", f"{measured} LUFS is {off:+} LU from the {target} LUFS target"
+    return "PASS", f"{measured} LUFS ({off:+} LU)"
+
+
+def audio_spans_picture(audio_seconds, picture_seconds, tolerance=0.25):
+    """PURE. A bed that stops early leaves the episode ending in silence."""
+    if audio_seconds is None:
+        return "FAIL", "no audio stream"
+    gap = round(picture_seconds - audio_seconds, 3)
+    if abs(gap) > tolerance:
+        return "FAIL", (f"audio {audio_seconds}s vs picture {picture_seconds}s "
+                        f"({gap:+}s)")
+    return "PASS", f"audio {audio_seconds}s covers picture {picture_seconds}s"
+
+
+def native_loudness_spread(per_clip):
+    """PURE. An OBSERVATION about the provider, not a verdict on the episode.
+
+    Recorded because it is the evidence for discarding provider audio, and because a
+    future provider that generates a consistent bed would show up here as a changed
+    capability rather than as a hunch.
+    """
+    vals = [v for v in per_clip.values() if v is not None]
+    if len(vals) < 2:
+        return {"observation": "NOT_OBSERVABLE", "per_clip": per_clip}
+    spread = round(max(vals) - min(vals), 1)
+    return {"observation": "OBSERVED", "spread_lu": spread, "per_clip": per_clip,
+            "means": ("independently generated per-clip audio is not a continuous bed"
+                      if spread > 3.0 else
+                      "per-clip audio landed close enough to be worth re-examining")}

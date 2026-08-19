@@ -1,0 +1,33 @@
+{
+  "status": "COMPLETE",
+  "kind": "EPISODE_ENDING_HOLD",
+  "episode": "E01",
+  "source_shot": "s03",
+  "source_frame_sha": "32c6f0cca2b86e8a",
+  "origin": "DERIVED_FROM_ACCEPTED_FRAME",
+  "seconds": 3.0,
+  "push_percent": 4.0,
+  "fade_seconds": 1.5,
+  "geometry": {
+    "w": 1280,
+    "h": 720,
+    "fps": 24.0
+  },
+  "input_hash": "d424bb8f05b3645a",
+  "sha": "479099e3ef5ad0de",
+  "cost_inr": 0,
+  "builder": "1",
+  "revision": {
+    "commit": "56afed9d6af734bdd1b2bb0d8356a51bb86cb8a7",
+    "dirty": true,
+    "tag": null,
+    "sources": {
+      "make.py": "80bcd3ac9528a7f9",
+      "validate.py": "735d13f9b05466d2",
+      "camera.py": "9631f4435b8365cc",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "a71ba387b9f3a9f9",
+      "bible.yaml": "9e109ea05a2761b8"
+    }
+  }
+}

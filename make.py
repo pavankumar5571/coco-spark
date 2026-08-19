@@ -1508,6 +1508,375 @@ def stage_video(eid, only=None):
                 settle(res_idx, None)      # deterministic ledger state on ANY exception
 
 
+# ─────────────────────────────── ending ──────────────────────────────
+def video_geometry(path):
+    """Width, height and frame rate of a clip, so a derived shot MATCHES it.
+
+    Read from the footage rather than assumed from config: the episode we are appending to
+    is the authority on its own geometry, and a hardcoded 1280x720 is a defect waiting for
+    the first episode shot at another size.
+    """
+    out = os.popen(f'ffprobe -v error -select_streams v:0 -show_entries '
+                   f'stream=width,height,r_frame_rate -of csv=p=0 "{path}"').read().strip()
+    try:
+        w, h, rate = out.split(",")
+        num, _, den = rate.partition("/")
+        return int(w), int(h), round(int(num) / int(den or 1), 3)
+    except ValueError:
+        sys.exit(f"  could not read geometry from {path}")
+
+
+def ending_identity(source_sha, w, h, fps):
+    """Identity of the closing hold as a DERIVED artifact. Allow-list, as always."""
+    return input_hash(source_frame_sha=source_sha, seconds=C.ENDING_HOLD_SECONDS,
+                      push=C.ENDING_PUSH_PERCENT, fade=C.ENDING_FADE_SECONDS,
+                      w=w, h=h, fps=fps, builder=ENDING_BUILDER_VERSION)
+
+
+ENDING_BUILDER_VERSION = "1"
+
+
+def stage_ending(eid):
+    """A closing hold built from pixels the audience has already accepted. Rs 0.
+
+    An episode that stops dead on its last generated frame ends; it does not CLOSE. The
+    cheapest honest ending is the last accepted image held, pushed into very slowly, and
+    faded to black while the bed resolves underneath.
+
+    This is not a substitute for a designed closing shot. It is what a designed closing
+    shot must beat before it is worth Rs 37, and it costs nothing to find out.
+    """
+    d = ep_dir(eid)
+    shots = json.loads((d / "shots.json").read_text())
+    accepted = [s["id"] for s in shots if clip_verdict(d, s["id"]) == "ACCEPTED"]
+    if not accepted:
+        sys.exit(f"  {eid}: nothing accepted to close on")
+    last = accepted[-1]
+    tail = d / "transitions" / f"{last}_LAST.png"
+    src_clip = d / "clips" / f"{last}.mp4"
+    ok, why = usable(tail, d / "transitions" / f"{last}_LAST.provenance.json",
+                     input_hash(source_clip_sha=sha_file(src_clip) if src_clip.exists()
+                                else None, extractor="ffmpeg-sseof-0.1-v1"))
+    if not ok:
+        sys.exit(f"  {eid}: the last accepted frame of {last} is not provably current "
+                 f"({why}). A closing image must come from footage, not from a stray PNG.")
+
+    w, h, fps = video_geometry(src_clip)
+    secs = float(C.ENDING_HOLD_SECONDS)
+    frames = max(2, int(round(secs * fps)))
+    ident = ending_identity(sha_file(tail), w, h, fps)
+    dest = d / "ending" / "hold.mp4"
+    prov = d / "ending" / "hold.provenance.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    good, _why = usable(dest, prov, ident)
+    if good:
+        print(f"  {eid}: closing hold already current ({secs}s from {last})")
+        return
+    z = f"1+({C.ENDING_PUSH_PERCENT}/100)*on/{frames - 1}"
+    vf = (f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+          f"d={frames}:s={w}x{h}:fps={fps},"
+          f"fade=t=out:st={max(0.0, secs - C.ENDING_FADE_SECONDS)}:"
+          f"d={C.ENDING_FADE_SECONDS}")
+    rc = os.system(f'ffmpeg -nostdin -y -loop 1 -i "{tail}" -vf "{vf}" -t {secs} '
+                   f'-c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -an '
+                   f'-r {fps} "{dest}" 2>/dev/null')
+    if rc != 0 or not dest.exists():
+        sys.exit("  ffmpeg could not build the closing hold")
+    prov.write_text(json.dumps(
+        {"status": "COMPLETE", "kind": "EPISODE_ENDING_HOLD", "episode": eid,
+         "source_shot": last, "source_frame_sha": sha_file(tail),
+         "origin": "DERIVED_FROM_ACCEPTED_FRAME", "seconds": secs,
+         "push_percent": C.ENDING_PUSH_PERCENT, "fade_seconds": C.ENDING_FADE_SECONDS,
+         "geometry": {"w": w, "h": h, "fps": fps},
+         "input_hash": ident, "sha": sha_file(dest), "cost_inr": 0,
+         "builder": ENDING_BUILDER_VERSION, "revision": build_revision()}, indent=2))
+    print(f"  {eid}: {secs}s closing hold from {last}'s accepted last frame, "
+          f"pushing in {C.ENDING_PUSH_PERCENT}% and fading to black")
+    print(f"    -> {dest}")
+
+
+def provable_ending(eid):
+    """The closing hold, only if it is provably built from the CURRENT last accepted
+    frame. A stale hold showing a shot that has since been superseded must not be silently
+    concatenated onto the episode."""
+    d = ep_dir(eid)
+    dest, prov = d / "ending" / "hold.mp4", d / "ending" / "hold.provenance.json"
+    if not (dest.exists() and prov.exists()):
+        return None
+    try:
+        pv = json.loads(prov.read_text())
+    except Exception:
+        return None
+    src_clip = d / "clips" / f"{pv.get('source_shot')}.mp4"
+    tail = d / "transitions" / f"{pv.get('source_shot')}_LAST.png"
+    if not (src_clip.exists() and tail.exists()):
+        return None
+    if clip_verdict(d, pv.get("source_shot")) != "ACCEPTED":
+        return None
+    g = pv.get("geometry") or {}
+    ok, _why = usable(dest, prov, ending_identity(sha_file(tail), g.get("w"), g.get("h"),
+                                                  g.get("fps")))
+    return dest if ok else None
+
+
+# ──────────────────────────────── audio ──────────────────────────────
+def media_duration(path):
+    """PURE-ish. Seconds of the longest stream, or None. Reads, never writes."""
+    out = os.popen(f'ffprobe -v error -show_entries format=duration -of '
+                   f'csv=p=0 "{path}" 2>/dev/null').read().strip()
+    try:
+        return round(float(out), 3)
+    except ValueError:
+        return None
+
+
+def stream_duration(path, kind):
+    """Seconds of the first stream of `kind` ('a' or 'v'), or None if there is none."""
+    out = os.popen(f'ffprobe -v error -select_streams {kind}:0 -show_entries '
+                   f'stream=duration -of csv=p=0 "{path}" 2>/dev/null').read().strip()
+    try:
+        return round(float(out.split(",")[0]), 3)
+    except (ValueError, IndexError):
+        return None
+
+
+def measure_loudness(path):
+    """Integrated loudness in LUFS, measured by ffmpeg's EBU R128 meter, or None.
+
+    Measurement, not opinion: the same number a broadcaster or YouTube would compute.
+    """
+    if not Path(path).exists():
+        return None
+    out = os.popen(f'ffmpeg -nostdin -i "{path}" -af ebur128=framelog=quiet -f null - '
+                   f'2>&1 | grep -A1 "Integrated loudness"').read()
+    for line in out.splitlines():
+        line = line.strip()
+        if line.startswith("I:"):
+            try:
+                return round(float(line.split()[1]), 1)
+            except (ValueError, IndexError):
+                return None
+    return None
+
+
+NOTE_SEMITONES = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5, "F#": 6,
+                  "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+
+
+def note_hz(note):
+    """PURE. 'A4' -> 440.0. One definition; the bible writes notes, never frequencies."""
+    name, octave = note[:-1].upper(), note[-1]
+    if name not in NOTE_SEMITONES or not octave.isdigit():
+        sys.exit(f"  '{note}' is not a note name like C3 or F#4")
+    midi = NOTE_SEMITONES[name] + (int(octave) + 1) * 12
+    return round(440.0 * (2 ** ((midi - 69) / 12)), 4)
+
+
+def synth_bed(mode, seconds, dest):
+    """Compose the episode's bed OFFLINE from the mode's chord. Free. Original.
+
+    Deliberately ours rather than licensed: a channel whose entire defence is that it is
+    original work should not stake its monetisation on someone else's track, and the free
+    music libraries are exactly where a copyright claim comes from six months later.
+
+    It is a held chord with one very slow swell, plus a faint breath of air so the bed is
+    not a dead sine tone. Not a score — a bed. Narration and picture carry the episode.
+    """
+    spec = (BIBLE.get("audio_bed") or {}).get(mode)
+    if not spec:
+        sys.exit(f"  mode {mode} has no audio_bed in the bible")
+    seconds = round(float(seconds), 3)
+    swell = float(spec.get("swell_seconds", 8))
+    tone = float(spec.get("tone_gain", 0.12)) / max(1, len(spec["chord"]))
+    voices, mixes = [], []
+    for i, note in enumerate(spec["chord"]):
+        hz = note_hz(note)
+        # each voice breathes on its own slightly detuned cycle, so the chord shimmers
+        # instead of beating in lockstep
+        period = swell + i * 1.7
+        voices.append(f'sine=frequency={hz}:duration={seconds}:sample_rate=48000')
+        mixes.append(f'[{i}:a]volume={tone},'
+                     f'volume=\'0.55+0.45*sin(2*PI*t/{period:.3f})\':eval=frame[v{i}]')
+    air = float(spec.get("air_gain", 0.01))
+    voices.append(f'anoisesrc=d={seconds}:c=pink:r=48000:a={air}')
+    n = len(spec["chord"])
+    mixes.append(f'[{n}:a]lowpass=f=900[air]')
+    names = "".join(f"[v{i}]" for i in range(n)) + "[air]"
+    chain = (";".join(mixes) + f';{names}amix=inputs={n + 1}:normalize=0,'
+             f'lowpass=f=2600,aformat=sample_fmts=s16:sample_rates=48000:'
+             f'channel_layouts=stereo[out]')
+    inputs = " ".join(f'-f lavfi -i "{v}"' for v in voices)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    rc = os.system(f'ffmpeg -nostdin -y {inputs} -filter_complex "{chain}" '
+                   f'-map "[out]" "{dest}" 2>/dev/null')
+    if rc != 0 or not dest.exists():
+        sys.exit("  ffmpeg could not compose the bed")
+    return spec
+
+
+def stage_bed(eid):
+    """Compose this episode's bed to fit its assembled picture exactly. Rs 0."""
+    d = ep_dir(eid)
+    final = d / "episode.mp4"
+    if not final.exists():
+        sys.exit(f"  no assembled picture at {final} — assemble first, then compose to it")
+    mode = load_ep(eid)["mode"]
+    seconds = stream_duration(final, "v") or media_duration(final)
+    dest = episode_audio_dir(eid) / "bed.wav"
+    spec = synth_bed(mode, seconds, dest)
+    (episode_audio_dir(eid) / "bed.provenance.json").write_text(json.dumps(
+        {"status": "COMPLETE", "kind": "EPISODE_AUDIO_BED", "episode": eid, "mode": mode,
+         "seconds": seconds, "spec": spec, "origin": "COMPOSED_OFFLINE",
+         "licence": "ORIGINAL — composed by this pipeline, no third-party rights",
+         "sha": sha_file(dest), "cost_inr": 0,
+         "compiler": BED_COMPILER_VERSION, "revision": build_revision()}, indent=2))
+    print(f"  {eid}: composed a {seconds}s {mode} bed  ({spec['character']})")
+    print(f"    -> {dest}")
+    print(f"    now: python3 make.py assemble {eid} && python3 make.py audio {eid}")
+
+
+BED_COMPILER_VERSION = "1"
+
+
+def episode_audio_dir(eid):
+    d = ep_dir(eid) / "audio"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def audio_spine_sources(eid):
+    """The episode's AUTHORED audio, in mix order. Absent files are simply absent.
+
+    bed  a single continuous track spanning the whole programme — music or room tone
+    vo   narration, laid over the bed
+
+    Deliberately files on disk rather than a generated stage: the bed may be composed,
+    licensed, or synthesised, and the mixer should not care which. What it must never be
+    is per-clip provider output, which is the defect this whole path exists to remove.
+    """
+    a = episode_audio_dir(eid)
+    return {k: p for k, p in (("bed", a / "bed.wav"), ("vo", a / "vo.wav"))
+            if p.exists()}
+
+
+def mix_audio_spine(eid, picture, dest):
+    """Lay the authored spine under FINISHED PICTURE. Free, deterministic, no provider.
+
+    One bed across the whole programme cannot have a seam at a cut, because it does not
+    know a cut happened. That is the entire argument for authoring audio at episode level
+    instead of accepting whatever each 4-second generation invented for itself.
+
+    Returns (ok, why). A missing bed is not an error — it is an episode that has picture
+    and no soundtrack yet, and it must still assemble and be watchable.
+    """
+    src = audio_spine_sources(eid)
+    if "bed" not in src:
+        return False, "no audio/bed.wav — picture assembled without a spine"
+    picture_secs = media_duration(picture)
+    if not picture_secs:
+        return False, "could not measure the assembled picture"
+    fade = min(C.AUDIO_FADE_SECONDS, picture_secs / 4)
+    bed_chain = (f"[1:a]aloop=loop=-1:size=2e9,atrim=0:{picture_secs},"
+                 f"afade=t=in:st=0:d={fade},"
+                 f"afade=t=out:st={max(0.0, picture_secs - fade)}:d={fade}[bed]")
+    if "vo" in src:
+        chain = (f"{bed_chain};[2:a]atrim=0:{picture_secs}[vo];"
+                 f"[bed][vo]amix=inputs=2:duration=first:dropout_transition=0,"
+                 f"loudnorm=I={C.PROGRAMME_LUFS}:TP={C.PROGRAMME_TRUE_PEAK}[a]")
+        inputs = f'-i "{picture}" -i "{src["bed"]}" -i "{src["vo"]}"'
+    else:
+        chain = f'{bed_chain};[bed]loudnorm=I={C.PROGRAMME_LUFS}:TP={C.PROGRAMME_TRUE_PEAK}[a]'
+        inputs = f'-i "{picture}" -i "{src["bed"]}"'
+    tmp = Path(str(dest) + ".mixing.mp4")
+    rc = os.system(f'ffmpeg -nostdin -y {inputs} -filter_complex "{chain}" '
+                   f'-map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k -shortest '
+                   f'"{tmp}" 2>/dev/null')
+    if rc != 0 or not tmp.exists():
+        tmp.unlink(missing_ok=True)
+        return False, "ffmpeg could not lay the audio spine"
+    tmp.replace(dest)
+
+    # loudnorm in one pass lands close, not exact. Measure what we actually produced and
+    # apply a single corrective gain — deterministic, bounded to one correction, and it
+    # makes the delivered number match the target instead of merely approaching it.
+    got = measure_loudness(dest)
+    if got is not None:
+        delta = round(C.PROGRAMME_LUFS - got, 2)
+        if abs(delta) > 0.3:
+            fix = Path(str(dest) + ".gain.mp4")
+            rc = os.system(f'ffmpeg -nostdin -y -i "{dest}" -af "volume={delta}dB" '
+                           f'-c:v copy -c:a aac -b:a 192k "{fix}" 2>/dev/null')
+            if rc == 0 and fix.exists():
+                fix.replace(dest)
+                got = measure_loudness(dest)
+            else:
+                fix.unlink(missing_ok=True)
+    return True, (f"bed{' + vo' if 'vo' in src else ''} laid across {picture_secs}s "
+                  f"at {got} LUFS")
+
+
+def stage_audio(eid):
+    """Judge what the audience will HEAR. Free — measurement, not generation.
+
+    Splits two questions that were never asked at all before E01 was called
+    publish-quality: what the DELIVERED programme sounds like, which blocks, and what the
+    PROVIDER invented per clip, which is an observation about a generator and blocks
+    nothing because we throw it away.
+    """
+    d = ep_dir(eid)
+    final = d / "episode.mp4"
+    if not final.exists():
+        sys.exit(f"  no assembled episode at {final} — run assemble first")
+    shots = json.loads((d / "shots.json").read_text())
+    native = {}
+    for s in shots:
+        c = d / "clips" / f"{s['id']}.mp4"
+        if c.exists() and clip_verdict(d, s["id"]) == "ACCEPTED":
+            native[s["id"]] = measure_loudness(c)
+    observation = qc.native_loudness_spread(native)
+
+    picture = stream_duration(final, "v") or media_duration(final)
+    audio_secs = stream_duration(final, "a")
+    delivered = measure_loudness(final) if audio_secs else None
+    has_spine = bool(audio_spine_sources(eid))
+
+    probes, detail = {}, {}
+    probes["PROGRAMME_LOUDNESS"], detail["PROGRAMME_LOUDNESS"] = qc.programme_loudness(
+        delivered, C.PROGRAMME_LUFS, C.PROGRAMME_LUFS_TOLERANCE)
+    probes["AUDIO_SPANS_PICTURE"], detail["AUDIO_SPANS_PICTURE"] = qc.audio_spans_picture(
+        audio_secs, picture)
+    # provider audio is stripped at assemble; if a track survived without an authored
+    # spine, the strip did not happen and the audience is hearing the generator
+    if audio_secs and not has_spine:
+        probes["NO_PROVIDER_AUDIO"] = "FAIL"
+        detail["NO_PROVIDER_AUDIO"] = ("the delivered episode carries audio that no "
+                                       "authored spine can account for")
+    else:
+        probes["NO_PROVIDER_AUDIO"] = "PASS"
+        detail["NO_PROVIDER_AUDIO"] = ("provider audio stripped at assemble"
+                                       if C.STRIP_PROVIDER_AUDIO else "not stripped")
+    probes["UNREQUESTED_SPEECH"] = "NOT_TESTED"
+    detail["UNREQUESTED_SPEECH"] = "a human must listen; no automated judgement exists"
+
+    rep = {"kind": "EPISODE_AUDIO", "episode": eid,
+           "picture_seconds": picture, "audio_seconds": audio_secs,
+           "delivered_lufs": delivered, "target_lufs": C.PROGRAMME_LUFS,
+           "spine": sorted(audio_spine_sources(eid)),
+           "probes": probes, "detail": detail,
+           "provider_observation": observation,
+           "revision": build_revision()}
+    (d / "audio.json").write_text(json.dumps(rep, indent=2))
+
+    print(f"  picture {picture}s   audio {audio_secs}s   delivered {delivered} LUFS "
+          f"(target {C.PROGRAMME_LUFS})")
+    for p in qc.AUDIO_PROBES:
+        print(f"    {probes[p]:10s} {p:22s} {detail[p]}")
+    if observation.get("observation") == "OBSERVED":
+        print(f"  provider native audio, per clip: {observation['per_clip']}")
+        print(f"    spread {observation['spread_lu']} LU — {observation['means']}")
+    print(f"  -> {d / 'audio.json'}")
+
+
 # ────────────────────────────── assemble ─────────────────────────────
 def stage_assemble(eid):
     """Assemble the accepted PREFIX — everything approved so far, in order.
@@ -1535,6 +1904,11 @@ def stage_assemble(eid):
                        f"triggers regeneration.")
             break
         clips.append(c)
+    # a closing hold, if one has been built and still belongs to the current last
+    # accepted shot. Free, derived, and never a substitute for a shot that was paid for
+    hold = provable_ending(eid) if clips else None
+    if hold:
+        clips.append(hold)
     if not clips:
         sys.exit(f"  nothing accepted to assemble in {d/'clips'}" +
                  (f"\n  first blocker: {stopped}" if stopped else ""))
@@ -1546,7 +1920,12 @@ def stage_assemble(eid):
     if len(clips) == 1 or x <= 0:
         lst = d / "concat.txt"
         lst.write_text("".join(f"file '{c.resolve()}'\n" for c in clips))
-        rc = os.system(f'ffmpeg -y -f concat -safe 0 -i "{lst}" -c copy "{final}" 2>/dev/null')
+        # -an: the provider's per-clip audio is a generation by-product, never programme
+        # audio. Three independently invented room tones measured 13.4 LU apart on this
+        # very episode; a seam at every cut is not a soundtrack.
+        strip = "-an" if C.STRIP_PROVIDER_AUDIO else ""
+        rc = os.system(f'ffmpeg -y -f concat -safe 0 -i "{lst}" -c copy {strip} '
+                       f'"{final}" 2>/dev/null')
     else:
         inputs = " ".join(f'-i "{c}"' for c in clips)
         parts, prev, off = [], "0:v", 0.0
@@ -1558,7 +1937,14 @@ def stage_assemble(eid):
                        f'-map "[{prev}]" -c:v libx264 -preset medium -crf 20 '
                        f'-pix_fmt yuv420p "{final}" 2>/dev/null')
     if rc != 0: sys.exit("ffmpeg failed (brew install ffmpeg)")
-    print(f"  -> {final}  ({len(clips)} clips, crossfade {x}s)")
+    print(f"  -> {final}  ({len(clips)} segments"
+          + (", including the free closing hold" if hold else "")
+          + f", crossfade {x}s)")
+    ok, why = mix_audio_spine(eid, final, final)
+    print(f"  audio: {why}")
+    if not ok:
+        print("  the episode has PICTURE ONLY. Author out/%s/audio/bed.wav, then "
+              "assemble again." % eid)
 
 
 def stage_episode(eid, upto=None):
@@ -1699,7 +2085,8 @@ def stage_costs(episode=None):
 
 STAGES = {"verify": stage_verify, "plan": stage_plan, "portraits": stage_portraits, "frames": stage_frames,
           "video": stage_video, "assemble": stage_assemble, "episode": stage_episode,
-          "costs": stage_costs,
+          "costs": stage_costs, "audio": stage_audio, "bed": stage_bed,
+          "ending": stage_ending,
           # dispatched explicitly below: these take a LOCATION id, not an episode id
           "plate-candidate": None, "plate-approve": None}
 

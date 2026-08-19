@@ -1,0 +1,37 @@
+{
+  "status": "COMPLETE",
+  "kind": "EPISODE_AUDIO_BED",
+  "episode": "E01",
+  "mode": "BEDTIME_STORY",
+  "seconds": 15.0,
+  "spec": {
+    "character": "warm, slow, almost still \u2014 a held lullaby chord that never resolves",
+    "chord": [
+      "C3",
+      "G3",
+      "E4",
+      "B4"
+    ],
+    "swell_seconds": 9,
+    "tone_gain": 0.11,
+    "air_gain": 0.01
+  },
+  "origin": "COMPOSED_OFFLINE",
+  "licence": "ORIGINAL \u2014 composed by this pipeline, no third-party rights",
+  "sha": "a44b787d86382e90",
+  "cost_inr": 0,
+  "compiler": "1",
+  "revision": {
+    "commit": "56afed9d6af734bdd1b2bb0d8356a51bb86cb8a7",
+    "dirty": true,
+    "tag": null,
+    "sources": {
+      "make.py": "9a9b2755fadb9962",
+      "validate.py": "735d13f9b05466d2",
+      "camera.py": "9631f4435b8365cc",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "a71ba387b9f3a9f9",
+      "bible.yaml": "9e109ea05a2761b8"
+    }
+  }
+}

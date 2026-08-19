@@ -532,6 +532,7 @@ def main():
     results += append_properties()
     results += plate_properties()
     results += canon_agreement_properties()
+    results += audio_properties()
 
     print(f"\n  {sum(results)}/{len(results)} runtime properties hold")
     if not all(results):
@@ -947,6 +948,69 @@ def canon_agreement_properties():
                    "lamp light" not in p.split("Image 0 —")[-1].split(".")[0]))
 
     shutil.rmtree(tmp, ignore_errors=True)
+    return out
+
+
+def audio_properties():
+    """The audio spine, and the free closing hold.
+
+    Every probe this suite had before today LOOKS. None of them listened, and E01 was
+    accepted, assembled and called publish-quality carrying three independently generated
+    room tones measured 13.4 LU apart. These are the listening ones.
+    """
+    import json as _j
+    import qc as _qc
+    import config as _c
+    out = []
+    tmp0, make = fresh_env(10_000)
+
+    # notes, not hertz — the bible writes C3, one function turns it into a frequency
+    out.append(_ok("A4 is 440 Hz", make.note_hz("A4") == 440.0))
+    out.append(_ok("C3 is an octave-and-a-bit below it",
+                   abs(make.note_hz("C3") - 130.8128) < 0.01))
+    out.append(_ok("every mode declares a bed",
+                   all(m in (make.BIBLE.get("audio_bed") or {})
+                       for m in make.BIBLE["modes"])))
+
+    # the DELIVERED programme is what blocks
+    st, _d = _qc.programme_loudness(-14.0, _c.PROGRAMME_LUFS, _c.PROGRAMME_LUFS_TOLERANCE)
+    out.append(_ok("a mix at the house target passes", st == "PASS"))
+    st, _d = _qc.programme_loudness(-20.5, _c.PROGRAMME_LUFS, _c.PROGRAMME_LUFS_TOLERANCE)
+    out.append(_ok("the ORIGINAL E01 mix (-20.5 LUFS) would have been blocked",
+                   st == "FAIL"))
+    st, _d = _qc.programme_loudness(None, _c.PROGRAMME_LUFS, _c.PROGRAMME_LUFS_TOLERANCE)
+    out.append(_ok("a silent episode FAILS rather than passes by default", st == "FAIL"))
+    st, _d = _qc.audio_spans_picture(11.6, 15.0)
+    out.append(_ok("a bed that stops before the picture does FAILS", st == "FAIL"))
+    st, _d = _qc.audio_spans_picture(15.0, 15.0)
+    out.append(_ok("a bed that covers the picture passes", st == "PASS"))
+
+    # the PROVIDER's own audio is an observation about a generator, and blocks nothing
+    obs = _qc.native_loudness_spread({"s01": -17.2, "s02": -30.6, "s03": -27.4})
+    out.append(_ok("the measured 13.4 LU provider spread is recorded as evidence",
+                   obs["spread_lu"] == 13.4 and obs["observation"] == "OBSERVED"))
+    out.append(_ok("one clip alone proves nothing about continuity",
+                   _qc.native_loudness_spread({"s01": -17.2})["observation"]
+                   == "NOT_OBSERVABLE"))
+    out.append(_ok("provider audio is stripped at assemble by contract",
+                   _c.STRIP_PROVIDER_AUDIO is True))
+
+    # a stale closing hold must never be silently concatenated onto an episode
+    tmp, make2 = fresh_env(10_000)
+    d = seed_episode(tmp, make2, valid_frame=True, valid_clip=True)
+    out.append(_ok("no hold built means nothing is appended",
+                   make2.provable_ending("E01") is None))
+    (d / "ending").mkdir(parents=True, exist_ok=True)
+    make2.write_atomic(d / "ending" / "hold.mp4", b"not really a video")
+    (d / "ending" / "hold.provenance.json").write_text(_j.dumps(
+        {"status": "COMPLETE", "kind": "EPISODE_ENDING_HOLD", "episode": "E01",
+         "source_shot": "s01", "source_frame_sha": "0" * 16,
+         "geometry": {"w": 1280, "h": 720, "fps": 24.0},
+         "input_hash": "0" * 16, "sha": make2.sha_file(d / "ending" / "hold.mp4")}))
+    out.append(_ok("a hold whose source frame has changed is refused",
+                   make2.provable_ending("E01") is None))
+    shutil.rmtree(tmp, ignore_errors=True)
+    shutil.rmtree(tmp0, ignore_errors=True)
     return out
 
 

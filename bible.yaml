@@ -237,3 +237,31 @@ environment:
   meadow_day:
     lighting: bright warm daylight from a high sun
     source_visible: false
+
+# The AUDIO SPINE, per mode. A bed is authored for the whole episode and laid under
+# finished picture; the video provider's per-clip audio is discarded. Measured on E01:
+# three independently generated clips landed 13.4 LU apart, so provider audio can never
+# be a continuous soundtrack, whatever its quality.
+#
+# Notes are named, not hertz — a chord written as frequencies is a chord nobody can read
+# or change. ORIGINAL composition, deliberately: licensed music is a copyright claim
+# waiting to happen on a channel whose whole defence is that it is original work.
+audio_bed:
+  BEDTIME_STORY:
+    character: warm, slow, almost still — a held lullaby chord that never resolves
+    chord: [C3, G3, E4, B4]
+    swell_seconds: 9        # one very slow breath in and out, longer than any shot
+    tone_gain: 0.11         # quiet: this sits UNDER narration, it is not the subject
+    air_gain: 0.010         # a faint hiss of room air so the bed is not a dead sine
+  STORY:
+    character: gentle and open, a little brighter than bedtime
+    chord: [C3, G3, C4, E4]
+    swell_seconds: 7
+    tone_gain: 0.13
+    air_gain: 0.012
+  SONG:
+    character: bright and simple, a bed a melody can sit on top of
+    chord: [C3, G3, C4, G4]
+    swell_seconds: 5
+    tone_gain: 0.15
+    air_gain: 0.010

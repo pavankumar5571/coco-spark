@@ -73,3 +73,28 @@ PLANNER_MAX_INR        = 3.0    # conservative reservation; token cost is unknow
 # to an exact revision. Tests set this False to exercise other properties, and one
 # dedicated test asserts the guard itself.
 REQUIRE_CLEAN_TREE = True
+
+# ─────────────────────────────── audio ───────────────────────────────
+# The provider generates native audio we never asked for, and it generates it PER CLIP.
+# Measured on E01's accepted footage: s01 -17.2 LUFS, s02 -30.6, s03 -27.4 — a 13.4 LU
+# lurch at the first cut, on footage a human had already accepted, because every probe we
+# had ever written looks and none of them listens.
+#
+# Normalising three independently invented room tones only makes three different rooms
+# equally loud. So the programme's audio is AUTHORED AT EPISODE LEVEL and the provider's
+# is discarded as a generation by-product: one continuous bed cannot have a seam at a cut,
+# because it does not know a cut happened.
+STRIP_PROVIDER_AUDIO = True
+
+# A HOUSE mixing target, not a YouTube requirement. YouTube does not publish a mandatory
+# upload loudness; it normalises loud material on playback. -14 LUFS is where we choose to
+# deliver so our own episodes match each other.
+PROGRAMME_LUFS           = -14.0
+PROGRAMME_LUFS_TOLERANCE = 1.5
+PROGRAMME_TRUE_PEAK      = -1.5
+AUDIO_FADE_SECONDS       = 1.5    # bed in and out, so an episode never starts or ends abruptly
+
+# A deliberate closing hold built from pixels already accepted, rather than bought. Free.
+ENDING_HOLD_SECONDS = 3.0
+ENDING_PUSH_PERCENT = 4.0    # how far the slow push-in travels over the whole hold
+ENDING_FADE_SECONDS = 1.5    # fade to black, inside the hold
