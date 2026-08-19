@@ -214,139 +214,9 @@
     "cast": [
       "coco"
     ],
-    "frame": "Close shot on Coco lying on his side in bed, asleep under the patchwork quilt, facing left toward the round window.",
-    "motion": "Coco remains completely still in deep sleep, breathing softly while the warm starlight gently shifts across the room.",
-    "coverage_role": "DETAIL",
-    "focus": {
-      "type": "CHARACTER",
-      "ids": [
-        "coco"
-      ]
-    },
-    "boundary": {
-      "type": "CONTINUOUS"
-    },
-    "events": [],
-    "start_state": {
-      "location_id": "cottage_night",
-      "population": [
-        "coco"
-      ],
-      "characters": {
-        "coco": {
-          "awareness": "ASLEEP",
-          "posture": "LYING_SIDE",
-          "facing": "LEFT",
-          "zone": "BED",
-          "expression": "SLEEPY"
-        }
-      },
-      "props": {},
-      "visual": {
-        "camera_setup_id": "COTTAGE_NIGHT_AXIS_A",
-        "composition_id": "CHARACTER:COCO",
-        "shot_size": "CLOSE",
-        "camera_angle": "EYE_LEVEL"
-      }
-    },
-    "end_state": {
-      "location_id": "cottage_night",
-      "population": [
-        "coco"
-      ],
-      "characters": {
-        "coco": {
-          "awareness": "ASLEEP",
-          "posture": "LYING_SIDE",
-          "facing": "LEFT",
-          "zone": "BED",
-          "expression": "SLEEPY"
-        }
-      },
-      "props": {},
-      "visual": {
-        "camera_setup_id": "COTTAGE_NIGHT_AXIS_A",
-        "composition_id": "CHARACTER:COCO",
-        "shot_size": "CLOSE",
-        "camera_angle": "EYE_LEVEL"
-      }
-    },
-    "camera": "Locked static camera. Close shot at eye level, framed on coco.",
-    "frame_compiled": "Close shot, eye level, framed on coco. Close shot on Coco lying on his side in bed, asleep under the patchwork quilt, facing left toward the round window."
-  },
-  {
-    "id": "s05",
-    "cast": [
-      "coco"
-    ],
-    "frame": "Close shot continuing on sleeping Coco, holding the same intimate framing on the bed.",
-    "motion": "Coco continues his peaceful slumber without moving, the gentle rise and fall of the quilt matching his slow breaths.",
-    "coverage_role": "DETAIL",
-    "focus": {
-      "type": "CHARACTER",
-      "ids": [
-        "coco"
-      ]
-    },
-    "boundary": {
-      "type": "CONTINUOUS"
-    },
-    "events": [],
-    "start_state": {
-      "location_id": "cottage_night",
-      "population": [
-        "coco"
-      ],
-      "characters": {
-        "coco": {
-          "awareness": "ASLEEP",
-          "posture": "LYING_SIDE",
-          "facing": "LEFT",
-          "zone": "BED",
-          "expression": "SLEEPY"
-        }
-      },
-      "props": {},
-      "visual": {
-        "camera_setup_id": "COTTAGE_NIGHT_AXIS_A",
-        "composition_id": "CHARACTER:COCO",
-        "shot_size": "CLOSE",
-        "camera_angle": "EYE_LEVEL"
-      }
-    },
-    "end_state": {
-      "location_id": "cottage_night",
-      "population": [
-        "coco"
-      ],
-      "characters": {
-        "coco": {
-          "awareness": "ASLEEP",
-          "posture": "LYING_SIDE",
-          "facing": "LEFT",
-          "zone": "BED",
-          "expression": "SLEEPY"
-        }
-      },
-      "props": {},
-      "visual": {
-        "camera_setup_id": "COTTAGE_NIGHT_AXIS_A",
-        "composition_id": "CHARACTER:COCO",
-        "shot_size": "CLOSE",
-        "camera_angle": "EYE_LEVEL"
-      }
-    },
-    "camera": "Locked static camera. Close shot at eye level, framed on coco.",
-    "frame_compiled": "Close shot, eye level, framed on coco. Close shot continuing on sleeping Coco, holding the same intimate framing on the bed."
-  },
-  {
-    "id": "s06",
-    "cast": [
-      "coco"
-    ],
-    "frame": "Wide establish shot of the entire cottage bedroom, showing the cozy room, the round window with stars, and Coco sleeping soundly in bed.",
-    "motion": "The camera rests completely still, holding on the peaceful stillness of the room as the night settles around sleeping Coco.",
-    "coverage_role": "ESTABLISH",
+    "frame": "Wide view of Coco's cosy cottage interior at night. The camera pulls back smoothly from the close-up on Coco to reveal the entire room: the honey-coloured wooden walls, the round window showing the deep blue starry sky on the left, the low bookshelf, the woven rug on the floor, and the small bed against the right wall where Coco lies sleeping peacefully.",
+    "motion": "Coco remains fast asleep on his side in the bed under the patchwork quilt, breathing gently with the quilt rising and falling rhythmically in the quiet room.",
+    "coverage_role": "RESOLUTION",
     "focus": {
       "type": "CHARACTER",
       "ids": [
@@ -402,6 +272,6 @@
       }
     },
     "camera": "Locked static camera. Medium Wide shot at eye level, framed on coco.",
-    "frame_compiled": "Medium Wide shot, eye level, framed on coco. Wide establish shot of the entire cottage bedroom, showing the cozy room, the round window with stars, and Coco sleeping soundly in bed."
+    "frame_compiled": "Medium Wide shot, eye level, framed on coco. Wide view of Coco's cosy cottage interior at night. The camera pulls back smoothly from the close-up on Coco to reveal the entire room: the honey-coloured wooden walls, the round window showing the deep blue starry sky on the left, the low bookshelf, the woven rug on the floor, and the small bed against the right wall where Coco lies sleeping peacefully."
   }
 ]

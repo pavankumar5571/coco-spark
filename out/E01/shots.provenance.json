@@ -1,12 +1,12 @@
 {
   "status": "COMPLETE",
-  "input_hash": "3ebaf446d0eef298",
-  "sha": "aa94054333df15cf",
+  "input_hash": "58e0a5b3c92cc335",
+  "sha": "1d6f3eab40d844c9",
   "model": "gemini-3.5-flash-lite",
   "requirement_results": {
     "framing_change_across_a_continuous_cut": {
       "status": "SATISFIED",
-      "reason": "All shots maintain continuous narrative flow with proper establishment and detail coverage."
+      "reason": "The framing successfully pulls back from the close shot in s03 to a wide ESTABLISH/RESOLUTION shot in s04 across a continuous boundary while maintaining consistent character state."
     }
   },
   "frozen_shots": [
