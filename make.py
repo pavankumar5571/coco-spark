@@ -72,29 +72,82 @@ def usable(dest: Path, prov_path: Path, expect_hash: str):
     return True, "valid"
 
 
-def frame_identity(d, shot, bible, loc, prev_stem=None, policy=None):
-    """Single source of truth for what makes a first frame a distinct paid request.
+class RefResolution:
+    """One resolution, consumed by BOTH the identity hash and the paid request.
 
-    Returns (ref_ids, input_hash). stage_frames and preflight MUST both use this; two
-    copies of the formula drift, and that drift silently rejected every frame the moment
-    ordered reference identity was added.
+    Previously frame_identity() chose the predecessor source by existence while
+    stage_frames() independently PROVED usability. A stale-but-present tail was therefore
+    hashed as the reference while the actual request used the predecessor frame — the
+    provenance described a request that never happened. Same class as the duplicated
+    preflight hash: duplicated decisions drift. The duplicated decision here was which
+    predecessor artifact is authoritative.
     """
-    ref_ids = []
-    for key in shot["cast"]:
+    def __init__(self, paths, ref_ids, error=None):
+        self.paths, self.ref_ids, self.error = paths, ref_ids, error
+
+
+def resolve_frame_refs(d, shots, idx, bible, loc, policy):
+    """Resolve the exact ordered references for one shot, proving each one."""
+    shot = shots[idx]
+    paths, ref_ids = [], []
+
+    for key in shot["cast"]:                                # identity anchors FIRST
         pth = PORTRAITS / f"{key}.png"
-        ref_ids.append(("identity", key, sha_file(pth) if pth.exists() else None))
-    if prev_stem and policy in ("TEMPORAL_REFERENCE", "PREDECESSOR_PIXELS"):
-        tail = d / "transitions" / f"{prev_stem}_LAST.png"
-        frame = d / "frames" / f"{prev_stem}.png"
-        src = tail if tail.exists() else frame
-        # PREDECESSOR_PIXELS COPIES these bytes, so the inherited frame's identity must be
-        # transitively bound to them. Without this, a changed source tail leaves the
-        # inherited frame looking current while its actual pixels came from elsewhere.
-        role = "inherited" if policy == "PREDECESSOR_PIXELS" else "temporal"
-        ref_ids.append((role, prev_stem, sha_file(src) if src.exists() else None))
-    return ref_ids, input_hash(shot=shot, bible=bible, model=C.IMAGE_MODEL,
-                               aspect=C.IMAGE_ASPECT, loc=loc, refs=ref_ids,
-                               compiler=C.FRAME_COMPILER_VERSION)
+        ok, why = usable(pth, PORTRAITS / f"{key}.provenance.json",
+                         input_hash(character=bible["cast"][key],
+                                    style=bible["style_lock"], model=C.IMAGE_MODEL,
+                                    aspect=C.IMAGE_ASPECT))
+        if not ok:
+            return RefResolution([], [], f"portrait '{key}' not provably current ({why})")
+        paths.append(pth); ref_ids.append(("identity", key, sha_file(pth)))
+
+    if idx == 0 or policy == "CANONICAL_ONLY":
+        return RefResolution(paths, ref_ids)
+
+    prev_id = shots[idx - 1]["id"]
+    tail = d / "transitions" / f"{prev_id}_LAST.png"
+    src_clip = d / "clips" / f"{prev_id}.mp4"
+    tail_ok, tail_why = usable(
+        tail, d / "transitions" / f"{prev_id}_LAST.provenance.json",
+        input_hash(source_clip_sha=sha_file(src_clip) if src_clip.exists() else None,
+                   extractor="ffmpeg-sseof-0.1-v1"))
+
+    if policy == "PREDECESSOR_PIXELS":
+        # FAIL CLOSED. The compiler concluded this frame carries no new information and
+        # should BE the predecessor pixels. Silently generating an independent
+        # replacement reintroduces the very cut drift this policy exists to remove.
+        if not tail_ok:
+            return RefResolution([], [], f"PREDECESSOR_PIXELS requires the exact "
+                                         f"predecessor tail, which is unavailable "
+                                         f"({tail_why}). Render or repair {prev_id} first.")
+        return RefResolution(paths, ref_ids + [("inherited", prev_id, sha_file(tail))])
+
+    # TEMPORAL_REFERENCE may fall back to a PROVEN predecessor frame
+    if tail_ok:
+        paths.append(tail); ref_ids.append(("temporal", prev_id, sha_file(tail)))
+        return RefResolution(paths, ref_ids)
+    pframe = d / "frames" / f"{prev_id}.png"
+    _, pwant = frame_identity_from(shots, idx - 1, d, bible, loc)
+    pok, pwhy = usable(pframe, d / "frames" / f"{prev_id}.provenance.json", pwant)
+    if not pok:
+        return RefResolution([], [], f"no proven temporal reference (tail {tail_why}; "
+                                     f"{prev_id} frame {pwhy})")
+    paths.append(pframe); ref_ids.append(("temporal", prev_id, sha_file(pframe)))
+    return RefResolution(paths, ref_ids)
+
+
+def frame_identity(shot, bible, loc, ref_ids):
+    """Identity of a first frame as a paid request. Takes ALREADY-RESOLVED references."""
+    return input_hash(shot=shot, bible=bible, model=C.IMAGE_MODEL,
+                      aspect=C.IMAGE_ASPECT, loc=loc, refs=ref_ids,
+                      compiler=C.FRAME_COMPILER_VERSION)
+
+
+def frame_identity_from(shots, idx, d, bible, loc):
+    """Convenience: resolve then hash, for callers that only need the expected hash."""
+    pol = reference_policy(shots[idx - 1] if idx else None, shots[idx], bible)[0]
+    r = resolve_frame_refs(d, shots, idx, bible, loc, pol)
+    return r, frame_identity(shots[idx], bible, loc, r.ref_ids)
 
 
 def ep_dir(eid): 
@@ -538,88 +591,36 @@ def stage_frames(eid, only=None):
             prev = d / "frames" / f"{shot['id']}.png"; continue
         dest = d / "frames" / f"{shot['id']}.png"
         prov_p = d / "frames" / f"{shot['id']}.provenance.json"
-        _, ihash = frame_identity(d, shot, BIBLE, loc,
-                                   prev_stem=shots[idx - 1]["id"] if idx else None,
-                                   policy=policy[idx][0])
+        res = resolve_frame_refs(d, shots, idx, BIBLE, loc, policy[idx][0])
+        if res.error:
+            sys.exit(f"  {shot['id']}: {res.error}")
+        refs, ref_ids = res.paths, res.ref_ids
+        legend = []
+        for i_, (role, key, _sha) in enumerate(ref_ids):
+            if role == "identity":
+                legend.append(f"Image {i_}: canonical reference for "
+                              f"{BIBLE['cast'][key]['name']}")
+            elif role == "temporal":
+                legend.append(f"Image {i_}: the previous shot. Continue directly from it: "
+                              f"identical camera, geometry and lighting.")
+
+        ihash = frame_identity(shot, BIBLE, loc, ref_ids)
         ok, why = usable(dest, prov_p, ihash)
         if ok:
             print(f"  {shot['id']}: valid, skipping"); prev = dest; continue
         if dest.exists():
             print(f"  {shot['id']}: RECOMPUTING — {why}")
 
-
-        # A CONTINUOUS edit whose material state is unchanged has no new information to
-        # generate: the next shot literally begins on the previous clip's final frame.
-        # Copying it is free, pixel-exact, and cannot drift. Asking an image model to
-        # reconstruct that continuity is both a cost and a risk we do not need to take.
         if policy[idx][0] == "PREDECESSOR_PIXELS":
-            prev_id = shots[idx - 1]["id"]
-            tail = d / "transitions" / f"{prev_id}_LAST.png"
-            tail_prov = d / "transitions" / f"{prev_id}_LAST.provenance.json"
-            # The tail must never reconstruct a weaker idea of what produced it than the
-            # clip's own cache key. Its identity is the SOURCE CLIP's checksum, so a clip
-            # regenerated from a changed frame can never be matched by an old tail.
-            src_clip = d / "clips" / f"{prev_id}.mp4"
-            tail_key = input_hash(source_clip_sha=sha_file(src_clip) if src_clip.exists()
-                                  else None, extractor="ffmpeg-sseof-0.1-v1")
-            tail_ok, tail_why = usable(tail, tail_prov, tail_key)
-            if not tail_ok and tail.exists():
-                print(f"  {shot['id']}: tail unusable ({tail_why}) — generating instead")
-            if tail_ok:
-                write_atomic(dest, tail.read_bytes())
-                prov_p.write_text(json.dumps(
-                    {"status": "COMPLETE", "source": "PREDECESSOR_PIXELS",
-                     "from": tail.name, "input_hash": ihash, "sha": sha_file(dest),
-                     "ref_ids": frame_identity(d, shot, BIBLE, loc,
-                                               prev_stem=shots[idx - 1]["id"],
-                                               policy="PREDECESSOR_PIXELS")[0],
-                     "reason": "CONTINUOUS boundary, material + visual state unchanged",
-                     "cost_inr": 0}, indent=2))
-                print(f"  {shot['id']}: INHERITED from {tail.name} (free, pixel-exact)")
-                prev = dest; continue
-            print(f"  {shot['id']}: would inherit, but {tail.name} not rendered yet")
-
-        refs, legend, ref_ids = [], [], []
-        for key in shot["cast"]:                              # identity anchors FIRST
-            p = PORTRAITS / f"{key}.png"
-            # A reference must be PROVEN CURRENT at the moment it becomes input to a paid
-            # request. Existence is not proof: a portrait regenerated from the same bible
-            # has a different SHA and is a different identity authority.
-            pok, pwhy = usable(p, PORTRAITS / f"{key}.provenance.json",
-                               input_hash(character=BIBLE["cast"][key],
-                                          style=BIBLE["style_lock"], model=C.IMAGE_MODEL,
-                                          aspect=C.IMAGE_ASPECT))
-            if not pok:
-                sys.exit(f"  portrait for '{key}' is not provably current ({pwhy}) — "
-                         f"run `make.py portraits` before spending on frames")
-            refs.append(p)
-            ref_ids.append(("identity", key, sha_file(p)))
-            legend.append(f"Image {len(refs)-1}: canonical reference for "
-                          f"{BIBLE['cast'][key]['name']}")
-        # Temporal reference only when the compiler says this shot inherits transient
-        # state. Chaining has a real provenance/cache cost, so it must earn its use.
-        if prev and policy[idx][0] == "TEMPORAL_REFERENCE":
-            # A tail rejected for inheritance must not sneak in as a reference either.
-            ptail = d / "transitions" / f"{prev.stem}_LAST.png"
-            psrc = d / "clips" / f"{prev.stem}.mp4"
-            pok, _ = usable(ptail, d / "transitions" / f"{prev.stem}_LAST.provenance.json",
-                            input_hash(source_clip_sha=sha_file(psrc) if psrc.exists()
-                                       else None, extractor="ffmpeg-sseof-0.1-v1"))
-            if pok:
-                refs.append(ptail); ref_ids.append(("temporal", prev.stem, sha_file(ptail)))
-            else:
-                # never fall back to an unproven predecessor frame
-                _, prev_want = frame_identity(d, shots[idx - 1], BIBLE, loc,
-                    prev_stem=shots[idx - 2]["id"] if idx >= 2 else None,
-                    policy=policy[idx - 1][0])
-                pfok, pfwhy = usable(prev, d / "frames" / f"{prev.stem}.provenance.json",
-                                     prev_want)
-                if not pfok:
-                    sys.exit(f"  {shot['id']}: no proven temporal reference (tail "
-                             f"unusable and {prev.name} not current: {pfwhy})")
-                refs.append(prev); ref_ids.append(("temporal", prev.stem, sha_file(prev)))
-            legend.append(f"Image {len(refs)-1}: the previous shot. Continue directly from "
-                          f"it: identical camera, geometry and lighting.")
+            tail = d / "transitions" / f"{shots[idx-1]['id']}_LAST.png"
+            write_atomic(dest, tail.read_bytes())
+            prov_p.write_text(json.dumps(
+                {"status": "COMPLETE", "source": "PREDECESSOR_PIXELS", "from": tail.name,
+                 "input_hash": ihash, "sha": sha_file(dest), "ref_ids": ref_ids,
+                 "reason": "CONTINUOUS boundary, material + visual state unchanged",
+                 "cost_inr": 0}, indent=2))
+            print(f"  {shot['id']}: INHERITED from {tail.name} (free, pixel-exact)")
+            prev = dest; continue
 
         prompt = ("\n".join(legend) + f"\n\n{BIBLE['style_lock']}\n\n"
                   f"LOCATION (identical in every shot): {loc['description']}\n\n"
@@ -654,9 +655,7 @@ def preflight(eid, shots, d, targets=None):
             continue
         f = d / "frames" / f"{s['id']}.png"
         prov = d / "frames" / f"{s['id']}.provenance.json"
-        _, want = frame_identity(d, s, BIBLE, loc,
-                                 prev_stem=shots[i - 1]["id"] if i else None,
-                                 policy=policy[i][0])
+        _, want = frame_identity_from(shots, i, d, BIBLE, loc)
         ok, why = usable(f, prov, want)
         if not ok:
             fail.append(f"{s['id']}: frame not provably current ({why})")

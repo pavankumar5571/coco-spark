@@ -312,8 +312,8 @@ def main():
         clip.write_bytes(b"DIFFERENTMP4" * 32)   # source changed; tail now orphaned
     # s01 is cached and current, so exactly one call: s02, generated rather than
     # inheriting the orphaned tail.
-    results.append(run_stage("source clip changed -> orphaned tail not inherited",
-        "stage_frames", 10_000, stale_tail, 1))
+    results.append(run_stage("source clip changed -> FAIL CLOSED, no substitute frame",
+        "stage_frames", 10_000, stale_tail, 0))
 
     # CONTROL. Without this every "0 calls" result above could be passing vacuously —
     # a stage that exits early for an unrelated reason also makes zero calls.
@@ -374,15 +374,66 @@ def main():
         _m.stage_frames("E01")                     # produce the inherited s02
         tail = d / "transitions" / "s01_LAST.png"
         mk.write_atomic(tail, _valid_png() + b"\x03")   # source pixels now different
-    results.append(run_stage("B source tail changed -> inherited frame regenerates",
-        "stage_frames", 10_000, inherited_then_tail_changes, 1))
+    results.append(run_stage("B source tail changed -> FAIL CLOSED, no substitute frame",
+        "stage_frames", 10_000, inherited_then_tail_changes, 0))
 
     # C. tail unusable AND predecessor frame stale -> refuse, spend nothing
     # C. A stale predecessor is REGENERATED rather than consumed. The invariant is that
     # no stale reference reaches a paid call, not that the run refuses to proceed.
-    results.append(run_stage("C unusable tail + stale predecessor -> both regenerate",
+    # C. s01 is stale and legitimately regenerates; s02 is PREDECESSOR_PIXELS and must
+    # NOT substitute independently generated pixels for the tail it was meant to copy.
+    results.append(run_stage("C stale predecessor repairs, inheritance fails closed",
         "stage_frames", 10_000,
-        lambda tmp, mk: two_shot(tmp, mk, break_tail=True, bad_prev_hash=True), 2))
+        lambda tmp, mk: two_shot(tmp, mk, break_tail=True, bad_prev_hash=True), 1))
+
+    # ── ChatGPT's two final cases ────────────────────────────────────────────
+    def temporal_stale_tail(tmp, mk):
+        """TEMPORAL_REFERENCE (composition changes, so no inheritance): stale tail
+        present, predecessor frame valid. The request must use the FRAME, and the
+        recorded provenance must say so — the stale tail SHA must appear nowhere."""
+        import copy
+        d = seed_episode(tmp, mk, valid_clip=True)
+        shots = json.loads((d / "shots.json").read_text())
+        s2 = copy.deepcopy(shots[0]); s2["id"] = "s02"
+        s2["start_state"]["visual"]["shot_size"] = "CLOSE"      # composition changes
+        s2["end_state"]["visual"]["shot_size"] = "CLOSE"
+        s2["start_state"]["visual"]["camera_setup_id"] = "B"
+        s2["end_state"]["visual"]["camera_setup_id"] = "B"
+        shots.append(s2)
+        (d / "shots.json").write_text(json.dumps(shots))
+        # the tail must be BYTE-DISTINCT from the s01 frame, or their SHAs collide and
+        # the assertion cannot tell which artifact was actually referenced
+        import io
+        from PIL import Image as _I
+        buf = io.BytesIO(); _I.new("RGB", (8, 8), (200, 30, 30)).save(buf, "PNG")
+        tail = d / "transitions" / "s01_LAST.png"
+        mk.write_atomic(tail, buf.getvalue())
+        (d / "transitions" / "s01_LAST.provenance.json").write_text(json.dumps(
+            {"status": "COMPLETE", "sha": mk.sha_file(tail),
+             "input_hash": "0" * 16}))                          # stale tail
+        return d
+
+    tmp, mk = fresh_env(10_000)
+    fake = FakeClient(); mk.client = lambda: fake
+    d = temporal_stale_tail(tmp, mk)
+    try:
+        mk.stage_frames("E01")
+    except Exception:
+        pass
+    prov = json.loads((d / "frames" / "s02.provenance.json").read_text()) \
+        if (d / "frames" / "s02.provenance.json").exists() else {}
+    stale_sha = mk.sha_file(d / "transitions" / "s01_LAST.png")
+    used = [r for r in prov.get("ref_ids", []) if r[0] == "temporal"]
+    ok = (fake.calls == 1
+          and used and used[0][2] != stale_sha
+          and used[0][2] == mk.sha_file(d / "frames" / "s01.png"))
+    print(f"  {'PASS' if ok else 'FAIL'}  "
+          f"{'1 stale tail -> provenance records the FRAME, not the tail':52s} "
+          f"calls={fake.calls}")
+    results.append(ok)
+    shutil.rmtree(tmp, ignore_errors=True)
+
+    print(f"\n  {sum(results)}/{len(results)} runtime properties hold")
 
     # D. targeted video on shot 2 must not treat it as the first shot
     def targeted_second(tmp, mk):
