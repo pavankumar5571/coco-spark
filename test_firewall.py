@@ -140,6 +140,50 @@ def main():
     else:
         print(f"  passed   {'valid plan (control)':46s} clean")
 
+    # ── composition vs physical setup ────────────────────────────────────────
+    import camera as _cam
+    from make import reference_policy as _pol
+
+    def _s(sid, role, ids, size_role=None):
+        import copy
+        s = {"id": sid, "cast": ["coco", "nana"], "coverage_role": role,
+             "focus": {"type": "CHARACTER", "ids": ids}, "frame": "x", "motion": "m",
+             "boundary": {"type": "CONTINUOUS"}, "events": [],
+             "start_state": {"location_id": "cottage_night",
+                "population": ["coco", "nana"],
+                "characters": {
+                    "coco": {"awareness": "AWAKE", "posture": "SITTING_UP", "zone": "BED"},
+                    "nana": {"awareness": "AWAKE", "posture": "PERCHED", "zone": "CHAIR"}},
+                "props": {}}}
+        s["end_state"] = copy.deepcopy(s["start_state"])
+        return s
+
+    # identical size and angle, DIFFERENT subject -> must not inherit pixels
+    ep2 = {"mode": "BEDTIME_STORY", "shots": 2, "cast": ["coco", "nana"],
+           "requirements": []}
+    pair = _cam.assign([_s("s01", "REACTION", ["coco"]),
+                        _s("s02", "REACTION", ["nana"])], ep2, BIBLE)
+    v1, v2 = pair[0]["start_state"]["visual"], pair[1]["start_state"]["visual"]
+    same_frame = (v1["shot_size"] == v2["shot_size"]
+                  and v1["camera_setup_id"] == v2["camera_setup_id"])
+    pol = _pol(pair[0], pair[1], BIBLE)[0]
+    checked += 1
+    if same_frame and pol == "PREDECESSOR_PIXELS":
+        failures.append("NOT REJECTED: same size/setup, different subject -> inheritance")
+        provider.image()
+    else:
+        print(f"  blocked  {'CLOSE on coco -> CLOSE on nana (same setup)':46s} "
+              f"{pol}")
+
+    # the compiled framing must not contradict the assigned camera
+    checked += 1
+    compiled = pair[1].get("frame_compiled", "")
+    if "identical" in compiled.lower() or not compiled:
+        failures.append("NOT REJECTED: compiled frame text missing or self-contradictory")
+    else:
+        print(f"  passed   {'compiled framing matches assigned camera':46s} "
+              f"{compiled[:38]}...")
+
     print(f"\n  {checked} cases | paid calls made: {len(provider.calls)}")
     if failures or provider.calls:
         for f in failures:

@@ -57,6 +57,10 @@ def shot_plan_schema(bible, ep):
             "frame": {"type": "string"},
             "motion": {"type": "string"},
             "coverage_role": _enum(bible.get("coverage_roles", ["SUBJECT"])),
+            "focus": {"type": "object", "properties": {
+                "type": _enum(bible.get("focus_types", ["GROUP"])),
+                "ids": {"type": "array", "items": {"type": "string"}}},
+                "required": ["type", "ids"]},
             "boundary": {
                 "type": "object",
                 "properties": {
@@ -69,7 +73,7 @@ def shot_plan_schema(bible, ep):
             "start_state": state,
             "end_state": state,
         },
-        "required": ["id", "cast", "frame", "motion", "coverage_role", "boundary",
+        "required": ["id", "cast", "frame", "motion", "coverage_role", "focus", "boundary",
                      "events", "start_state", "end_state"],
     }
 

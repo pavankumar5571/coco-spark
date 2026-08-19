@@ -78,6 +78,7 @@ visual_vocab:
 # mechanical once intent is known, and Gemini demonstrably cannot satisfy it even with
 # an enum and an explicit repair prompt.
 coverage_roles: [ESTABLISH, GROUP, SUBJECT, REACTION, DETAIL, RESOLUTION]
+focus_types:    [CHARACTER, GROUP, PROP, ENVIRONMENT]
 
 modes:
   BEDTIME_STORY:

@@ -263,6 +263,11 @@ HARD CONSTRAINTS. These come from production failures.
 7. DO NOT choose camera framing. Declare each shot's coverage_role — what the shot is
    FOR — and deterministic code will assign shot size, angle and camera setup from the
    mode's coverage policy.
+   Also declare focus: which entity the frame is organised around.
+     {"type": "CHARACTER", "ids": ["coco"]}  or  {"type": "GROUP", "ids": [...]}
+   Two shots at the same size and angle but focused on DIFFERENT subjects are different
+   compositions, and the system relies on that to avoid reusing the wrong pixels.
+
      ESTABLISH  set the scene        GROUP      all characters together
      SUBJECT    one character acts   REACTION   a character responds
      DETAIL     a small important thing         RESOLUTION  the settling beat
@@ -354,7 +359,7 @@ def inherit_predecessor_pixels(prev_shot, shot, bible):
     # Redundant with the validator ON PURPOSE. This is the only function whose failure
     # mode is a valid-looking but WRONG frame rather than a missing one, so it re-proves
     # every precondition rather than trusting an upstream guarantee.
-    req = list(bible.get("visual_vocab", {})) + ["camera_setup_id"]
+    req = list(bible.get("visual_vocab", {})) + ["camera_setup_id", "composition_id"]
     if not pv or not sv:
         return False                      # unknown composition -> never assume sameness
     for dim in req:
@@ -624,7 +629,8 @@ def stage_frames(eid, only=None):
 
         prompt = ("\n".join(legend) + f"\n\n{BIBLE['style_lock']}\n\n"
                   f"LOCATION (identical in every shot): {loc['description']}\n\n"
-                  f"{loc['geography']}\n\nSHOT: {shot['frame']}\n\n"
+                  f"{loc['geography']}\n\n"
+                  f"SHOT: {shot.get('frame_compiled') or shot['frame']}\n\n"
                   "Characters must match their canonical reference images exactly: same "
                   "colour, clothing, proportions and face. Only the characters named above "
                   "are present. No text or lettering.")

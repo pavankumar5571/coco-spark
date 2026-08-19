@@ -92,16 +92,29 @@ def assign(shots, ep, bible):
                     f"cannot place {want}: no shot's coverage role permits it")
             sizes[best[0]] = want
 
-    # 3. camera_setup_id: a stable label per (location, size, angle). Same physical
-    #    setup keeps the same id, which is what gates predecessor-pixel inheritance.
+    # 3. PHYSICAL setup and COMPOSITION are different things and must not be conflated.
+    #    'CLOSE on Coco' and 'CLOSE on Pip' share a location, size and angle. Collapsing
+    #    them into one id let the continuity compiler conclude nothing had changed and
+    #    inherit Coco's pixels into a shot meant to open on Pip — a valid-looking but
+    #    objectively wrong frame.
     out = []
     for s, size in zip(shots, sizes):
         loc = (s.get("start_state") or {}).get("location_id", "LOC")
-        setup = f"{loc}_{size}_{default_angle}".upper()
-        vis = {"camera_setup_id": setup, "shot_size": size,
-               "camera_angle": default_angle}
+        setup = f"{loc}_AXIS_A".upper()                       # physical position
+        foc = s.get("focus") or {}
+        ftype = foc.get("type", "GROUP")
+        fids = "+".join(sorted(foc.get("ids") or s.get("cast") or []))
+        composition = f"{ftype}:{fids}".upper()               # what the frame is about
+        vis = {"camera_setup_id": setup, "composition_id": composition,
+               "shot_size": size, "camera_angle": default_angle}
         for which in ("start_state", "end_state"):
             s.setdefault(which, {})["visual"] = dict(vis)
-        s["camera"] = f"Locked static camera. {size.replace('_',' ').title()} shot, eye level."
+        subj = fids.replace("+", " and ") or "the scene"
+        s["camera"] = (f"Locked static camera. {size.replace('_',' ').title()} shot at eye "
+                       f"level, framed on {subj}.")
+        # the image-facing description is COMPILED from the assigned camera, so the
+        # planner can never make a framing claim that deterministic code then overrides
+        s["frame_compiled"] = (f"{size.replace('_',' ').title()} shot, eye level, framed "
+                               f"on {subj}. {s.get('frame','')}")
         out.append(s)
     return out

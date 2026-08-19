@@ -89,6 +89,7 @@ def _shots():
     import copy
     s = {
         "id": "s01", "cast": ["coco"], "coverage_role": "SUBJECT",
+        "focus": {"type": "CHARACTER", "ids": ["coco"]},
         "frame": "f", "motion": "m", "camera": "static",
         "boundary": {"type": "CONTINUOUS"}, "events": [],
         "start_state": {
@@ -96,8 +97,8 @@ def _shots():
             "characters": {"coco": {"awareness": "AWAKE", "posture": "SITTING_UP",
                                     "zone": "BED"}},
             "props": {},
-            "visual": {"camera_setup_id": "A", "shot_size": "MEDIUM",
-                       "camera_angle": "EYE_LEVEL"}},
+            "visual": {"camera_setup_id": "A", "composition_id": "CHARACTER:COCO",
+                       "shot_size": "MEDIUM", "camera_angle": "EYE_LEVEL"}},
     }
     s["end_state"] = copy.deepcopy(s["start_state"])
     return [s]
@@ -399,6 +400,8 @@ def main():
         s2["end_state"]["visual"]["shot_size"] = "CLOSE"
         s2["start_state"]["visual"]["camera_setup_id"] = "B"
         s2["end_state"]["visual"]["camera_setup_id"] = "B"
+        s2["start_state"]["visual"]["composition_id"] = "CHARACTER:NANA"
+        s2["end_state"]["visual"]["composition_id"] = "CHARACTER:NANA"
         shots.append(s2)
         (d / "shots.json").write_text(json.dumps(shots))
         # the tail must be BYTE-DISTINCT from the s01 frame, or their SHAs collide and
