@@ -20,6 +20,16 @@ INR_PER_VID_SEC = 8.0    # MEASURED: ~Rs 32/4s clip, was 4.4 (underestimated ~2x
 BUDGET_INR = 500.0   # The cap is per-experiment on purpose: an open cap is how the
                      # previous project reached Rs 30,000. (Account had ~Rs 2433.)
 
+# Veo rewrites the prompt before generating unless told not to. Our prompt is COMPILED
+# from the bible and the camera compiler, so letting the provider rewrite it hands our
+# controlled input to an uncontrolled paraphrase — a prime suspect for the particles that
+# appeared despite an explicit no-particles clause.
+VIDEO_ENHANCE_PROMPT = False
+
+# Fixed so a re-render of the SAME input is comparable. It does not make Veo
+# deterministic, and it is not a licence to re-roll.
+VIDEO_SEED = 20260819
+
 CROSSFADE_SECONDS = 0.0   # hard cut; do not use transitions to conceal bad continuity
 
 PLANNER_MODEL = "gemini-3.5-flash-lite"

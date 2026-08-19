@@ -21,7 +21,7 @@ import yaml
 import config as C
 import camera
 import qc
-from compile_prompt import veo_constraint_clause
+from compile_prompt import veo_constraint_clause, veo_negative_prompt
 from schema import shot_plan_schema
 from validate import validate, report
 
@@ -615,6 +615,20 @@ STYLE: {BIBLE['style_lock']}
 
 
 # ──────────────────────── reference compiler ─────────────────────────
+def clip_identity(shot, frame, negative):
+    """One definition of what a clip was generated FROM, consumed by both the resume check
+    and the paid request — the same single-source-of-truth rule as frame_identity.
+
+    The generation PARAMETERS belong in here, not just the prompt. Without them, resume
+    would treat a clip produced under an older contract as current, silently keeping
+    rejected footage after the contract that produced it had changed.
+    """
+    return input_hash(shot=shot, frame_sha=sha_file(frame), model=C.VIDEO_MODEL,
+                      res=C.VIDEO_RES, secs=C.VIDEO_SECONDS,
+                      negative=negative, enhance=C.VIDEO_ENHANCE_PROMPT,
+                      seed=C.VIDEO_SEED)
+
+
 def reference_policy(prev_shot, shot, bible):
     """One compiler, three outcomes. Replaces derive_continuity, which was LIVE AND STALE:
     it still read the prose-era keys spatial/appearance/possession/physical, none of which
@@ -780,7 +794,9 @@ def preflight(eid, shots, d, targets=None):
         fail.append("working tree is DIRTY — the executable logic is not the committed "
                     "logic, so a paid result could not be attributed to a revision")
     print(f"    contract: {C.PROVIDER_SURFACE} / {C.VIDEO_MODEL} / {C.VIDEO_RES} / "
-          f"{C.VIDEO_SECONDS}s / audio-in-prompt=NO")
+          f"{C.VIDEO_SECONDS}s / audio-in-prompt=NO / "
+          f"enhance_prompt={C.VIDEO_ENHANCE_PROMPT} / seed={C.VIDEO_SEED} / "
+          f"negative_prompt=YES")
     print(f"    cost:     {n_target} clips, worst case Rs {worst:.2f} with margin "
           f"(spent {spent:.2f}/{C.BUDGET_INR})")
     for f in fail:
@@ -805,8 +821,8 @@ def stage_video(eid, only=None):
         dest = d / "clips" / f"{shot['id']}.mp4"
         prov_p = d / "clips" / f"{shot['id']}.provenance.json"
         if not frame.exists(): sys.exit(f"missing frame {frame}")
-        chash = input_hash(shot=shot, frame_sha=sha_file(frame), model=C.VIDEO_MODEL,
-                           res=C.VIDEO_RES, secs=C.VIDEO_SECONDS)
+        negative = veo_negative_prompt(BIBLE, load_ep(eid)["mode"])
+        chash = clip_identity(shot, frame, negative)
         ok, why = usable(dest, prov_p, chash)
         if ok:
             print(f"  {shot['id']}: clip valid, skipping"); continue
@@ -828,7 +844,10 @@ def stage_video(eid, only=None):
                 image=types.Image.from_file(location=str(frame)),
                 config=types.GenerateVideosConfig(
                     resolution=C.VIDEO_RES, aspect_ratio=C.VIDEO_ASPECT,
-                    duration_seconds=C.VIDEO_SECONDS),
+                    duration_seconds=C.VIDEO_SECONDS,
+                    negative_prompt=negative or None,
+                    enhance_prompt=C.VIDEO_ENHANCE_PROMPT,
+                    seed=C.VIDEO_SEED),
             )
             while not op.done:
                 time.sleep(5); op = cl.operations.get(op)
@@ -842,6 +861,8 @@ def stage_video(eid, only=None):
             prov_p.write_text(json.dumps(
                 {"status": "COMPLETE", "qc": "PENDING_QC",
                  "video_prompt": prompt, "video_prompt_sha": prompt_sha,
+                 "negative_prompt": negative,
+                 "enhance_prompt": C.VIDEO_ENHANCE_PROMPT, "seed": C.VIDEO_SEED,
                  "input_hash": chash, "sha": sha_file(dest),
                  "model": C.VIDEO_MODEL, "res": C.VIDEO_RES, "secs": C.VIDEO_SECONDS,
                  "revision": build_revision()},

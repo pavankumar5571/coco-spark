@@ -150,9 +150,12 @@ def seed_episode(tmp, make, valid_frame=True, valid_clip=False):
         make.write_atomic(c, b"FAKEMP4" * 32)
         (d / "clips" / "s01.provenance.json").write_text(json.dumps(
             {"status": "COMPLETE", "sha": make.sha_file(c),
-             "input_hash": make.input_hash(shot=shots[0], frame_sha=make.sha_file(f),
-                 model=config.VIDEO_MODEL, res=config.VIDEO_RES,
-                 secs=config.VIDEO_SECONDS)}))
+             # Call the REAL identity function. Duplicating the formula here is the same
+             # mistake that broke preflight and then this control the moment the clip
+             # contract gained negative_prompt/enhance_prompt/seed.
+             "input_hash": make.clip_identity(
+                 shots[0], f,
+                 make.veo_negative_prompt(bible, make.load_ep("E01")["mode"]))}))
     return d
 
 
