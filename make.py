@@ -702,6 +702,29 @@ def next_plate_attempt(location_id):
     return max(used) + 1 if used else 1
 
 
+def compile_plate_completion_prompt(location_id):
+    """The SMALLEST transformation that fixes the defect, and nothing else.
+
+    Deliberately does NOT ask for a wider viewpoint. Every additional transformation we
+    request is another degree of freedom for the model to redesign something with, and
+    attempt 001 proved it will use any freedom it is given. Two changes only: remove the
+    character, and extend past the existing edges so nothing is cropped.
+    """
+    return ("Image 0 is the established look of this room, taken from accepted footage.\n\n"
+            "Keep the room EXACTLY as it appears in Image 0: the same camera position, the "
+            "same lighting and mood, and the same design, materials, shape and proportions "
+            "for every object in it — the rug, the chair, the bed and its quilt, the "
+            "window, the walls, the floor and the bookshelf.\n\n"
+            "Make exactly two changes and nothing else:\n"
+            "1. Remove the bear completely, leaving the bed as it would look unoccupied.\n"
+            "2. Extend the picture outward beyond its current edges so that every object "
+            "sits fully inside the frame with clear space around it and nothing is cut off "
+            "by an edge — in particular the bookshelf on the left, which is currently "
+            "cropped.\n\n"
+            "Do not redesign, restyle or replace anything. Do not add people, animals, "
+            "furniture, decoration or props. No text or lettering.")
+
+
 def compile_plate_prompt(location_id):
     """The plate shows the PLACE, and only the place.
 
@@ -724,7 +747,7 @@ def compile_plate_prompt(location_id):
             f"lettering. This image defines what this place looks like.")
 
 
-def stage_plate_candidate(location_id):
+def stage_plate_candidate(location_id, source=None):
     """Generate ONE candidate plate for a location. Paid, reserved before invoked.
 
     Generation creates a candidate. QC creates acceptance. Promotion creates authority.
@@ -742,16 +765,39 @@ def stage_plate_candidate(location_id):
         if not prev.exists():
             sys.exit(f"  attempt {n-1:03d} has no recorded QC verdict. One candidate per "
                      f"location: judge the last one before buying another.")
+    # Deriving from ACCEPTED footage is stronger CONDITIONING, not a guarantee: the model
+    # can still redesign things while removing the character, which is what QC must catch.
+    # Attempt 001 established why prose alone cannot work — it pins arrangement and not
+    # form, so it obeyed the geography exactly and invented a different rug and chair from
+    # the episode already accepted. A plate that disagrees with published footage is worse
+    # than no plate, because the plate wins for every future frame.
+    refs, src_meta = [], {}
+    if source:
+        eid, _, sid = source.partition("/")
+        sd = ep_dir(eid)
+        sframe = sd / "frames" / f"{sid}.png"
+        if not sframe.exists():
+            sys.exit(f"  no frame at {sframe}")
+        if clip_verdict(sd, sid) != "ACCEPTED":
+            sys.exit(f"  {source} is {clip_verdict(sd, sid)}. A plate may only be derived "
+                     f"from footage a human has ACCEPTED.")
+        refs = [sframe]
+        src_meta = {"derived_from": source, "source_frame_sha": sha_file(sframe)}
+        prompt = compile_plate_completion_prompt(location_id)
+        origin = "DERIVED_FROM_ACCEPTED_FRAME"
+    else:
+        prompt = compile_plate_prompt(location_id)
+        origin = "GENERATED_LOCATION_PLATE"
+
     d = plate_attempt_dir(location_id, n)
     d.mkdir(parents=True, exist_ok=True)
-    prompt = compile_plate_prompt(location_id)
-    print(f"  {location_id}: generating plate candidate {n:03d}")
-    gen_image(client(), prompt, [], d / "plate.png", kind="image",
+    print(f"  {location_id}: generating plate candidate {n:03d} ({origin})")
+    gen_image(client(), prompt, refs, d / "plate.png", kind="image",
               detail=f"plate:{location_id}/{n:03d}")
     (d / "provenance.json").write_text(json.dumps(
         {"status": "COMPLETE", "kind": "LOCATION_PLATE_CANDIDATE", "canonical": False,
          "location_id": location_id, "location_version": location_version(location_id),
-         "attempt": n, "source": "GENERATED_LOCATION_PLATE",
+         "attempt": n, "source": origin, **src_meta,
          "image_prompt": prompt,
          "image_prompt_sha": hashlib.sha256(prompt.encode()).hexdigest()[:16],
          "sha": sha_file(d / "plate.png"),
@@ -1587,6 +1633,8 @@ if __name__ == "__main__":
                          "can be authorised in bounded slices")
     ap.add_argument("--attempt", type=int, default=None,
                     help="plate-approve: which candidate attempt becomes canonical")
+    ap.add_argument("--from", dest="source", default=None,
+                    help="plate-candidate: derive from ACCEPTED footage, e.g. E01/s01")
     a = ap.parse_args()
     plate_stage = a.stage.startswith("plate-")
     if a.stage not in ("portraits", "verify", "costs") and not a.episode:
@@ -1602,7 +1650,7 @@ if __name__ == "__main__":
     if a.stage == "episode":
         stage_episode(a.episode, upto=a.upto)
     elif a.stage == "plate-candidate":
-        stage_plate_candidate(a.episode)        # positional carries the LOCATION id
+        stage_plate_candidate(a.episode, source=a.source)   # positional = LOCATION id
     elif a.stage == "plate-approve":
         if a.attempt is None:
             sys.exit("  plate-approve needs --attempt N")
