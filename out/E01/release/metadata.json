@@ -1,0 +1,44 @@
+{
+  "kind": "EPISODE_RELEASE",
+  "episode": "E01",
+  "builder": "1",
+  "title": "Coco's Starlight Bedtime",
+  "description": "Coco's Starlight Bedtime \u2014 a calm bedtime moment from Coco Spark TV.\n\nOriginal characters, original music, and every second reviewed by hand before it was published.\n",
+  "tags": [
+    "coco spark",
+    "bedtime",
+    "preschool",
+    "calm",
+    "sleep",
+    "story time"
+  ],
+  "made_for_kids": true,
+  "category_hint": "Education (27) or Entertainment (24) \u2014 Pavan's call",
+  "privacy_at_upload": "unlisted",
+  "altered_or_synthetic_disclosure": {
+    "decision": "REVIEW",
+    "why": "YouTube requires disclosure for meaningfully altered or synthetic content that could be MISTAKEN FOR REAL. This is stylised preschool animation with no real person, place or event depicted, so the requirement does not obviously apply \u2014 but the decision is Pavan's to make at upload, not a script's to assume."
+  },
+  "runtime_seconds": 15.0,
+  "delivered_lufs": -14.0,
+  "geometry": {
+    "w": 1280,
+    "h": 720
+  },
+  "aspect": "16:9 \u2014 publish as a NORMAL video, not a Short. Shorts are the vertical upload path; a horizontal master should not be aimed at it.",
+  "master_sha": "06f74911d12b8bdf",
+  "thumbnail_sha": "e597827065d4a083",
+  "revision": {
+    "commit": "389b19bf7ea557f67e0f0b08b94cdaa2f383d6ec",
+    "dirty": true,
+    "tag": null,
+    "sources": {
+      "make.py": "a3763448ebb896c4",
+      "validate.py": "735d13f9b05466d2",
+      "camera.py": "9631f4435b8365cc",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "a71ba387b9f3a9f9",
+      "bible.yaml": "9e109ea05a2761b8"
+    }
+  }
+}

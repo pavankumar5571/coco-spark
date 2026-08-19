@@ -1009,6 +1009,25 @@ def audio_properties():
          "input_hash": "0" * 16, "sha": make2.sha_file(d / "ending" / "hold.mp4")}))
     out.append(_ok("a hold whose source frame has changed is refused",
                    make2.provable_ending("E01") is None))
+    # economics must be knowable BEFORE generation, and a plan that does not fit must say
+    # so rather than discover it mid-render
+    e = make.estimate_episode("E01")
+    out.append(_ok("an estimate exists before anything is generated",
+                   e["estimate_inr"] >= 0 and "per_line" in e))
+    out.append(_ok("accepted footage costs nothing to re-estimate",
+                   all(inr == 0.0 for _s, state, inr, _w in e["per_line"]
+                       if state == "ACCEPTED")))
+    out.append(_ok("fits is measured against real headroom, not optimism",
+                   e["fits"] == (e["reserved_worst_case_inr"] <= e["headroom_inr"])))
+
+    # release must refuse an episode whose audio was never judged
+    tmp2, make3 = fresh_env(10_000)
+    d2 = seed_episode(tmp2, make3, valid_frame=True, valid_clip=True)
+    make3.write_atomic(d2 / "episode.mp4", b"not a real master")
+    _f, probs = make3.release_gate("E01")
+    out.append(_ok("release refuses an episode with no audio verdict", bool(probs)))
+    shutil.rmtree(tmp2, ignore_errors=True)
+
     shutil.rmtree(tmp, ignore_errors=True)
     shutil.rmtree(tmp0, ignore_errors=True)
     return out

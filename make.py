@@ -1508,6 +1508,199 @@ def stage_video(eid, only=None):
                 settle(res_idx, None)      # deterministic ledger state on ANY exception
 
 
+RELEASE_BUILDER_VERSION = "1"
+
+
+def release_gate(eid):
+    """Everything that must be TRUE before an episode is handed to a platform. Rs 0.
+
+    A release gate is not a quality opinion — it is the set of failures that are cheaper to
+    catch here than after an upload: no audio, audio that stops before the picture, a
+    programme nobody measured, footage that is not provably accepted.
+    """
+    d = ep_dir(eid)
+    final = d / "episode.mp4"
+    problems = []
+    if not final.exists():
+        return final, ["no assembled episode — run assemble"]
+    rep_p = d / "audio.json"
+    if not rep_p.exists():
+        problems.append("no audio.json — run `audio` and let the arithmetic judge the mix")
+    else:
+        rep = json.loads(rep_p.read_text())
+        if rep.get("sha_of_episode") not in (None, sha_file(final)):
+            problems.append("audio.json describes a different cut than episode.mp4")
+        for probe, result in (rep.get("probes") or {}).items():
+            if result == "FAIL":
+                problems.append(f"{probe}: {rep.get('detail', {}).get(probe, 'FAIL')}")
+    shots = json.loads((d / "shots.json").read_text())
+    if not any(clip_verdict(d, s["id"]) == "ACCEPTED" for s in shots):
+        problems.append("no ACCEPTED footage in this episode")
+    return final, problems
+
+
+def stage_release(eid):
+    """Build the release folder: master, thumbnail, metadata, and what a human must do.
+
+    Deliberately stops short of uploading. Publishing is an outward-facing, hard-to-undo
+    act on Pavan's own channel, and it needs his account, his judgement and his consent —
+    not a script that already has the credentials. What this stage removes is every excuse
+    that is not consent.
+    """
+    d = ep_dir(eid)
+    ep = load_ep(eid)
+    final, problems = release_gate(eid)
+    rel = d / "release"
+    rel.mkdir(parents=True, exist_ok=True)
+    if problems:
+        print(f"  {eid} is NOT releasable yet:")
+        for p in problems:
+            print(f"    - {p}")
+        return
+
+    # the thumbnail comes from footage a human ACCEPTED, never from a rejected or
+    # unreviewed frame — a thumbnail is the one frame most people will ever see
+    shots = json.loads((d / "shots.json").read_text())
+    accepted = [s["id"] for s in shots if clip_verdict(d, s["id"]) == "ACCEPTED"]
+    src = d / "frames" / f"{accepted[0]}.png"
+    thumb = rel / "thumbnail.png"
+    w, h, _fps = video_geometry(d / "clips" / f"{accepted[0]}.mp4")
+    os.system(f'ffmpeg -nostdin -y -i "{src}" -vf '
+              f'"scale=1280:-2:flags=lanczos" "{thumb}" 2>/dev/null')
+
+    picture = stream_duration(final, "v") or media_duration(final)
+    audio_rep = json.loads((d / "audio.json").read_text())
+    meta = {
+        "kind": "EPISODE_RELEASE", "episode": eid, "builder": RELEASE_BUILDER_VERSION,
+        "title": ep["title"],
+        "description": (
+            f"{ep['title']} — a calm bedtime moment from Coco Spark TV.\n\n"
+            f"Original characters, original music, and every second reviewed by hand "
+            f"before it was published.\n"),
+        "tags": ["coco spark", "bedtime", "preschool", "calm", "sleep", "story time"],
+        "made_for_kids": True,
+        "category_hint": "Education (27) or Entertainment (24) — Pavan's call",
+        "privacy_at_upload": "unlisted",
+        "altered_or_synthetic_disclosure": {
+            "decision": "REVIEW",
+            "why": ("YouTube requires disclosure for meaningfully altered or synthetic "
+                    "content that could be MISTAKEN FOR REAL. This is stylised preschool "
+                    "animation with no real person, place or event depicted, so the "
+                    "requirement does not obviously apply — but the decision is Pavan's "
+                    "to make at upload, not a script's to assume."),
+        },
+        "runtime_seconds": picture,
+        "delivered_lufs": audio_rep.get("delivered_lufs"),
+        "geometry": {"w": w, "h": h},
+        "aspect": "16:9 — publish as a NORMAL video, not a Short. Shorts are the vertical "
+                  "upload path; a horizontal master should not be aimed at it.",
+        "master_sha": sha_file(final),
+        "thumbnail_sha": sha_file(thumb) if thumb.exists() else None,
+        "revision": build_revision(),
+    }
+    (rel / "metadata.json").write_text(json.dumps(meta, indent=2))
+    (rel / "CHECKLIST.md").write_text(
+        f"# Releasing {eid} — {ep['title']}\n\n"
+        f"Master: `{final}`  ({picture}s, {w}x{h}, "
+        f"{audio_rep.get('delivered_lufs')} LUFS)\n"
+        f"Thumbnail: `{thumb}`\n\n"
+        "## Before uploading — the two things arithmetic cannot do\n\n"
+        "1. WATCH it end to end. Not the frames, the film.\n"
+        "2. LISTEN to it on headphones AND on a speaker. The mix measures -14.0 LUFS, "
+        "which says nothing about whether the chord is pleasant, irritating, ominous or "
+        "simply amateur. If it sounds synthetic and cheap, say so — the bed is a "
+        "prototype, not a decision.\n\n"
+        "## At upload\n\n"
+        "- Visibility: UNLISTED first. Public is a separate, later decision.\n"
+        "- Audience: YES, made for kids. This removes comments, notifications, cards, "
+        "end screens and personalised ads — do not design around any of them.\n"
+        "- Altered or synthetic content: decide per metadata.json; the honest answer for "
+        "stylised animation with no real people is probably no, but it is your call.\n"
+        "- Title, description and tags: metadata.json, edit freely.\n\n"
+        "## After it processes\n\n"
+        "- Play it back ON YouTube, on phone and on a TV if you can.\n"
+        "- Check the volume against another kids' video. YouTube normalises loud material "
+        "on playback; ours is quiet and should not be touched.\n"
+        "- Note every defect the platform introduced or revealed, and bring them back — "
+        "that list is the only reason this upload exists.\n")
+    print(f"  {eid} is releasable.")
+    print(f"    master     {final}  ({picture}s)")
+    print(f"    thumbnail  {thumb}")
+    print(f"    metadata   {rel / 'metadata.json'}")
+    print(f"    checklist  {rel / 'CHECKLIST.md'}")
+    print("  This stage does NOT upload. Publishing is yours to do, with your account "
+          "and your judgement.")
+
+
+def estimate_episode(eid):
+    """PURE-ish. What this plan will cost BEFORE anything is generated.
+
+    GPT's rule, and it is the right one: we should never again discover unit economics
+    after rendering. A plan whose numbers do not make sense gets redesigned while a
+    redesign is still free.
+
+    Costs are computed from the REAL policy compiler, not from a shot count — a frame that
+    inherits predecessor pixels is free, and an episode that pretends otherwise
+    overestimates itself into not being made.
+    """
+    d = ep_dir(eid)
+    shots = json.loads((d / "shots.json").read_text())
+    ep = load_ep(eid)
+    done = frozen_prefix(eid, shots)
+    lines, frames_paid, video_secs = [], 0, 0.0
+    for i, s in enumerate(shots):
+        if i < done:
+            lines.append((s["id"], "ACCEPTED", 0.0, "already inventory"))
+            continue
+        pol = reference_policy(shots[i - 1] if i else None, s, BIBLE)[0]
+        if pol == "PREDECESSOR_PIXELS":
+            fcost, fwhy = 0.0, "inherits predecessor pixels"
+        else:
+            fcost, fwhy = C.INR_PER_IMAGE, f"first frame ({pol})"
+            frames_paid += 1
+        vcost = C.INR_PER_VID_SEC * C.VIDEO_SECONDS
+        video_secs += C.VIDEO_SECONDS
+        lines.append((s["id"], "TO BUY", fcost + vcost,
+                      f"{fwhy} + {C.VIDEO_SECONDS}s clip"))
+    frames_inr = frames_paid * C.INR_PER_IMAGE
+    video_inr = video_secs * C.INR_PER_VID_SEC
+    total = frames_inr + video_inr
+    worst = total * getattr(C, "SAFETY_MARGIN", 1.0)
+    L = ledger()
+    return {"episode": eid, "mode": ep["mode"], "shots": len(shots),
+            "already_accepted": done, "paid_frames": frames_paid,
+            "video_seconds": video_secs, "frames_inr": frames_inr,
+            "video_inr": video_inr, "estimate_inr": round(total, 2),
+            "reserved_worst_case_inr": round(worst, 2),
+            "spent_inr": L["spent_inr"], "cap_inr": C.BUDGET_INR,
+            "headroom_inr": round(C.BUDGET_INR - L["spent_inr"], 2),
+            "fits": worst <= C.BUDGET_INR - L["spent_inr"],
+            "runtime_seconds": round(video_secs + (
+                C.ENDING_HOLD_SECONDS if provable_ending(eid) else 0), 2),
+            "per_line": lines}
+
+
+def stage_estimate(eid):
+    """Print the production estimate. Rs 0, and it must be run before generation."""
+    e = estimate_episode(eid)
+    print(f"  {e['episode']} ({e['mode']}): {e['shots']} shots, "
+          f"{e['already_accepted']} already accepted")
+    for sid, state, inr, why in e["per_line"]:
+        print(f"    {sid:5s} {state:9s} Rs {inr:7.2f}   {why}")
+    print(f"  frames  {e['paid_frames']} x Rs {C.INR_PER_IMAGE} = Rs {e['frames_inr']:.2f}")
+    print(f"  video   {e['video_seconds']}s x Rs {C.INR_PER_VID_SEC}/s = "
+          f"Rs {e['video_inr']:.2f}")
+    print(f"  ESTIMATE Rs {e['estimate_inr']:.2f}   reserved worst case "
+          f"Rs {e['reserved_worst_case_inr']:.2f}")
+    print(f"  headroom Rs {e['headroom_inr']:.2f} of the Rs {e['cap_inr']} cap")
+    if e["video_seconds"]:
+        print(f"  unit economics: Rs "
+              f"{(e['estimate_inr'] / e['video_seconds']) * 60:.0f} per published minute "
+              f"at this design")
+    print("  FITS" if e["fits"] else "  DOES NOT FIT — redesign the episode, not the cap")
+    return e
+
+
 # ─────────────────────────────── ending ──────────────────────────────
 def video_geometry(path):
     """Width, height and frame rate of a clip, so a derived shot MATCHES it.
@@ -2086,7 +2279,7 @@ def stage_costs(episode=None):
 STAGES = {"verify": stage_verify, "plan": stage_plan, "portraits": stage_portraits, "frames": stage_frames,
           "video": stage_video, "assemble": stage_assemble, "episode": stage_episode,
           "costs": stage_costs, "audio": stage_audio, "bed": stage_bed,
-          "ending": stage_ending,
+          "ending": stage_ending, "estimate": stage_estimate, "release": stage_release,
           # dispatched explicitly below: these take a LOCATION id, not an episode id
           "plate-candidate": None, "plate-approve": None}
 
