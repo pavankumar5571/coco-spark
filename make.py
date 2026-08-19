@@ -701,7 +701,7 @@ def resolve_location_plate(location_id):
     return plate, ("world", location_id, sha_file(plate)), None
 
 
-PLATE_COMPILER_VERSION = "2"
+PLATE_COMPILER_VERSION = "3"
 
 
 def persistent_objects(location_id):
@@ -761,9 +761,12 @@ def compile_plate_completion_prompt(location_id, occupants=()):
     else:
         removal = ("1. Leave the place unoccupied — no characters of any kind.\n")
     return ("Image 0 is the established look of this place, taken from accepted footage.\n\n"
-            "Keep it EXACTLY as it appears in Image 0: the same camera position, the "
-            "same lighting and mood, and the same design, materials, shape and proportions "
-            f"for every object in it — {keep}.\n\n"
+            "Keep the established viewpoint, perspective, lighting and mood, and the "
+            "visible design, materials, shape and proportions of every object, exactly as "
+            f"shown in Image 0 — {keep}.\n\n"
+            "For any object currently cut off by a frame edge, preserve its visible "
+            "portion exactly and extend only the previously unseen portion needed to "
+            "complete it.\n\n"
             "Make exactly two changes and nothing else:\n"
             f"{removal}"
             "2. Extend the picture outward beyond its current edges so that every object "
