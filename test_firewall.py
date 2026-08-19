@@ -192,6 +192,59 @@ def main():
         print(f"  blocked  {'planner camera prose in a still prompt':46s} "
               f"NO_MOTION_FIELD_IN_IMAGE_COMPILER")
 
+    # shot sizes must compile to DIFFERENT compositions, not just different labels.
+    # Without this, CLOSE and MEDIUM_WIDE differ by two words and we are merely assuming
+    # the generator reads those labels the way we do.
+    checked += 1
+    import re as _re
+    def _compiled(role):
+        sh = good_shot("s01")
+        sh["cast"] = ["coco"]
+        sh["coverage_role"] = role          # role -> size, via mode coverage policy
+        sh["focus"] = {"type": "CHARACTER", "ids": ["coco"]}
+        e = dict(EP); e["cast"] = ["coco"]; e["shots"] = 1
+        return _cam.assign([sh], e, BIBLE)[0]["frame_compiled"]
+    close_c, wide_c = _compiled("DETAIL"), _compiled("ESTABLISH")   # CLOSE vs MEDIUM_WIDE
+    # strip the size LABEL so only the described composition is compared
+    strip = lambda x: _re.sub(r"^[A-Za-z ]+shot", "", x)
+    if strip(close_c) == strip(wide_c):
+        failures.append("SHOT SIZES COMPILE IDENTICALLY apart from their label")
+        provider.image()
+    else:
+        print(f"  passed   {'CLOSE and MEDIUM_WIDE compile differently':46s} "
+              f"beyond the label")
+
+    # GENERIC, not per-episode: every vocabulary value the validator will accept must have
+    # English to render it, or some future episode silently emits raw enum labels into a
+    # paid prompt. Checking this by hand once is how it stops being true.
+    checked += 1
+    gaps = []
+    ph = BIBLE.get("phrasing") or {}
+    for dim, spec in (BIBLE.get("state_vocab") or {}).items():
+        gaps += [f"phrasing.{dim}.{v}" for v in spec["values"] if v not in (ph.get(dim) or {})]
+    fr = BIBLE.get("framing") or {}
+    for dim, vals in (BIBLE.get("visual_vocab") or {}).items():
+        gaps += [f"framing.{dim}.{v}" for v in vals if v not in (fr.get(dim) or {})]
+    if gaps:
+        failures.append(f"VOCABULARY WITHOUT ENGLISH: {gaps}")
+    else:
+        print(f"  passed   {'every vocabulary value has a phrase':46s} "
+              f"no raw enums can reach a prompt")
+
+    # the planner prompt must not name entities that belong to one episode. Showing a
+    # single-cast episode examples featuring other characters is how a character
+    # materialises in a scene that never cast it.
+    checked += 1
+    import make as _mk
+    prompt_text = _mk.PLANNER_RULES + _mk.SHOT_SCHEMA
+    named = [n for n in list(BIBLE.get("cast") or {}) + list(BIBLE.get("locations") or {})
+             if n in prompt_text]
+    if named:
+        failures.append(f"PLANNER PROMPT HARDCODES ENTITIES: {named}")
+    else:
+        print(f"  passed   {'planner prompt names no specific entity':46s} "
+              f"examples are placeholders")
+
     # unsatisfiable requirement must be caught before planning
     checked += 1
     try:

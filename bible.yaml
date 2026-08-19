@@ -184,3 +184,21 @@ phrasing_suppress:
     omit: [expression]
   - when: {awareness: EYES_CLOSED}
     omit: [expression]
+
+# What each shot size MEANS as composition, one canonical template per value of
+# visual_vocab.shot_size. Without this, CLOSE and MEDIUM_WIDE differ by two words in the
+# compiled prompt and we are simply assuming the generator reads those labels the way we
+# do. Composition intent is the camera compiler's job, so it states it rather than hoping.
+# Destination state only -- nothing here may describe a move.
+framing:
+  shot_size:
+    WIDE: the whole space and the spatial relationships within it are clearly established, subject small in frame
+    MEDIUM_WIDE: the subject plus a substantial amount of the surrounding space is visible
+    MEDIUM: the subject occupies the centre of the frame with some surrounding space visible
+    CLOSE: the subject dominates the frame, with only a little of the background visible
+    EXTREME_CLOSE: a single detail fills the frame
+  camera_angle:
+    EYE_LEVEL: viewed level with the subject
+    HIGH: viewed from slightly above, looking down
+    LOW: viewed from slightly below, looking up
+    OVER_SHOULDER: viewed past the shoulder of another character in the foreground

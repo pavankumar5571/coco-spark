@@ -134,8 +134,17 @@ def _compose(shot, size, angle, subj, bible):
                 if st.get(d) and d not in skip]
         who.append(head + (", " + ", ".join(tail) if tail else "") + ".")
 
-    frame = (f"{size.replace('_', ' ').title()} shot, "
-             f"{angle.replace('_', ' ').lower()}, framed on {subj}.")
+    fr = (bible.get("framing") or {})
+    size_txt = (fr.get("shot_size") or {}).get(size)
+    angle_txt = (fr.get("camera_angle") or {}).get(angle)
+
+    # The LABEL alone assumes the generator reads "CLOSE" the way we do. State the
+    # composition it denotes as well, so the difference between a close-up and a wide is
+    # carried by the prompt rather than by our assumption about two words.
+    frame = f"{size.replace('_', ' ').title()} shot, framed on {subj}"
+    frame += f", {angle_txt}." if angle_txt else f", {angle.replace('_', ' ').lower()}."
+    if size_txt:
+        frame += f" Composition: {size_txt}."
     if who:
         frame += " " + " ".join(who)
     return frame

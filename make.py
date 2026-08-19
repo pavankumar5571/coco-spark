@@ -356,7 +356,7 @@ HARD CONSTRAINTS. These come from production failures.
    FOR — and deterministic code will assign shot size, angle and camera setup from the
    mode's coverage policy.
    Also declare focus: which entity the frame is organised around.
-     {"type": "CHARACTER", "ids": ["coco"]}  or  {"type": "GROUP", "ids": [...]}
+     {"type": "CHARACTER", "ids": ["<a cast id from the CAST list>"]}  or  {"type": "GROUP", "ids": [...]}
    Two shots at the same size and angle but focused on DIFFERENT subjects are different
    compositions, and the system relies on that to avoid reusing the wrong pixels.
 
@@ -398,24 +398,18 @@ EVENTS explain WHY state changed. State says what is true; events say why.
 Every discontinuity must be evented, in the shot that contains it:
 
   "events": [
-    {"type": "ENTER",        "entity": "nana",  "from_zone": "OFFSCREEN", "to_zone": "CHAIR"},
-    {"type": "EXIT",         "entity": "pip",   "from_zone": "DOOR", "to_zone": "OFFSCREEN"},
-    {"type": "MOVE",         "entity": "nana",  "from_zone": "CHAIR", "to_zone": "WINDOW"},
-    {"type": "TRANSFER",     "object": "apple", "from": "coco", "to": "pip"},
-    {"type": "STATE_CHANGE", "entity": "door",  "field": "open_state",
-     "from": "CLOSED", "to": "OPEN"}
+    {"type": "ENTER",        "entity": "<cast id>", "from_zone": "OFFSCREEN", "to_zone": "<zone>"},
+    {"type": "EXIT",         "entity": "<cast id>", "from_zone": "<zone>", "to_zone": "OFFSCREEN"},
+    {"type": "MOVE",         "entity": "<cast id>", "from_zone": "<zone>", "to_zone": "<zone>"},
+    {"type": "TRANSFER",     "object": "<prop id>", "from": "<cast id>", "to": "<cast id>"},
+    {"type": "STATE_CHANGE", "entity": "<entity id>", "field": "<state field>",
+     "from": "<old value>", "to": "<new value>"}
   ]
 
 RULES: population change -> ENTER/EXIT. zone change -> MOVE. prop owner change ->
 TRANSFER. prop condition change -> STATE_CHANGE. A change with no event is REJECTED.
-camera_setup_id is a stable label for a physical camera position (e.g. BEDROOM_AXIS_A);
-reuse the same id whenever the camera has not moved.
-
 VOCABULARY (dimension -> allowed values):
 {vocab}
-
-VISUAL vocabulary (per shot, in state.visual):
-{visual}
 
 THE CUT RULE — the most important constraint.
 A dimension marked MATERIAL may NOT differ between one shot's end_state and the next
@@ -476,11 +470,6 @@ def inherit_predecessor_pixels(prev_shot, shot, bible):
             if (a[who] or {}).get(dim) != (b[who] or {}).get(dim):
                 return False
     return True
-
-
-def visual_block():
-    return "\n".join(f"  {k}: {', '.join(v)}"
-                     for k, v in BIBLE.get("visual_vocab", {}).items())
 
 
 def vocab_block():
@@ -615,7 +604,7 @@ LOCATION: {loc['name']}
 
 STYLE: {BIBLE['style_lock']}
 {PLANNER_RULES}
-{SHOT_SCHEMA.replace("{vocab}", vocab_block()).replace("{visual}", visual_block())}"""
+{SHOT_SCHEMA.replace("{vocab}", vocab_block())}"""
 
     # Prove the request is satisfiable before spending anything at all.
     try:
