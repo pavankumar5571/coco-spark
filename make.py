@@ -1508,6 +1508,161 @@ def stage_video(eid, only=None):
                 settle(res_idx, None)      # deterministic ledger state on ANY exception
 
 
+CAMERA_LOCK_VERSION = "1"
+
+
+def _grey_crop(path, box):
+    from PIL import Image
+    return Image.open(path).convert("L").crop(box)
+
+
+def _mean_abs_diff(a, b):
+    from PIL import ImageChops
+    h = ImageChops.difference(a, b).histogram()
+    return sum(i * c for i, c in enumerate(h)) / max(1, sum(h))
+
+
+def measure_camera_lock(clip, search=12, step=2, grid=3):
+    """How far the WORLD moved between a clip's first and last frame. Free, deterministic.
+
+    Whole-frame alignment does not work, and finding that out cost nothing: the subject
+    moves too, so its pixels drag the best-fit offset toward a compromise that describes
+    neither the camera nor the bear. E01/s01 measured 0,-4 whole-frame and +8,+6 on the
+    static wall alone.
+
+    So measure TILES. A camera move shifts every tile by the same amount; a subject move
+    shifts one or two. The median offset across tiles is the camera, and the fraction of
+    tiles that agree with it is how much to believe it. That is generic — it needs no
+    knowledge of where the subject is, which is exactly the knowledge we do not have.
+
+    Returns dx, dy, the agreement fraction, and whether the camera held still.
+    """
+    tmp = Path(str(clip) + ".lockcheck")
+    tmp.mkdir(exist_ok=True)
+    f0, f1 = tmp / "first.png", tmp / "last.png"
+    os.system(f'ffmpeg -nostdin -v error -y -i "{clip}" -vf "select=eq(n\\,0)" '
+              f'-frames:v 1 "{f0}" 2>/dev/null')
+    os.system(f'ffmpeg -nostdin -v error -y -sseof -0.1 -i "{clip}" -frames:v 1 '
+              f'"{f1}" 2>/dev/null')
+    if not (f0.exists() and f1.exists()):
+        shutil_rmtree(tmp)
+        return None
+    from PIL import Image, ImageChops
+    A = Image.open(f0).convert("L")
+    B = Image.open(f1).convert("L")
+    w, h = A.size
+    tw, th = w // grid, h // grid
+    offsets = []
+    for gy in range(grid):
+        for gx in range(grid):
+            box = (gx * tw, gy * th, (gx + 1) * tw, (gy + 1) * th)
+            a, b = A.crop(box), B.crop(box)
+            inner = (search + 2, search + 2, a.width - search - 2, a.height - search - 2)
+            if inner[2] <= inner[0] or inner[3] <= inner[1]:
+                continue
+            ref = a.crop(inner)
+            best = None
+            for dy in range(-search, search + 1, step):
+                for dx in range(-search, search + 1, step):
+                    e = _mean_abs_diff(ref, ImageChops.offset(b, dx, dy).crop(inner))
+                    if best is None or e < best[0]:
+                        best = (e, dx, dy)
+            offsets.append((best[1], best[2]))
+    shutil_rmtree(tmp)
+    if not offsets:
+        return None
+    xs = sorted(o[0] for o in offsets); ys = sorted(o[1] for o in offsets)
+    mx, my = xs[len(xs) // 2], ys[len(ys) // 2]
+    # agreement WITHIN A TOLERANCE, not exact equality. Tiles land a pixel or two apart
+    # because generated particles add noise to every window; demanding identical offsets
+    # would report disagreement on a camera move that every tile actually saw.
+    agree = sum(1 for dx, dy in offsets
+                if abs(dx - mx) <= 2 and abs(dy - my) <= 2) / len(offsets)
+    return {"dx": mx, "dy": my, "tiles": len(offsets), "agreement": round(agree, 2),
+            "per_tile": offsets,
+            "still": (mx, my) == (0, 0),
+            # a shift most tiles agree on is the CAMERA; one or two tiles disagreeing is
+            # the subject, which is exactly what a locked camera shot should look like
+            "confident": agree >= 0.5}
+
+
+def shutil_rmtree(p):
+    import shutil as _sh
+    _sh.rmtree(p, ignore_errors=True)
+
+
+def stage_lock(eid):
+    """Measure camera lock on every clip. Rs 0.
+
+    "Locked static camera" is a sentence we send to a provider that has ignored five other
+    sentences. This is the first camera instruction we can actually CHECK.
+    """
+    d = ep_dir(eid)
+    shots = json.loads((d / "shots.json").read_text())
+    for s in shots:
+        c = d / "clips" / f"{s['id']}.mp4"
+        if not c.exists():
+            continue
+        wanted = "static" in json.dumps(s.get("camera") or "").lower()
+        m = measure_camera_lock(c)
+        if not m:
+            print(f"  {s['id']}: could not measure")
+            continue
+        if not m["confident"]:
+            # tiles disagreeing means NO single translation explains the frame. That is
+            # not a camera drift and must not be reported as one — it is an unstable
+            # picture, and saying which kind it is needs eyes, not arithmetic.
+            verdict = "UNSTABLE — no single camera motion explains it"
+        elif m["still"]:
+            verdict = "LOCKED"
+        else:
+            verdict = f"DRIFTS {m['dx']:+d},{m['dy']:+d} px"
+        flag = ("" if (m["confident"] and m["still"]) or not wanted
+                else "   <- asked for a LOCKED camera")
+        print(f"  {s['id']}: {verdict}  ({int(m['agreement'] * 100)}% of "
+              f"{m['tiles']} tiles agree){flag}")
+
+
+CONTACT_SHEET_VERSION = "1"
+
+
+def contact_sheet(clip, dest, samples=12, cols=4):
+    """A grid of uniformly spaced frames from a clip. Free, offline, deterministic.
+
+    Three samples — first, mid, last — is what our QC has always looked at, and it is how a
+    generated effect that BUILDS over a shot escapes judgement: sparse at the start, all
+    over the room by the end, and the middle frame ambiguous. A shot is judged over time or
+    it is not judged.
+    """
+    secs = media_duration(clip)
+    if not secs:
+        return None
+    rate = samples / secs
+    rc = os.system(f'ffmpeg -nostdin -y -i "{clip}" -vf '
+                   f'"fps={rate:.4f},scale=480:-2,tile={cols}x{-(-samples // cols)}" '
+                   f'-frames:v 1 "{dest}" 2>/dev/null')
+    return dest if rc == 0 and dest.exists() else None
+
+
+def stage_contact(eid):
+    """Contact sheets for every clip that exists. Rs 0. Look at these before judging."""
+    d = ep_dir(eid)
+    shots = json.loads((d / "shots.json").read_text())
+    out_dir = d / "qcframes"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    made = []
+    for s in shots:
+        c = d / "clips" / f"{s['id']}.mp4"
+        if not c.exists():
+            continue
+        sheet = contact_sheet(c, out_dir / f"{s['id']}_sheet.png")
+        if sheet:
+            made.append(sheet)
+            print(f"  {s['id']}: 12 samples -> {sheet}  ({clip_verdict(d, s['id'])})")
+    if not made:
+        print("  no clips to sample")
+
+
 RELEASE_BUILDER_VERSION = "1"
 
 
@@ -2279,7 +2434,7 @@ def stage_costs(episode=None):
 STAGES = {"verify": stage_verify, "plan": stage_plan, "portraits": stage_portraits, "frames": stage_frames,
           "video": stage_video, "assemble": stage_assemble, "episode": stage_episode,
           "costs": stage_costs, "audio": stage_audio, "bed": stage_bed,
-          "ending": stage_ending, "estimate": stage_estimate, "release": stage_release,
+          "ending": stage_ending, "estimate": stage_estimate, "release": stage_release, "contact": stage_contact, "lock": stage_lock,
           # dispatched explicitly below: these take a LOCATION id, not an episode id
           "plate-candidate": None, "plate-approve": None}
 

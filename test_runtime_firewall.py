@@ -1009,6 +1009,27 @@ def audio_properties():
          "input_hash": "0" * 16, "sha": make2.sha_file(d / "ending" / "hold.mp4")}))
     out.append(_ok("a hold whose source frame has changed is refused",
                    make2.provable_ending("E01") is None))
+    # quantity, not merely presence: a tolerance granted for a glimpse must not approve a
+    # blizzard. E01's motes were recorded "visually soft" from three sampled frames and a
+    # twelve-frame contact sheet showed them across the whole room.
+    out.append(_ok("SPARSE motes stay tolerated in bedtime",
+                   _qc.severity("UNREQUESTED_AMBIENT_EFFECT", "BEDTIME_STORY",
+                                _qc.SPARSE) == _qc.TOLERATED))
+    out.append(_ok("PERVASIVE motes are BLOCKING even in bedtime",
+                   _qc.severity("UNREQUESTED_AMBIENT_EFFECT", "BEDTIME_STORY",
+                                _qc.PERVASIVE) == _qc.BLOCKING))
+    out.append(_ok("an UNQUANTIFIED deviation does not inherit the tolerance",
+                   _qc.severity("UNREQUESTED_AMBIENT_EFFECT", "BEDTIME_STORY")
+                   == _qc.BLOCKING))
+    out.append(_ok("tolerance is still not inherited across modes",
+                   _qc.severity("UNREQUESTED_AMBIENT_EFFECT", "SONG", _qc.SPARSE)
+                   == _qc.BLOCKING))
+    f = _qc.QCFinding("UNREQUESTED_AMBIENT_EFFECT", "specks across the room", "none",
+                      observed_severity=_qc.PERVASIVE)
+    v = _qc.decide("s01", [f], mode="BEDTIME_STORY")
+    out.append(_ok("a pervasive-mote finding now REJECTS the clip",
+                   v.status == "REJECTED_QC"))
+
     # economics must be knowable BEFORE generation, and a plan that does not fit must say
     # so rather than discover it mid-render
     e = make.estimate_episode("E01")

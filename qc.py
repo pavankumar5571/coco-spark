@@ -29,6 +29,11 @@ TOLERATED = "TOLERATED"      # real, recorded, and not worth blocking a launch o
 # carry soft ambient motes; a counting lesson or a science demonstration cannot, because
 # there the same specks compete with the thing the child is supposed to be looking at.
 # Anything not listed here is BLOCKING.
+SPARSE = "SPARSE"           # occasional, local, easy to miss
+PERVASIVE = "PERVASIVE"     # across the frame, through the shot, impossible to miss
+OBSERVED_SEVERITY = (SPARSE, PERVASIVE)
+
+
 TOLERATED_DEVIATIONS = {
     ("UNREQUESTED_AMBIENT_EFFECT", "BEDTIME_STORY"): {
         "provider_surface": "GEMINI_DEVELOPER_API",
@@ -40,6 +45,15 @@ TOLERATED_DEVIATIONS = {
         "rationale": "visually soft, does not alter characters or world topology, does "
                      "not obscure the story, introduces no entity, changes no meaning",
         "publication_blocking": False,
+        # Quantified after the fact, and it changed the answer. This tolerance was granted
+        # from first/mid/last samples; a twelve-frame contact sheet of the same accepted
+        # footage shows the specks across the whole room and through the whole shot.
+        "tolerated_up_to": SPARSE,
+        "quantify_before_tolerating": True,
+        "observed_in_E01": PERVASIVE,
+        "consequence": "E01 s01-s03 would NOT pass this tolerance today. The verdicts "
+                       "stand as the record of what was judged then; the episode is a "
+                       "test article and not a public release.",
         "escape_hatch": "Vertex surface documents negativePrompt. Revisit if this becomes "
                         "a brand or content problem — NOT before the channel publishes.",
         "recorded": "2026-08-19",
@@ -47,13 +61,33 @@ TOLERATED_DEVIATIONS = {
 }
 
 
-def severity(category, mode):
-    """Default BLOCKING. Tolerance is an explicit, mode-scoped, recorded decision.
+# HOW MUCH of a thing, not merely whether it is present. A tolerance that cannot express
+# quantity is a tolerance that will one day approve a blizzard because it once approved a
+# few motes. E01 is the evidence: "visually soft" was recorded from three sampled frames,
+# and a contact sheet of twelve showed the specks covering the entire room by the end of
+# every shot.
+def severity(category, mode, observed=None):
+    """Default BLOCKING. Tolerance is explicit, mode-scoped, RECORDED, and QUANTIFIED.
 
     Deliberately not inherited across modes: tolerating motes in a bedtime story says
-    nothing about tolerating them in a classroom scene.
+    nothing about tolerating them in a classroom scene. And deliberately not inherited
+    across QUANTITIES: a tolerance granted for SPARSE does not extend to PERVASIVE, so an
+    effect that grows through a shot cannot ride in on a decision made about a glimpse of
+    it.
+
+    `observed` is None when nobody measured how much there was. That is not a pass —
+    an unquantified deviation falls back to the tolerated ceiling only if the tolerance
+    itself allows it, and today none of them do.
     """
-    return TOLERATED if (category, mode) in TOLERATED_DEVIATIONS else BLOCKING
+    entry = TOLERATED_DEVIATIONS.get((category, mode))
+    if not entry:
+        return BLOCKING
+    ceiling = entry.get("tolerated_up_to", SPARSE)
+    if observed is None:
+        return BLOCKING if entry.get("quantify_before_tolerating", True) else TOLERATED
+    if observed == ceiling or (ceiling == PERVASIVE and observed in OBSERVED_SEVERITY):
+        return TOLERATED
+    return BLOCKING
 
 # PROVIDER CAPABILITY and CLIP PUBLISHABILITY are different measurements and must never
 # be collapsed. P01 is not a failed motion probe: it is MOTION_PRIMITIVE=PASS and
@@ -146,6 +180,7 @@ class QCFinding:
     evidence: str            # what was seen, and where
     specified: str           # what the ShotSpec actually called for
     severity: str = "BLOCKING"   # set by decide() from the mode-scoped tolerance table
+    observed_severity: str = None    # SPARSE | PERVASIVE — how much, measured, not felt
 
 
 @dataclass
@@ -186,7 +221,7 @@ def decide(shot_id, findings, revision=None, capability=None, judged_by="HUMAN",
     """
     known = [f for f in findings if f.category in CATEGORIES]
     for f in known:
-        f.severity = severity(f.category, mode)
+        f.severity = severity(f.category, mode, getattr(f, "observed_severity", None))
     blocking = [f for f in known if f.severity == BLOCKING]
     return QCVerdict(shot_id, "REJECTED_QC" if blocking else "ACCEPTED", known,
                      revision or {}, capability or {}, judged_by)
