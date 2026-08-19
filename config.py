@@ -26,9 +26,11 @@ BUDGET_INR = 500.0   # The cap is per-experiment on purpose: an open cap is how 
 # appeared despite an explicit no-particles clause.
 VIDEO_ENHANCE_PROMPT = False
 
-# Fixed so a re-render of the SAME input is comparable. It does not make Veo
-# deterministic, and it is not a licence to re-roll.
-VIDEO_SEED = 20260819
+# REJECTED BY THE BACKEND: "seed parameter is not supported in Gemini API" (2026-08-19).
+# The SDK's GenerateVideosConfig accepts the field; this surface does not. Left here as
+# None, and recorded, rather than deleted -- the fact that a documented SDK field is not
+# honoured is exactly the kind of thing we lose and then rediscover by paying for it.
+VIDEO_SEED = None
 
 CROSSFADE_SECONDS = 0.0   # hard cut; do not use transitions to conceal bad continuity
 

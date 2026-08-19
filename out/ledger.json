@@ -339,6 +339,15 @@
       "state": "SPENT",
       "at": "2026-08-19 08:19:17",
       "episode": "E01"
+    },
+    {
+      "kind": "video",
+      "detail": "clip:E01/s01",
+      "inr": 0.0,
+      "reserved": 48.0,
+      "state": "RELEASED",
+      "at": "2026-08-19 08:32:18",
+      "episode": "E01"
     }
   ],
   "reconciliations": [

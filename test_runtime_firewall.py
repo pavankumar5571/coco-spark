@@ -590,8 +590,15 @@ def contract_properties():
                        "floating particles" in neg and "dust motes" in neg))
         out.append(_ok("prompt enhancer is disabled in the request",
                        getattr(cfg, "enhance_prompt", None) is False))
-        out.append(_ok("seed is pinned in the request",
-                       getattr(cfg, "seed", None) == config.VIDEO_SEED))
+        # This surface REJECTS seed ("not supported in Gemini API"), so the property is
+        # that we do not send it. Asserting `cfg.seed == VIDEO_SEED` would now pass
+        # vacuously as None == None, which is a test that has stopped testing anything.
+        if config.VIDEO_SEED is None:
+            out.append(_ok("unsupported seed is omitted from the request entirely",
+                           getattr(cfg, "seed", None) is None))
+        else:
+            out.append(_ok("seed is pinned in the request",
+                           getattr(cfg, "seed", None) == config.VIDEO_SEED))
     else:
         out += [False, False, False]
 

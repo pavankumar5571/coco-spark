@@ -847,7 +847,7 @@ def stage_video(eid, only=None):
                     duration_seconds=C.VIDEO_SECONDS,
                     negative_prompt=negative or None,
                     enhance_prompt=C.VIDEO_ENHANCE_PROMPT,
-                    seed=C.VIDEO_SEED),
+                    **({"seed": C.VIDEO_SEED} if C.VIDEO_SEED is not None else {})),
             )
             while not op.done:
                 time.sleep(5); op = cl.operations.get(op)
