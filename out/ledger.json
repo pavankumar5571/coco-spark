@@ -1,5 +1,5 @@
 {
-  "spent_inr": 216.291846,
+  "spent_inr": 231.291846,
   "ops": [
     {
       "kind": "image",
@@ -234,6 +234,34 @@
       "detail": "plan:R02",
       "inr": 0.21112080000000003,
       "at": "2026-08-19 05:39:33"
+    },
+    {
+      "kind": "image",
+      "detail": "portrait:coco",
+      "inr": 7.5,
+      "state": "RELEASED",
+      "at": "2026-08-19 06:24:14"
+    },
+    {
+      "kind": "image",
+      "detail": "portrait:coco",
+      "inr": 7.5,
+      "state": "SPENT",
+      "at": "2026-08-19 06:25:20"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:P01/s01",
+      "inr": 7.5,
+      "state": "RELEASED",
+      "at": "2026-08-19 06:26:08"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:P01/s01",
+      "inr": 7.5,
+      "state": "SPENT",
+      "at": "2026-08-19 06:26:43"
     }
   ]
 }

@@ -52,9 +52,13 @@ def build_revision():
                                   text=True, timeout=10).stdout.strip()
         except Exception:
             return ""
+    # DIRTY means the EXECUTABLE LOGIC differs from the commit — not that generated
+    # artifacts changed. Checking the whole tree conflated the two and blocked a paid run
+    # simply because the pipeline had just produced the frame it was about to use.
+    src_dirty = bool(git("status", "--porcelain", "--", *SOURCE_FILES))
     return {
         "commit": git("rev-parse", "HEAD") or "unknown",
-        "dirty": bool(git("status", "--porcelain")),
+        "dirty": src_dirty,
         "tag": git("describe", "--tags", "--exact-match") or None,
         "sources": {f: hashlib.sha256((ROOT / f).read_bytes()).hexdigest()[:16]
                     for f in SOURCE_FILES if (ROOT / f).exists()},
