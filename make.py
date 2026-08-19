@@ -2391,6 +2391,100 @@ def draw_counted_stars(src, dest, count, box, seed_positions=None, size=None):
     return dest
 
 
+MOTION_RENDERER_VERSION = "1"
+
+
+def render_motion_beat(still, dest, seconds, move="HOLD", fps=24, w=None, h=None,
+                       stars=None, star_box=None, twinkle=True, light=True,
+                       fade_out=0.0, phase=0.0):
+    """A beat that MOVES, without a generator and without a slideshow. Rs 0.
+
+    A held photograph with a slow zoom on it is a slideshow wearing a camera-effect
+    costume, and Pavan is right to reject it. What makes a night scene read as FILM rather
+    than a picture is that things inside the frame are alive: the stars breathe, the lamp
+    light shifts, and the camera moves through the room rather than across a flat plane.
+
+    All three are arithmetic:
+      - every star twinkles on its own phase, so the sky is never still and never uniform
+      - the lamp light rises and falls a few percent, the way a real warm bulb does
+      - the camera zoom and pan are computed PER FRAME, so they compose with the above
+        rather than being an ffmpeg filter bolted on afterwards
+
+    None of it can drift, deform the room, invent a lantern, or push in without being asked,
+    because nothing is regenerating anything. It is the same picture, alive.
+    """
+    from PIL import Image, ImageDraw, ImageEnhance
+    import math, tempfile, shutil as _sh
+    spec = (BIBLE.get("camera_moves") or {}).get(move) or {"kind": "NONE", "amount": 0.0}
+    kind, amount = spec.get("kind", "NONE"), float(spec.get("amount", 0.0))
+    base = Image.open(still).convert("RGB")
+    W, H = base.size
+    w, h = w or W, h or H
+    n = max(2, int(round(seconds * fps)))
+    tmp = Path(tempfile.mkdtemp())
+    spots = [(0.26, 0.26), (0.71, 0.24), (0.25, 0.69), (0.72, 0.70), (0.40, 0.13)]
+    try:
+        for i in range(n):
+            u = i / (n - 1)
+            frame = base.copy()
+            if stars and star_box:
+                x0, y0, x1, y1 = star_box
+                bw, bh = x1 - x0, y1 - y0
+                size = max(5, int(min(bw, bh) * 0.055))
+                layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+                d = ImageDraw.Draw(layer)
+                for si, (fx, fy) in enumerate(spots[:int(stars)]):
+                    # each star on its own period and phase: a sky where everything
+                    # twinkles together is a strobe, not a night
+                    tw = (0.78 + 0.22 * math.sin(2 * math.pi *
+                          (u * seconds / (2.6 + si * 0.7) + phase + si * 0.37))
+                          if twinkle else 1.0)
+                    cx, cy = x0 + fx * bw, y0 + fy * bh
+                    r = size * tw
+                    for k, a in ((2.4, int(22 * tw)), (1.5, int(44 * tw))):
+                        d.ellipse([cx - r * k, cy - r * k, cx + r * k, cy + r * k],
+                                  fill=(255, 246, 200, max(0, a)))
+                    pts = []
+                    for j in range(10):
+                        ang = math.pi / 2 + j * math.pi / 5
+                        rad = r if j % 2 == 0 else r * 0.40
+                        pts.append((cx + rad * math.cos(ang), cy - rad * math.sin(ang)))
+                    d.polygon(pts, fill=(255, 252, 232, 255))
+                frame = Image.alpha_composite(frame.convert("RGBA"), layer).convert("RGB")
+            if light:
+                # a warm bulb is never perfectly steady. Three percent, slowly.
+                lp = 1.0 + 0.03 * math.sin(2 * math.pi * (u * seconds / 7.0 + phase))
+                frame = ImageEnhance.Brightness(frame).enhance(lp)
+            # camera, computed per frame so it composes with everything above
+            if kind == "ZOOM" and amount:
+                z0 = 1.0 + max(0.0, -amount) / 100.0
+                z1 = 1.0 + max(0.0, amount) / 100.0
+                z = z0 + (z1 - z0) * u
+                cxf, cyf = 0.5, 0.5
+            elif kind in ("PAN_X", "PAN_Y") and amount:
+                z = 1.0 + abs(amount) / 100.0 + 0.02
+                travel = (amount / 100.0) * (u - 0.5)
+                cxf = 0.5 + (travel if kind == "PAN_X" else 0.0)
+                cyf = 0.5 + (travel if kind == "PAN_Y" else 0.0)
+            else:
+                z, cxf, cyf = 1.0, 0.5, 0.5
+            cw, ch = W / z, H / z
+            cx = min(max(cxf * W, cw / 2), W - cw / 2)
+            cy = min(max(cyf * H, ch / 2), H - ch / 2)
+            frame = frame.crop((int(cx - cw / 2), int(cy - ch / 2),
+                                int(cx + cw / 2), int(cy + ch / 2))).resize((w, h),
+                                                                           Image.LANCZOS)
+            frame.save(tmp / f"{i:05d}.png")
+        vf = (f"fade=t=out:st={max(0.0, seconds - fade_out)}:d={fade_out}"
+              if fade_out and fade_out > 0 else "null")
+        rc = os.system(f'ffmpeg -nostdin -y -framerate {fps} -i "{tmp}/%05d.png" '
+                       f'-vf "{vf}" -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p '
+                       f'-an "{dest}" 2>/dev/null')
+        return rc == 0 and Path(dest).exists()
+    finally:
+        _sh.rmtree(tmp, ignore_errors=True)
+
+
 ANIMATIC_VERSION = "1"
 
 
