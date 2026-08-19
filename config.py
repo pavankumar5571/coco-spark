@@ -20,11 +20,11 @@ INR_PER_VID_SEC = 8.0    # MEASURED: ~Rs 32/4s clip, was 4.4 (underestimated ~2x
 BUDGET_INR = 500.0   # The cap is per-experiment on purpose: an open cap is how the
                      # previous project reached Rs 30,000. (Account had ~Rs 2433.)
 
-# Veo rewrites the prompt before generating unless told not to. Our prompt is COMPILED
-# from the bible and the camera compiler, so letting the provider rewrite it hands our
-# controlled input to an uncontrolled paraphrase — a prime suspect for the particles that
-# appeared despite an explicit no-particles clause.
-VIDEO_ENHANCE_PROMPT = False
+# Every generation-parameter lever we hoped for is refused by this model. NO parameter on
+# veo-3.1-lite/Gemini Developer API can express exclusion, disable rewriting, or pin a
+# seed. Prose in the prompt body is the only channel that exists here, and prose failed on
+# 3 of 4 clips. This is a SURFACE limit, not a wording problem.
+VIDEO_ENHANCE_PROMPT = None          # REJECTED by this model; see SURFACE_FINDINGS
 
 VIDEO_SEED = None
 VIDEO_NEGATIVE_PROMPT_SUPPORTED = False
@@ -45,8 +45,10 @@ SURFACE_FINDINGS = {
         "this model'. Exclusion cannot be expressed as a parameter here; prose in the "
         "prompt body is the only channel, and prose already failed 3 of 4 clips.",
     ("veo-3.1-lite-generate-preview", "enhance_prompt"):
-        "ACCEPTED 2026-08-19 (not rejected at request time). Whether the backend HONOURS "
-        "it is untested and must not be assumed.",
+        "REJECTED 2026-08-19: 400 INVALID_ARGUMENT, 'enhancePrompt isn't supported by "
+        "this model'. It cannot even be SENT, so the prompt-enhancer hypothesis is not "
+        "merely unproven on this surface -- it is untestable. That a model refuses the "
+        "field is also weak evidence it does no prompt rewriting to disable.",
 }
 
 CROSSFADE_SECONDS = 0.0   # hard cut; do not use transitions to conceal bad continuity

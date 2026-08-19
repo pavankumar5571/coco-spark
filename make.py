@@ -847,7 +847,8 @@ def stage_video(eid, only=None):
                     duration_seconds=C.VIDEO_SECONDS,
                     **({"negative_prompt": negative} if negative
                        and C.VIDEO_NEGATIVE_PROMPT_SUPPORTED else {}),
-                    enhance_prompt=C.VIDEO_ENHANCE_PROMPT,
+                    **({"enhance_prompt": C.VIDEO_ENHANCE_PROMPT}
+                       if C.VIDEO_ENHANCE_PROMPT is not None else {}),
                     **({"seed": C.VIDEO_SEED} if C.VIDEO_SEED is not None else {})),
             )
             while not op.done:

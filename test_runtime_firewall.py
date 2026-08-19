@@ -594,8 +594,12 @@ def contract_properties():
             # call. The property is that an unsupported parameter is never sent.
             out.append(_ok("unsupported negative_prompt is omitted from the request",
                            not neg))
-        out.append(_ok("prompt enhancer is disabled in the request",
-                       getattr(cfg, "enhance_prompt", None) is False))
+        if config.VIDEO_ENHANCE_PROMPT is None:
+            out.append(_ok("unsupported enhance_prompt is omitted from the request",
+                           getattr(cfg, "enhance_prompt", None) is None))
+        else:
+            out.append(_ok("prompt enhancer setting reaches the request",
+                           getattr(cfg, "enhance_prompt", None) is C.VIDEO_ENHANCE_PROMPT))
         # This surface REJECTS seed ("not supported in Gemini API"), so the property is
         # that we do not send it. Asserting `cfg.seed == VIDEO_SEED` would now pass
         # vacuously as None == None, which is a test that has stopped testing anything.
