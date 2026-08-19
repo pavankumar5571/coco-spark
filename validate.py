@@ -379,6 +379,46 @@ def check_progression(shots, bible, frozen=0):
     return out
 
 
+def check_visual_change(shots, bible, frozen=0):
+    """A paid generation must be justified by something that has to move. Rs 0 to catch.
+
+    The planner declares WHAT MUST VISIBLY CHANGE. Code decides how to render it. Two
+    failures are caught here, both before any money moves:
+
+      an undeclared requirement — nobody said what this beat changes, so nobody can say
+      whether Rs 37 of generation is needed for it;
+
+      a requirement a FREE renderer already satisfies — a held image or a programmed camera
+      move over an accepted still. Rs 8 per generated second is Rs 555 per published minute,
+      and the two widest generated clips in the archive are the two measurably unstable
+      ones. Paying for pixels that should not move buys instability at a premium.
+    """
+    out, vocab = [], list(bible.get("visual_change") or {})
+    renderers = bible.get("renderers") or {}
+    free_for = {req for r in renderers.values() if r.get("cost") == "FREE"
+                for req in (r.get("satisfies") or [])}
+    for i, s in enumerate(shots):
+        if i < frozen:
+            continue           # accepted inventory is not replanned
+        need = s.get("visual_change")
+        if not need:
+            out.append(Issue("ERROR", "VISUAL_CHANGE_NOT_DECLARED", s.get("id", "?"),
+                             "visual_change",
+                             "no declared visual change, so no way to tell whether this "
+                             "beat needs generated pixels at all"))
+            continue
+        if need not in vocab:
+            out.append(Issue("ERROR", "VISUAL_CHANGE_UNKNOWN", s.get("id", "?"),
+                             "visual_change", f"'{need}' is not in the bible's vocabulary"))
+            continue
+        if need in free_for:
+            out.append(Issue("ERROR", "PAID_RENDER_NOT_REQUIRED", s.get("id", "?"),
+                             "visual_change",
+                             f"{need} is satisfied by a FREE renderer. A generated clip "
+                             f"here buys nothing the audience can see."))
+    return out
+
+
 def validate(shots, ep, bible, requirement_results=None, frozen=0):
     return (check_completeness(shots, ep, bible)
             + check_entities(shots, ep, bible)
@@ -387,6 +427,7 @@ def validate(shots, ep, bible, requirement_results=None, frozen=0):
             + check_events_explain_changes(shots, bible)
             + check_locations(shots, ep)
             + check_progression(shots, bible, frozen)
+            + check_visual_change(shots, bible, frozen)
             + check_requirements(shots, ep, requirement_results))
 
 

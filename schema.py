@@ -57,6 +57,11 @@ def shot_plan_schema(bible, ep):
             "frame": {"type": "string"},
             "motion": {"type": "string"},
             "coverage_role": _enum(bible.get("coverage_roles", ["SUBJECT"])),
+            # WHAT MUST VISIBLY CHANGE, as semantic intent. The planner declares the
+            # requirement; code picks the renderer that can satisfy it most cheaply. A
+            # planner that could name its own renderer would name the expensive one.
+            "visual_change": _enum(list(bible.get("visual_change", {}))
+                                   or ["CHARACTER_DEFORMATION"]),
             "focus": {"type": "object", "properties": {
                 "type": _enum(bible.get("focus_types", ["GROUP"])),
                 "ids": {"type": "array", "items": {"type": "string"}}},
@@ -73,8 +78,8 @@ def shot_plan_schema(bible, ep):
             "start_state": state,
             "end_state": state,
         },
-        "required": ["id", "cast", "frame", "motion", "coverage_role", "focus", "boundary",
-                     "events", "start_state", "end_state"],
+        "required": ["id", "cast", "frame", "motion", "coverage_role", "visual_change",
+                     "focus", "boundary", "events", "start_state", "end_state"],
     }
 
     return {

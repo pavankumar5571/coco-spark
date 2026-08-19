@@ -39,6 +39,7 @@ class FakeProvider:
 def good_shot(sid, **kw):
     s = {
         "id": sid, "cast": ["coco", "nana"], "coverage_role": "SUBJECT",
+        "visual_change": "CHARACTER_DEFORMATION",
         "frame": "f", "motion": "m", "camera": "static",
         "boundary": {"type": "CONTINUOUS"}, "events": [],
         "start_state": {
@@ -274,6 +275,7 @@ def main():
     def _s(sid, role, ids, size_role=None):
         import copy
         s = {"id": sid, "cast": ["coco", "nana"], "coverage_role": role,
+             "visual_change": "CHARACTER_DEFORMATION",
              "focus": {"type": "CHARACTER", "ids": ids}, "frame": "x", "motion": "m",
              "boundary": {"type": "CONTINUOUS"}, "events": [],
              "start_state": {"location_id": "cottage_night",
@@ -301,6 +303,30 @@ def main():
     else:
         print(f"  blocked  {'CLOSE on coco -> CLOSE on nana (same setup)':46s} "
               f"{pol}")
+
+    # a paid generation that nothing visible requires must be blocked BEFORE it is bought
+    checked += 1
+    import validate as _v
+    plan = [good_shot("s01"), good_shot("s02")]
+    for sh in plan:
+        sh["visual_change"] = "NONE"
+    issues = _v.check_visual_change(plan, BIBLE, frozen=0)
+    if not any(i.code == "PAID_RENDER_NOT_REQUIRED" for i in issues):
+        failures.append("NOT REJECTED: a Rs 32 clip for a beat where nothing changes")
+    else:
+        print(f"  blocked  {'a paid clip for a beat that changes nothing':46s} "
+              f"PAID_RENDER_NOT_REQUIRED")
+
+    checked += 1
+    plan2 = [good_shot("s01"), good_shot("s02")]
+    for sh in plan2:
+        sh.pop("visual_change", None)
+    if not any(i.code == "VISUAL_CHANGE_NOT_DECLARED"
+               for i in _v.check_visual_change(plan2, BIBLE, frozen=0)):
+        failures.append("NOT REJECTED: a plan that never says what changes")
+    else:
+        print(f"  blocked  {'a plan that never says what must change':46s} "
+              f"VISUAL_CHANGE_NOT_DECLARED")
 
     # the compiled framing must not contradict the assigned camera
     checked += 1

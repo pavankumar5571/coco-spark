@@ -101,6 +101,7 @@ def _shots():
     import copy
     s = {
         "id": "s01", "cast": ["coco"], "coverage_role": "SUBJECT",
+        "visual_change": "CHARACTER_DEFORMATION",
         "focus": {"type": "CHARACTER", "ids": ["coco"]},
         "frame": "f", "motion": "m", "camera": "static",
         "boundary": {"type": "CONTINUOUS"}, "events": [],

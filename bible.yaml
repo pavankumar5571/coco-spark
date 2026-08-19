@@ -265,3 +265,41 @@ audio_bed:
     swell_seconds: 5
     tone_gain: 0.15
     air_gain: 0.010
+
+# WHAT MUST VISIBLY CHANGE in a beat — declared by the planner as SEMANTIC INTENT, never as
+# a choice of renderer. The planner says what the audience must see change; code decides
+# the cheapest proven way to make that happen. That division is the rule this project has
+# been built on since the first prompt compiler, and it applies to money as much as to
+# pixels: without it a planner picks generative video because it sounds richer.
+#
+# Justified by measurement, not taste. Generated clips of this room are not rigid — E01/s01
+# and s04 hold at 11% tile agreement even with the pervasive particles suppressed — and a
+# generated second costs Rs 8, which is Rs 555 per published minute.
+visual_change:
+  NONE:                  nothing changes; the image is held
+  CAMERA_ONLY:           only the viewpoint moves — a push in, a drift, a reveal
+  CHARACTER_DEFORMATION: a character's body or face changes shape — sitting to lying, a smile, a blink
+  CHARACTER_TRANSLATION: a character moves through the space
+  OBJECT_DEFORMATION:    a thing in the world changes shape or state
+  WORLD_CHANGE:          the place itself changes — light, weather, time
+
+# Which renderer can satisfy which requirement, cheapest first. A renderer is listed here
+# only when it has been DEMONSTRATED to do the thing, not when it plausibly could.
+renderers:
+  STILL_HOLD:
+    satisfies: [NONE]
+    cost: FREE
+    evidence: E01's closing hold, built and watched
+  PROGRAMMED_CAMERA:
+    satisfies: [NONE, CAMERA_ONLY]
+    cost: FREE
+    evidence: deterministic ffmpeg transform of an accepted still; no provider involved
+  GENERATIVE_VIDEO:
+    satisfies: [NONE, CAMERA_ONLY, CHARACTER_DEFORMATION, CHARACTER_TRANSLATION,
+                OBJECT_DEFORMATION, WORLD_CHANGE]
+    cost: PAID
+    evidence: E01/s02 sitting to lying, and s03 holding a sleep state, both accepted
+    caution: >-
+      environmental rigidity is NOT among the things this renderer has demonstrated. The
+      two widest generated clips in the archive are the two unstable ones. Prefer a
+      deterministic renderer for beats whose content is the WORLD rather than a character.

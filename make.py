@@ -369,6 +369,19 @@ HARD CONSTRAINTS. These come from production failures.
 5. PERSISTENT PROPS ONLY. The set of props may not change; anything present must be
    present throughout.
 6. ONE DOMINANT ACTION per shot, small and achievable.
+6b. DECLARE WHAT MUST VISIBLY CHANGE. Every shot states a visual_change — the SEMANTIC
+   requirement, never a choice of renderer:
+     NONE                   nothing changes; the image is held
+     CAMERA_ONLY            only the viewpoint moves
+     CHARACTER_DEFORMATION  a body or face changes shape
+     CHARACTER_TRANSLATION  a character moves through the space
+     OBJECT_DEFORMATION     a thing changes shape or state
+     WORLD_CHANGE           the place itself changes
+   Declare the SMALLEST requirement that is honestly true for the beat. Deterministic code
+   then picks the cheapest renderer that can satisfy it, and a beat needing NONE or
+   CAMERA_ONLY is rendered for free from an accepted still. Claiming a bigger change than
+   the beat needs does not make the shot better; it makes it cost Rs 32 and risk a room
+   that will not hold still.
 7. DO NOT choose camera framing. Declare each shot's coverage_role — what the shot is
    FOR — and deterministic code will assign shot size, angle and camera setup from the
    mode's coverage policy.
@@ -1810,6 +1823,37 @@ def stage_release(eid):
           "and your judgement.")
 
 
+def renderer_for(requirement):
+    """PURE. The cheapest renderer PROVEN to satisfy a visual-change requirement.
+
+    One definition, and every consumer calls it: the estimator that prices an episode, the
+    validator that refuses a paid call nothing needs, and eventually the stage that renders
+    it. Two copies of this rule would price one episode and render a different one.
+
+    Returns (renderer, cost_class, why).
+    """
+    table = BIBLE.get("renderers") or {}
+    free = [(k, v) for k, v in table.items()
+            if requirement in (v.get("satisfies") or []) and v.get("cost") == "FREE"]
+    if free:
+        # cheapest first, and among free renderers the simplest wins
+        order = ["STILL_HOLD", "PROGRAMMED_CAMERA"]
+        free.sort(key=lambda kv: order.index(kv[0]) if kv[0] in order else 99)
+        k, v = free[0]
+        return k, "FREE", v.get("evidence", "")
+    paid = [(k, v) for k, v in table.items()
+            if requirement in (v.get("satisfies") or []) and v.get("cost") == "PAID"]
+    if paid:
+        k, v = paid[0]
+        return k, "PAID", v.get("evidence", "")
+    return None, None, f"no renderer in the bible claims to satisfy {requirement}"
+
+
+def shot_visual_change(shot):
+    """What this beat must visibly change. Absent means nobody declared it."""
+    return shot.get("visual_change")
+
+
 def estimate_episode(eid):
     """PURE-ish. What this plan will cost BEFORE anything is generated.
 
@@ -1836,10 +1880,19 @@ def estimate_episode(eid):
         else:
             fcost, fwhy = C.INR_PER_IMAGE, f"first frame ({pol})"
             frames_paid += 1
+        # WHY a paid clip exists, or whether it needs to. A Rs 32 call with no semantic
+        # change that requires generated pixels is the single easiest rupee to not spend.
+        need = shot_visual_change(s)
+        renderer, cost_class, _why = renderer_for(need) if need else (None, None, "")
+        if need and cost_class == "FREE":
+            lines.append((s["id"], "FREE", fcost,
+                          f"{fwhy} + {renderer} ({need} needs no generated pixels)"))
+            continue
         vcost = C.INR_PER_VID_SEC * C.VIDEO_SECONDS
         video_secs += C.VIDEO_SECONDS
+        reason = (f"{need}" if need else "visual_change NOT DECLARED")
         lines.append((s["id"], "TO BUY", fcost + vcost,
-                      f"{fwhy} + {C.VIDEO_SECONDS}s clip"))
+                      f"{fwhy} + {C.VIDEO_SECONDS}s clip — {reason}"))
     frames_inr = frames_paid * C.INR_PER_IMAGE
     video_inr = video_secs * C.INR_PER_VID_SEC
     total = frames_inr + video_inr
