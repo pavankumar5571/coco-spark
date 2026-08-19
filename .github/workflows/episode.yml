@@ -1,0 +1,43 @@
+name: episode
+
+on:
+  workflow_dispatch:
+
+jobs:
+  frames:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -q -r requirements.txt
+      - run: python make.py portraits && python make.py frames
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frames
+          path: out/
+
+  video:
+    needs: frames
+    runs-on: ubuntu-latest
+    environment: approve-spend        # <- GitHub pauses here for your approval
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -q -r requirements.txt
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - uses: actions/download-artifact@v4
+        with: { name: frames, path: out/ }
+      - run: cp out/frames/*.png out/approved/ 2>/dev/null || true
+      - run: python make.py video && python make.py assemble
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: episode
+          path: |
+            out/episode.mp4
+            out/ledger.json

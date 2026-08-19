@@ -1,0 +1,6 @@
+out/frames/
+out/clips/
+out/approved/
+out/episode.mp4
+out/concat.txt
+__pycache__/

@@ -1,0 +1,59 @@
+{
+  "spent_inr": 73.80000000000001,
+  "ops": [
+    {
+      "kind": "image",
+      "detail": "portrait:coco",
+      "inr": 3.5,
+      "at": "2026-08-18 15:10:01"
+    },
+    {
+      "kind": "image",
+      "detail": "portrait:nana",
+      "inr": 3.5,
+      "at": "2026-08-18 15:10:28"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:s01",
+      "inr": 3.5,
+      "at": "2026-08-18 15:10:48"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:s02",
+      "inr": 3.5,
+      "at": "2026-08-18 15:10:58"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:s03",
+      "inr": 3.5,
+      "at": "2026-08-18 15:11:11"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:s03",
+      "inr": 3.5,
+      "at": "2026-08-18 17:36:09"
+    },
+    {
+      "kind": "video",
+      "detail": "clip:s01",
+      "inr": 17.6,
+      "at": "2026-08-18 17:37:03"
+    },
+    {
+      "kind": "video",
+      "detail": "clip:s02",
+      "inr": 17.6,
+      "at": "2026-08-18 17:37:31"
+    },
+    {
+      "kind": "video",
+      "detail": "clip:s03",
+      "inr": 17.6,
+      "at": "2026-08-18 17:38:04"
+    }
+  ]
+}
