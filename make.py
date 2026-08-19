@@ -596,6 +596,77 @@ def prove_location_plate(location_id):
     return True, "valid", plate, pv
 
 
+def approve_plate_attempt(location_id, attempt):
+    """Promote a QC-ACCEPTED candidate to canonical authority. Free.
+
+    SUPERSEDING, not overwriting. GPT's design made canon immutable, which is right, and
+    its own later caveat is the missing half: accepted must not mean immortal. Our plate
+    QC proved the promoted-frame plate inadequate — bookshelf cropped, a character in it —
+    so "canon can never change" would have frozen a known-weak asset into every future
+    episode. The old plate is not deleted or rewritten; it is moved aside with its reason,
+    and the chain stays walkable.
+
+    A VERSION BUMP would be the wrong mechanism here: the place has not been redesigned.
+    Only our authority for it has improved.
+    """
+    d = plate_attempt_dir(location_id, attempt)
+    plate, prov_p = location_plate_paths(location_id)
+    qc_p = d / "qc.json"
+    if not (d / "plate.png").exists():
+        sys.exit(f"  no attempt {attempt:03d} for {location_id}")
+    if not qc_p.exists():
+        sys.exit(f"  attempt {attempt:03d} has no QC verdict. Generation creates a "
+                 f"candidate; QC creates acceptance. Judge it first.")
+    v = json.loads(qc_p.read_text())
+    if v.get("status") != "ACCEPTED":
+        sys.exit(f"  attempt {attempt:03d} is {v.get('status')}. A bare approve cannot "
+                 f"override a QC verdict.")
+    # the verdict must name the pixels it judged, or it can authorise different ones
+    if v.get("plate_sha") != sha_file(d / "plate.png"):
+        sys.exit(f"  attempt {attempt:03d} has changed since it was judged "
+                 f"(qc names {v.get('plate_sha')}, file is {sha_file(d / 'plate.png')})")
+    cand = json.loads((d / "provenance.json").read_text())
+    if cand.get("location_id") != location_id:
+        sys.exit(f"  attempt belongs to '{cand.get('location_id')}', not '{location_id}'")
+    if cand.get("location_version") != location_version(location_id):
+        sys.exit(f"  attempt is for v{cand.get('location_version')}, bible declares "
+                 f"v{location_version(location_id)}")
+
+    plate.parent.mkdir(parents=True, exist_ok=True)
+    superseded = None
+    if plate.exists():
+        old_sha = sha_file(plate)
+        if old_sha == sha_file(d / "plate.png"):
+            print(f"  {location_id}: canonical plate already is attempt "
+                  f"{attempt:03d}, skipping")
+            return
+        keep = plate.parent / "superseded" / old_sha
+        keep.mkdir(parents=True, exist_ok=True)
+        write_atomic(keep / "canonical.png", plate.read_bytes())
+        old_prov = json.loads(prov_p.read_text()) if prov_p.exists() else {}
+        old_prov.update({"status": "SUPERSEDED", "canonical": False,
+                         "superseded_at": time.strftime("%F %T"),
+                         "superseded_by": f"attempt {attempt:03d}",
+                         "superseded_reason": v.get("supersedes_reason",
+                                                    "replaced by a purpose-built plate")})
+        (keep / "canonical.provenance.json").write_text(json.dumps(old_prov, indent=2))
+        for extra in ("canonical.qc.json",):
+            src = plate.parent / extra
+            if src.exists():
+                (keep / extra).write_text(src.read_text())
+        superseded = old_sha
+        print(f"  {location_id}: previous canon {old_sha} moved to superseded/, not deleted")
+
+    write_atomic(plate, (d / "plate.png").read_bytes())
+    prov_p.write_text(json.dumps(
+        {**cand, "status": "COMPLETE", "kind": "LOCATION_PLATE", "canonical": True,
+         "approved_at": time.strftime("%F %T"), "approved_by": "HUMAN",
+         "from_attempt": attempt, "qc_verdict_sha": sha_file(qc_p),
+         "supersedes": superseded, "sha": sha_file(plate)}, indent=2))
+    (plate.parent / "canonical.qc.json").write_text(json.dumps(v, indent=2))
+    print(f"  {location_id}: attempt {attempt:03d} is now CANONICAL authority")
+
+
 def resolve_location_plate(location_id):
     """Deterministic world-authority resolver. No camera heuristic in v1.
 
@@ -607,6 +678,88 @@ def resolve_location_plate(location_id):
         return None, None, (f"location '{location_id}' has no provably current canonical "
                             f"world plate ({why})")
     return plate, ("world", location_id, sha_file(plate)), None
+
+
+PLATE_COMPILER_VERSION = "1"
+
+
+def plate_attempt_dir(location_id, n):
+    """PURE. Immutable numbered attempts: a paid candidate is never overwritten."""
+    return LOCATION_PLATES / location_id / "attempts" / f"{n:03d}"
+
+
+def next_plate_attempt(location_id):
+    """Attempts count COMPLETED ARTIFACTS, not network calls.
+
+    A provider failure that produces nothing is an execution failure, not a creative
+    attempt — the reservation releases and the number is not consumed.
+    """
+    base = LOCATION_PLATES / location_id / "attempts"
+    if not base.exists():
+        return 1
+    used = [int(d.name) for d in base.iterdir()
+            if d.is_dir() and d.name.isdigit() and (d / "plate.png").exists()]
+    return max(used) + 1 if used else 1
+
+
+def compile_plate_prompt(location_id):
+    """The plate shows the PLACE, and only the place.
+
+    Compiled from the same location entry every frame prompt uses, so plate and prompt
+    cannot describe different worlds. No characters: a world plate carrying a character
+    hands every downstream frame a picture of someone in a fixed posture, which is the
+    defect our own QC found in the promoted-frame plate. Every persistent object must be
+    FULLY in frame, because the promoted plate cropped the bookshelf and was therefore
+    weak authority for the one object that had already mutated.
+    """
+    loc = BIBLE["locations"][location_id]
+    return (f"{BIBLE['style_lock']}\n\n"
+            f"A single wide establishing view of an EMPTY room, photographed straight on "
+            f"with nothing cropped.\n\n"
+            f"WORLD: {loc['description']}\n\n"
+            f"WORLD GEOGRAPHY: {loc['geography']}\n\n"
+            f"Every object named above must be COMPLETELY visible within the frame, "
+            f"including its full shape and design. Nothing may touch or extend beyond the "
+            f"frame edges. No people, no animals, no characters of any kind. No text or "
+            f"lettering. This image defines what this place looks like.")
+
+
+def stage_plate_candidate(location_id):
+    """Generate ONE candidate plate for a location. Paid, reserved before invoked.
+
+    Generation creates a candidate. QC creates acceptance. Promotion creates authority.
+    Three separate operations, and this is only the first.
+    """
+    if location_id not in BIBLE["locations"]:
+        sys.exit(f"  unknown location '{location_id}'")
+    rev = build_revision()
+    if rev["dirty"] and getattr(C, "REQUIRE_CLEAN_TREE", True):
+        sys.exit("  working tree is DIRTY — a paid result could not be attributed to a "
+                 "revision. Commit first.")
+    n = next_plate_attempt(location_id)
+    if n > 1:
+        prev = plate_attempt_dir(location_id, n - 1) / "qc.json"
+        if not prev.exists():
+            sys.exit(f"  attempt {n-1:03d} has no recorded QC verdict. One candidate per "
+                     f"location: judge the last one before buying another.")
+    d = plate_attempt_dir(location_id, n)
+    d.mkdir(parents=True, exist_ok=True)
+    prompt = compile_plate_prompt(location_id)
+    print(f"  {location_id}: generating plate candidate {n:03d}")
+    gen_image(client(), prompt, [], d / "plate.png", kind="image",
+              detail=f"plate:{location_id}/{n:03d}")
+    (d / "provenance.json").write_text(json.dumps(
+        {"status": "COMPLETE", "kind": "LOCATION_PLATE_CANDIDATE", "canonical": False,
+         "location_id": location_id, "location_version": location_version(location_id),
+         "attempt": n, "source": "GENERATED_LOCATION_PLATE",
+         "image_prompt": prompt,
+         "image_prompt_sha": hashlib.sha256(prompt.encode()).hexdigest()[:16],
+         "sha": sha_file(d / "plate.png"),
+         "model": C.IMAGE_MODEL, "aspect": C.IMAGE_ASPECT,
+         "compiler": PLATE_COMPILER_VERSION,
+         "revision": rev, "cost_inr": C.INR_PER_IMAGE}, indent=2))
+    print(f"    -> {d / 'plate.png'}")
+    print(f"    QC it, then: make.py plate-approve {location_id} --attempt {n}")
 
 
 def promote_location_plate(eid, shot_id):
@@ -1420,7 +1573,10 @@ def stage_costs(episode=None):
 
 
 STAGES = {"verify": stage_verify, "plan": stage_plan, "portraits": stage_portraits, "frames": stage_frames,
-          "video": stage_video, "assemble": stage_assemble, "episode": stage_episode, "costs": stage_costs}
+          "video": stage_video, "assemble": stage_assemble, "episode": stage_episode,
+          "costs": stage_costs,
+          # dispatched explicitly below: these take a LOCATION id, not an episode id
+          "plate-candidate": None, "plate-approve": None}
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -1429,14 +1585,27 @@ if __name__ == "__main__":
     ap.add_argument("--upto", type=int, default=None,
                     help="episode stage: generate at most N new shots this run, so spend "
                          "can be authorised in bounded slices")
+    ap.add_argument("--attempt", type=int, default=None,
+                    help="plate-approve: which candidate attempt becomes canonical")
     a = ap.parse_args()
+    plate_stage = a.stage.startswith("plate-")
     if a.stage not in ("portraits", "verify", "costs") and not a.episode:
-        sys.exit(f"`{a.stage}` needs an episode id, e.g. make.py {a.stage} E01")
+        need = ("a location id, e.g. make.py plate-candidate cottage_night" if plate_stage
+                else f"an episode id, e.g. make.py {a.stage} E01")
+        sys.exit(f"`{a.stage}` needs {need}")
     if a.upto is not None and a.stage != "episode":
         sys.exit("--upto only applies to the `episode` stage")
+    if a.attempt is not None and a.stage != "plate-approve":
+        sys.exit("--attempt only applies to `plate-approve`")
     print(f"stage: {a.stage} {a.episode or ''}   spent: Rs {ledger()['spent_inr']:.2f}"
           f"/{C.BUDGET_INR}\n")
     if a.stage == "episode":
         stage_episode(a.episode, upto=a.upto)
+    elif a.stage == "plate-candidate":
+        stage_plate_candidate(a.episode)        # positional carries the LOCATION id
+    elif a.stage == "plate-approve":
+        if a.attempt is None:
+            sys.exit("  plate-approve needs --attempt N")
+        approve_plate_attempt(a.episode, a.attempt)
     else:
         STAGES[a.stage](a.episode)
