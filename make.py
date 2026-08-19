@@ -861,7 +861,7 @@ if __name__ == "__main__":
     ap.add_argument("stage", choices=STAGES)
     ap.add_argument("episode", nargs="?", help="episode id, e.g. E01 (not needed for portraits)")
     a = ap.parse_args()
-    if a.stage != "portraits" and not a.episode:
+    if a.stage not in ("portraits", "verify") and not a.episode:
         sys.exit(f"`{a.stage}` needs an episode id, e.g. make.py {a.stage} E01")
     print(f"stage: {a.stage} {a.episode or ''}   spent: Rs {ledger()['spent_inr']:.2f}"
           f"/{C.BUDGET_INR}\n")
