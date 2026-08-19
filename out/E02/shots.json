@@ -1,0 +1,147 @@
+[
+  {
+    "id": "s01",
+    "cast": [
+      "coco",
+      "pip"
+    ],
+    "frame": "First frame: Medium shot, eye-level. Coco the Bear sits upright on the edge of the small bed against the right wall. Pip the Rabbit stands beside the bed on its left, still wearing his blue polka-dot backpack, bouncing slightly with excitement. Round window on the left wall showing a deep blue starry sky. Low bookshelf far left, woven rug in centre floor, wooden chair beside the bed. Framing, angle, and camera position are identical to all other shots.",
+    "motion": "Pip stops bouncing and takes a slow, deep breath in, while Coco gently places a paw on his own chest to demonstrate.",
+    "camera": "Locked static camera. No movement.",
+    "start_state": {
+      "environment": "Coco's Cottage (night), warm low lamp light",
+      "population": [
+        "coco",
+        "pip"
+      ],
+      "spatial": {
+        "coco": "sitting on the edge of the small bed on the right side of the room",
+        "pip": "standing beside the bed on its left, facing Coco"
+      },
+      "appearance": {
+        "coco": "calm, sitting upright with paws in lap",
+        "pip": "energetic, eyes wide, wearing blue polka-dot backpack"
+      },
+      "possession": {
+        "pip backpack": "pip"
+      },
+      "camera": "Medium shot, eye-level, locked camera position identical across all shots"
+    },
+    "end_state": {
+      "environment": "Coco's Cottage (night), warm low lamp light",
+      "population": [
+        "coco",
+        "pip"
+      ],
+      "spatial": {
+        "coco": "sitting on the edge of the small bed on the right side of the room",
+        "pip": "standing beside the bed on its left, facing Coco"
+      },
+      "appearance": {
+        "coco": "calm, demonstrating a deep breath",
+        "pip": "breathing in slowly, eyes softly closing, wearing blue polka-dot backpack"
+      },
+      "possession": {
+        "pip backpack": "pip"
+      },
+      "camera": "Medium shot, eye-level, locked camera position identical across all shots"
+    }
+  },
+  {
+    "id": "s02",
+    "cast": [
+      "coco",
+      "pip"
+    ],
+    "frame": "First frame: Medium shot, eye-level. Coco the Bear sits upright on the edge of the small bed against the right wall. Pip the Rabbit stands beside the bed on its left, breathing out slowly. Round window on the left wall showing a deep blue starry sky. Low bookshelf far left, woven rug in centre floor, wooden chair beside the bed. Framing, angle, and camera position are identical to all other shots.",
+    "motion": "Pip lets out a long, slow breath and sits down softly on the woven rug next to the bed, looking up at the round window.",
+    "camera": "Locked static camera. No movement.",
+    "start_state": {
+      "environment": "Coco's Cottage (night), warm low lamp light",
+      "population": [
+        "coco",
+        "pip"
+      ],
+      "spatial": {
+        "coco": "sitting on the edge of the small bed on the right side of the room",
+        "pip": "standing beside the bed on its left, facing Coco"
+      },
+      "appearance": {
+        "coco": "calm, demonstrating a deep breath",
+        "pip": "breathing in slowly, eyes softly closing, wearing blue polka-dot backpack"
+      },
+      "possession": {
+        "pip backpack": "pip"
+      },
+      "camera": "Medium shot, eye-level, locked camera position identical across all shots"
+    },
+    "end_state": {
+      "environment": "Coco's Cottage (night), warm low lamp light",
+      "population": [
+        "coco",
+        "pip"
+      ],
+      "spatial": {
+        "coco": "sitting on the edge of the small bed on the right side of the room",
+        "pip": "sitting on the woven rug in the centre floor, looking toward the round window"
+      },
+      "appearance": {
+        "coco": "smiling warmly down at Pip",
+        "pip": "settled down on the rug, relaxed, wearing blue polka-dot backpack"
+      },
+      "possession": {
+        "pip backpack": "pip"
+      },
+      "camera": "Medium shot, eye-level, locked camera position identical across all shots"
+    }
+  },
+  {
+    "id": "s03",
+    "cast": [
+      "coco",
+      "pip"
+    ],
+    "frame": "First frame: Medium shot, eye-level. Coco the Bear sits upright on the edge of the small bed against the right wall. Pip the Rabbit sits on the woven rug in the centre floor, looking toward the round window. Low bookshelf far left, wooden chair beside the bed. Framing, angle, and camera position are identical to all other shots.",
+    "motion": "Pip rests his head down on his paws on the rug, gently closing his eyes to sleep while Coco watches with a soft smile.",
+    "camera": "Locked static camera. No movement.",
+    "start_state": {
+      "environment": "Coco's Cottage (night), warm low lamp light",
+      "population": [
+        "coco",
+        "pip"
+      ],
+      "spatial": {
+        "coco": "sitting on the edge of the small bed on the right side of the room",
+        "pip": "sitting on the woven rug in the centre floor, looking toward the round window"
+      },
+      "appearance": {
+        "coco": "smiling warmly down at Pip",
+        "pip": "settled down on the rug, relaxed, wearing blue polka-dot backpack"
+      },
+      "possession": {
+        "pip backpack": "pip"
+      },
+      "camera": "Medium shot, eye-level, locked camera position identical across all shots"
+    },
+    "end_state": {
+      "environment": "Coco's Cottage (night), warm low lamp light",
+      "population": [
+        "coco",
+        "pip"
+      ],
+      "spatial": {
+        "coco": "sitting on the edge of the small bed on the right side of the room",
+        "pip": "lying asleep on the woven rug in the centre floor"
+      },
+      "appearance": {
+        "coco": "smiling gently, looking down peacefully",
+        "pip": "fast asleep, eyes closed, long ears resting softly"
+      },
+      "possession": {
+        "pip backpack": "pip"
+      },
+      "camera": "Medium shot, eye-level, locked camera position identical across all shots",
+      "narrative": "Pip is now fast asleep."
+    }
+  }
+]

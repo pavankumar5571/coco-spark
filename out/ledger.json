@@ -1,5 +1,5 @@
 {
-  "spent_inr": 73.80000000000001,
+  "spent_inr": 214.99627919999998,
   "ops": [
     {
       "kind": "image",
@@ -54,6 +54,144 @@
       "detail": "clip:s03",
       "inr": 17.6,
       "at": "2026-08-18 17:38:04"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:s01",
+      "inr": 3.5,
+      "at": "2026-08-18 21:11:57"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:s02",
+      "inr": 3.5,
+      "at": "2026-08-18 21:14:00"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:s03",
+      "inr": 3.5,
+      "at": "2026-08-18 21:14:15"
+    },
+    {
+      "kind": "llm",
+      "detail": "plan:E02",
+      "inr": 0.029321600000000003,
+      "at": "2026-08-18 21:19:15"
+    },
+    {
+      "kind": "llm",
+      "detail": "plan:E02",
+      "inr": 0.06383520000000001,
+      "at": "2026-08-18 21:20:35"
+    },
+    {
+      "kind": "llm",
+      "detail": "plan:E01",
+      "inr": 0.0627792,
+      "at": "2026-08-18 21:22:25"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:E01/s01",
+      "inr": 3.5,
+      "at": "2026-08-18 21:27:02"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:E01/s02",
+      "inr": 3.5,
+      "at": "2026-08-18 21:27:15"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:E01/s03",
+      "inr": 3.5,
+      "at": "2026-08-18 21:28:11"
+    },
+    {
+      "kind": "video",
+      "detail": "clip:E01/s01",
+      "inr": 17.6,
+      "at": "2026-08-18 21:30:03"
+    },
+    {
+      "kind": "video",
+      "detail": "clip:E01/s02",
+      "inr": 17.6,
+      "at": "2026-08-18 21:30:41"
+    },
+    {
+      "kind": "video",
+      "detail": "clip:E01/s03",
+      "inr": 17.6,
+      "at": "2026-08-18 21:31:14"
+    },
+    {
+      "kind": "image",
+      "detail": "portrait:pip",
+      "inr": 3.5,
+      "at": "2026-08-18 21:36:22"
+    },
+    {
+      "kind": "llm",
+      "detail": "plan:E01",
+      "inr": 0.061952,
+      "at": "2026-08-18 21:40:36"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:E01/s01",
+      "inr": 3.5,
+      "at": "2026-08-18 21:43:45"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:E01/s02",
+      "inr": 3.5,
+      "at": "2026-08-18 21:44:32"
+    },
+    {
+      "kind": "image",
+      "detail": "frame:E01/s03",
+      "inr": 3.5,
+      "at": "2026-08-18 21:44:53"
+    },
+    {
+      "kind": "video",
+      "detail": "clip:E01/s01",
+      "inr": 17.6,
+      "at": "2026-08-18 21:45:26"
+    },
+    {
+      "kind": "video",
+      "detail": "clip:E01/s02",
+      "inr": 17.6,
+      "at": "2026-08-18 21:45:59"
+    },
+    {
+      "kind": "video",
+      "detail": "clip:E01/s03",
+      "inr": 17.6,
+      "at": "2026-08-18 21:46:43"
+    },
+    {
+      "kind": "llm",
+      "detail": "plan:R01",
+      "inr": 0.131406,
+      "at": "2026-08-19 04:19:47"
+    },
+    {
+      "kind": "llm",
+      "detail": "plan:R02",
+      "inr": 0.138666,
+      "at": "2026-08-19 04:19:53"
+    },
+    {
+      "kind": "llm",
+      "detail": "plan:R03",
+      "inr": 0.1083192,
+      "at": "2026-08-19 04:19:58"
     }
   ]
 }

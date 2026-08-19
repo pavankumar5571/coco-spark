@@ -1,0 +1,96 @@
+style_lock: >-
+  Bright 3D preschool animation, soft rounded shapes, warm saturated colours,
+  gentle even lighting, simple friendly character design.
+
+cast:
+  coco:
+    name: Coco the Bear
+    features: >-
+      A small young bear cub with soft warm golden-brown fur, a lighter cream-coloured
+      muzzle and belly patch, small rounded ears, large friendly dark-brown eyes, a small
+      black nose, short rounded limbs. Toddler proportions, large head relative to body.
+      Wearing a bright red short-sleeved t-shirt with a small yellow star on the chest.
+  nana:
+    name: Nana Willow
+    features: >-
+      A gentle elderly owl with soft pale-grey and white feathers, a heart-shaped facial
+      disc, large calm amber eyes, small round spectacles on her beak. Rounded,
+      unthreatening silhouette. Wearing a soft lavender knitted shawl.
+  pip:
+    name: Pip the Rabbit
+    features: >-
+      A small rabbit with soft cream fur, very long floppy ears past the shoulders, a
+      round pink nose, large dark friendly eyes, short sturdy hind legs.
+      Wearing a blue polka-dot backpack.
+
+locations:
+  cottage_night:
+    name: Coco's Cottage (night)
+    description: >-
+      A cosy one-room cottage interior at night: honey-coloured wooden walls, a round
+      window showing a deep blue starry sky, a small bed with a patchwork quilt, a small
+      wooden chair beside the bed, a woven rug, a low bookshelf. Warm low lamp light.
+    geography: >-
+      FIXED LAYOUT, identical in every shot: round window on the LEFT wall, low bookshelf
+      FAR LEFT, bed against the RIGHT wall with its head-end toward the BACK-RIGHT, wooden
+      chair beside the bed on its LEFT, woven rug centre floor. Never mirror or flip.
+  meadow_day:
+    name: Spark Meadow
+    description: >-
+      An open sunny meadow, short bright green grass, scattered white daisies, one large
+      round-topped oak tree on the right, a low wooden fence at the back, rolling hills
+      beyond. Bright warm daylight, soft blue sky.
+    geography: >-
+      FIXED LAYOUT: oak tree RIGHT, wooden fence across the BACK, open grass CENTRE and
+      LEFT, hills on the far horizon. Never mirror or flip.
+
+# Per-mode direction. Learned constraints live here, not in episode files.
+# Closed vocabularies. The planner SELECTS from these; it never invents wording.
+# The validator compares these enums, so continuity decisions are deterministic.
+# `material: true` dimensions may not change across a cut — the transition must be
+# shown inside a shot.
+state_vocab:
+  awareness:
+    material: true
+    values: [AWAKE, DROWSY, EYES_CLOSED, ASLEEP]
+  posture:
+    material: true
+    values: [LYING_FLAT, LYING_SIDE, SITTING_UP, STANDING, PERCHED, WALKING, BOUNCING]
+  facing:
+    material: false
+    values: [LEFT, RIGHT, CAMERA, AWAY, UP, DOWN]
+  zone:
+    material: true
+    values: [BED, CHAIR, RUG, WINDOW, DOOR, SHELF, MEADOW_CENTRE, MEADOW_TREE]
+  expression:
+    material: false
+    values: [NEUTRAL, HAPPY, CALM, CURIOUS, SLEEPY, SURPRISED]
+
+# Per-shot visual state. Not per-character. A CONTINUOUS edit may legitimately change
+# composition (wide -> close) while every material state stays identical, so these are
+# tracked separately and gate predecessor-pixel inheritance.
+visual_vocab:
+  shot_size:    [WIDE, MEDIUM_WIDE, MEDIUM, CLOSE, EXTREME_CLOSE]
+  camera_angle: [EYE_LEVEL, HIGH, LOW, OVER_SHOULDER]
+
+modes:
+  BEDTIME_STORY:
+    allowed_boundaries: [CONTINUOUS]      # a bedtime scene is one unbroken moment
+    pacing: slow, calm, gentle throughout; narration-led
+    camera_allowed: [STATIC, SLOW_PUSH_IN, SLOW_PULL_BACK, GENTLE_PAN]
+    camera_avoid: [whip pan, fast orbit, handheld shake, rapid zoom]
+    rules: >-
+      Hold a single locked camera for the whole scene unless a change is dramatically
+      motivated. No peril, no surprises, no loud events. End with the child asleep.
+  SONG:
+    allowed_boundaries: [CONTINUOUS, TIME_JUMP, MONTAGE, LOCATION_CHANGE]
+    pacing: rhythmic and energetic, cut on musical phrases
+    camera_allowed: [STATIC, SLOW_PUSH_IN, GENTLE_PAN, GENTLE_TRACK]
+    camera_avoid: [handheld shake, rapid zoom]
+    rules: Repeat the chorus. Keep actions simple and repeatable.
+  STORY:
+    allowed_boundaries: [CONTINUOUS, TIME_JUMP, LOCATION_CHANGE]
+    pacing: narrative and action driven
+    camera_allowed: [STATIC, SLOW_PUSH_IN, SLOW_PULL_BACK, GENTLE_PAN, GENTLE_TRACK]
+    camera_avoid: [handheld shake]
+    rules: One dominant action per shot. Kindness and good habits.

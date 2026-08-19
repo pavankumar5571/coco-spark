@@ -1,0 +1,279 @@
+[
+  {
+    "id": "s01",
+    "cast": [
+      "coco",
+      "pip"
+    ],
+    "frame": "The FIRST FRAME: Locked static camera, EYE_LEVEL angle, MEDIUM_WIDE shot size. Framing is identical to the other shots. In Spark Meadow, with the oak tree on the right and wooden fence at the back, Coco the Bear stands in the meadow centre facing right, holding a bright red apple. Pip the Rabbit stands nearby facing left with a blue polka-dot backpack.",
+    "motion": "Coco walks over to Pip and holds out the red apple towards him.",
+    "camera": "Locked static camera. No movement.",
+    "start_state": {
+      "environment": "Spark Meadow",
+      "population": [
+        "coco",
+        "pip"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "RIGHT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        },
+        "pip": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "LEFT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "CALM"
+        }
+      },
+      "props": {},
+      "visual": {
+        "shot_size": "MEDIUM_WIDE",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "end_state": {
+      "environment": "Spark Meadow",
+      "population": [
+        "coco",
+        "pip"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "RIGHT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        },
+        "pip": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "LEFT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        }
+      },
+      "props": {},
+      "visual": {
+        "shot_size": "MEDIUM_WIDE",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "boundary": {
+      "type": "CONTINUOUS"
+    }
+  },
+  {
+    "id": "s02",
+    "cast": [
+      "coco",
+      "pip"
+    ],
+    "frame": "The FIRST FRAME: Locked static camera, EYE_LEVEL angle, MEDIUM_WIDE shot size. Framing is identical to the other shots. In Spark Meadow, with the oak tree on the right and wooden fence at the back, Coco stands in the meadow centre facing right, and Pip stands facing left close by.",
+    "motion": "Pip takes the apple from Coco's paws into his own paws.",
+    "camera": "Locked static camera. No movement.",
+    "start_state": {
+      "environment": "Spark Meadow",
+      "population": [
+        "coco",
+        "pip"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "RIGHT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        },
+        "pip": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "LEFT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        }
+      },
+      "props": {},
+      "visual": {
+        "shot_size": "MEDIUM_WIDE",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "end_state": {
+      "environment": "Spark Meadow",
+      "population": [
+        "coco",
+        "pip"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "RIGHT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        },
+        "pip": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "LEFT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        }
+      },
+      "props": {},
+      "visual": {
+        "shot_size": "MEDIUM_WIDE",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "boundary": {
+      "type": "CONTINUOUS"
+    }
+  },
+  {
+    "id": "s03",
+    "cast": [
+      "coco",
+      "pip"
+    ],
+    "frame": "The FIRST FRAME: Locked static camera, EYE_LEVEL angle, MEDIUM_WIDE shot size. Framing is identical to the other shots. In Spark Meadow, with the oak tree on the right and wooden fence at the back, Coco stands in the meadow centre facing right, and Pip stands facing left holding the apple.",
+    "motion": "Pip happily sits down on the grass to eat the apple.",
+    "camera": "Locked static camera. No movement.",
+    "start_state": {
+      "environment": "Spark Meadow",
+      "population": [
+        "coco",
+        "pip"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "RIGHT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        },
+        "pip": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "LEFT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        }
+      },
+      "props": {},
+      "visual": {
+        "shot_size": "MEDIUM_WIDE",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "end_state": {
+      "environment": "Spark Meadow",
+      "population": [
+        "coco",
+        "pip"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "RIGHT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        },
+        "pip": {
+          "awareness": "AWAKE",
+          "posture": "SITTING_UP",
+          "facing": "LEFT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        }
+      },
+      "props": {},
+      "visual": {
+        "shot_size": "MEDIUM_WIDE",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "boundary": {
+      "type": "TIME_JUMP",
+      "reason": "Passing time after eating the apple in the meadow"
+    }
+  },
+  {
+    "id": "s04",
+    "cast": [
+      "coco",
+      "pip"
+    ],
+    "frame": "The FIRST FRAME: Locked static camera, EYE_LEVEL angle, MEDIUM_WIDE shot size. Framing is identical to the other shots. In Spark Meadow, with the oak tree on the right and wooden fence at the back, Coco stands in the meadow centre facing right, and Pip sits up facing left on the grass.",
+    "motion": "Coco and Pip wave happily to each other in the sunny afternoon light.",
+    "camera": "Locked static camera. No movement.",
+    "start_state": {
+      "environment": "Spark Meadow",
+      "population": [
+        "coco",
+        "pip"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "RIGHT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        },
+        "pip": {
+          "awareness": "AWAKE",
+          "posture": "SITTING_UP",
+          "facing": "LEFT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        }
+      },
+      "props": {},
+      "visual": {
+        "shot_size": "MEDIUM_WIDE",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "end_state": {
+      "environment": "Spark Meadow",
+      "population": [
+        "coco",
+        "pip"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "RIGHT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        },
+        "pip": {
+          "awareness": "AWAKE",
+          "posture": "SITTING_UP",
+          "facing": "LEFT",
+          "zone": "MEADOW_CENTRE",
+          "expression": "HAPPY"
+        }
+      },
+      "props": {},
+      "visual": {
+        "shot_size": "MEDIUM_WIDE",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "boundary": {
+      "type": "CONTINUOUS"
+    }
+  }
+]

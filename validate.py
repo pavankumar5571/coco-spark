@@ -1,0 +1,214 @@
+"""Deterministic shot-plan validator. No model calls, no cost.
+
+State says WHAT IS TRUE. Events say WHY IT CHANGED. Every discontinuity must be
+explained by a typed event, never inferred from prose — no English keywords, no regex,
+no language dependence. This matters because the audience is 48% India / 14% Bangladesh
+and Hindi and Bengali episodes are a near-term requirement.
+
+A plan that fails here never reaches image generation, so the failure costs nothing.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+EVENT_TYPES = ("ENTER", "EXIT", "TRANSFER", "MOVE", "STATE_CHANGE")
+BOUNDARY_TYPES = ("CONTINUOUS", "TIME_JUMP", "LOCATION_CHANGE", "MONTAGE")
+
+
+@dataclass
+class Issue:
+    severity: str      # ERROR | WARN
+    code: str          # stable, machine-readable
+    shot_id: str
+    path: str          # where in the plan
+    message: str       # for humans
+
+
+def _pop(s):
+    return set((s or {}).get("population") or [])
+
+
+def _chars(s):
+    return (s or {}).get("characters") or {}
+
+
+def _props(s):
+    return (s or {}).get("props") or {}
+
+
+def _events(shot):
+    return shot.get("events") or []
+
+
+def _has(shot, **match):
+    for e in _events(shot):
+        if all(str(e.get(k, "")).lower() == str(v).lower() for k, v in match.items()):
+            return True
+    return False
+
+
+def check_vocab(shots, bible):
+    out, vocab = [], bible.get("state_vocab", {})
+    for s in shots:
+        for which in ("start_state", "end_state"):
+            for who, dims in _chars(s.get(which)).items():
+                for dim, val in (dims or {}).items():
+                    allowed = vocab.get(dim, {}).get("values")
+                    if allowed and val not in allowed:
+                        out.append(Issue("ERROR", "VOCAB_VIOLATION", s.get("id"),
+                            f"{which}.characters.{who}.{dim}",
+                            f"'{val}' is not in {allowed}"))
+        for e in _events(s):
+            if e.get("type") not in EVENT_TYPES:
+                out.append(Issue("ERROR", "UNKNOWN_EVENT_TYPE", s.get("id"),
+                    "events", f"'{e.get('type')}' not in {list(EVENT_TYPES)}"))
+    return out
+
+
+def check_events_explain_changes(shots, bible):
+    """Every state discontinuity must be explained by a typed event in the shot that
+    contains it, or across the boundary by an explicit non-CONTINUOUS boundary."""
+    out = []
+    material = {k for k, v in bible.get("state_vocab", {}).items() if v.get("material")}
+
+    for i, s in enumerate(shots):
+        sid = s.get("id")
+        ss, es = s.get("start_state") or {}, s.get("end_state") or {}
+
+        # WITHIN a shot: changes are expected, but must be evented
+        for who in _pop(ss) | _pop(es):
+            if who in _pop(es) - _pop(ss) and not _has(s, type="ENTER", entity=who):
+                out.append(Issue("ERROR", "POPULATION_CHANGE_WITHOUT_EVENT", sid,
+                    f"end_state.population.{who}",
+                    f"{who} appears during the shot with no ENTER event"))
+            if who in _pop(ss) - _pop(es) and not _has(s, type="EXIT", entity=who):
+                out.append(Issue("ERROR", "POPULATION_CHANGE_WITHOUT_EVENT", sid,
+                    f"end_state.population.{who}",
+                    f"{who} leaves during the shot with no EXIT event"))
+
+        for who in set(_chars(ss)) & set(_chars(es)):
+            a, b = _chars(ss)[who] or {}, _chars(es)[who] or {}
+            if a.get("zone") != b.get("zone") and not _has(s, type="MOVE", entity=who):
+                out.append(Issue("ERROR", "ZONE_CHANGE_WITHOUT_EVENT", sid,
+                    f"characters.{who}.zone",
+                    f"{who} moves {a.get('zone')} -> {b.get('zone')} with no MOVE event"))
+
+        for obj in set(_props(ss)) & set(_props(es)):
+            if _props(ss)[obj] != _props(es)[obj] and not (
+                    _has(s, type="TRANSFER", object=obj) or
+                    _has(s, type="STATE_CHANGE", entity=obj)):
+                out.append(Issue("ERROR", "PROP_CHANGE_WITHOUT_EVENT", sid,
+                    f"props.{obj}",
+                    f"{obj} changes {_props(ss)[obj]} -> {_props(es)[obj]} with no "
+                    f"TRANSFER or STATE_CHANGE event"))
+
+        # ACROSS the boundary into this shot
+        if i == 0:
+            continue
+        prev = shots[i - 1]
+        pe = prev.get("end_state") or {}
+        btype = (s.get("boundary") or {}).get("type", "CONTINUOUS")
+        if btype != "CONTINUOUS":
+            continue
+
+        for who in _pop(ss) - _pop(pe):
+            if not _has(s, type="ENTER", entity=who):
+                out.append(Issue("ERROR", "POPULATION_CHANGE_WITHOUT_EVENT", sid,
+                    f"start_state.population.{who}",
+                    f"{who} is absent at {prev.get('id')} end and present here with no "
+                    f"ENTER event — this is a materialisation"))
+        for who in _pop(pe) - _pop(ss):
+            if not _has(prev, type="EXIT", entity=who):
+                out.append(Issue("ERROR", "POPULATION_CHANGE_WITHOUT_EVENT", sid,
+                    f"start_state.population.{who}",
+                    f"{who} vanishes between {prev.get('id')} and here with no EXIT event"))
+
+        for who in set(_chars(pe)) & set(_chars(ss)):
+            a, b = _chars(pe)[who] or {}, _chars(ss)[who] or {}
+            for dim in material:
+                if a.get(dim) and b.get(dim) and a[dim] != b[dim]:
+                    out.append(Issue("ERROR", "MATERIAL_JUMP_ACROSS_CUT", sid,
+                        f"characters.{who}.{dim}",
+                        f"{who}.{dim} {a[dim]} -> {b[dim]} across a CONTINUOUS cut. "
+                        f"The transition is never shown; it must happen inside a shot."))
+        for obj in set(_props(pe)) & set(_props(ss)):
+            if _props(pe)[obj] != _props(ss)[obj]:
+                out.append(Issue("ERROR", "MATERIAL_JUMP_ACROSS_CUT", sid,
+                    f"props.{obj}",
+                    f"prop '{obj}' {_props(pe)[obj]} -> {_props(ss)[obj]} across a cut"))
+    return out
+
+
+def check_boundaries(shots, bible, ep):
+    out = []
+    allowed = set(bible["modes"][ep["mode"]].get("allowed_boundaries", ["CONTINUOUS"]))
+    for s in shots[1:]:
+        b = s.get("boundary") or {}
+        t = b.get("type", "CONTINUOUS")
+        if t not in BOUNDARY_TYPES:
+            out.append(Issue("ERROR", "UNKNOWN_BOUNDARY", s.get("id"), "boundary.type",
+                f"'{t}' is not a boundary type"))
+        elif t not in allowed:
+            out.append(Issue("ERROR", "BOUNDARY_NOT_PERMITTED", s.get("id"),
+                "boundary.type", f"'{t}' not allowed in {ep['mode']} ({sorted(allowed)})"))
+        elif t != "CONTINUOUS" and not (b.get("reason") or "").strip():
+            out.append(Issue("ERROR", "BOUNDARY_WITHOUT_REASON", s.get("id"),
+                "boundary.reason", f"'{t}' requires a narrative reason"))
+        elif t != "CONTINUOUS":
+            out.append(Issue("WARN", "DELIBERATE_DISCONTINUITY", s.get("id"),
+                "boundary", f"{t}: {b['reason'][:60]}"))
+    return out
+
+
+def check_entities(shots, ep, bible):
+    out, known = [], set(bible["cast"])
+    for s in shots:
+        for k in s.get("cast", []):
+            if k not in known:
+                out.append(Issue("ERROR", "UNKNOWN_CAST", s.get("id"), "cast",
+                    f"'{k}' is not in the bible"))
+            elif k not in ep["cast"]:
+                out.append(Issue("ERROR", "CAST_NOT_IN_EPISODE", s.get("id"), "cast",
+                    f"'{k}' is not in this episode's cast"))
+        if not s.get("start_state") or not s.get("end_state"):
+            out.append(Issue("ERROR", "MISSING_STATE", s.get("id"), "state",
+                "missing start_state or end_state"))
+    return out
+
+
+def check_locations(shots, ep):
+    """v1 limitation, enforced explicitly rather than assumed by the schema."""
+    out = []
+    declared = ep.get("locations") or ([ep["location"]] if ep.get("location") else [])
+    seen = set()
+    for s in shots:
+        lid = (s.get("start_state") or {}).get("location_id")
+        if not lid:
+            out.append(Issue("WARN", "SHOT_WITHOUT_LOCATION_ID", s.get("id"),
+                "start_state.location_id", "shot does not declare its location"))
+            continue
+        seen.add(lid)
+        if declared and lid not in declared:
+            out.append(Issue("ERROR", "LOCATION_NOT_DECLARED", s.get("id"),
+                "start_state.location_id", f"'{lid}' not in episode locations {declared}"))
+    if len(seen) > 1:
+        out.append(Issue("ERROR", "MULTI_LOCATION_NOT_SUPPORTED", "-", "locations",
+            f"v1 supports one location per episode; found {sorted(seen)}"))
+    return out
+
+
+def validate(shots, ep, bible):
+    return (check_entities(shots, ep, bible)
+            + check_vocab(shots, bible)
+            + check_boundaries(shots, bible, ep)
+            + check_events_explain_changes(shots, bible)
+            + check_locations(shots, ep))
+
+
+def report(issues):
+    for i in issues:
+        mark = "x" if i.severity == "ERROR" else "!"
+        print(f"  {mark} {i.severity:5s} {i.code:34s} {i.shot_id}: {i.message}")
+    if not issues:
+        print("  ok  plan is continuity-clean")
+    return sum(1 for i in issues if i.severity == "ERROR")

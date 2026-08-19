@@ -1,36 +1,87 @@
 #!/usr/bin/env python3
-"""Minimal 3-shot episode. Four stages, each stopping for human review.
+"""Generic episode pipeline. Nothing here is specific to one episode.
 
-    python make.py portraits   canonical identity anchors      ~2 images
-    python make.py frames      first frames, refs = portraits  ~3 images
-    python make.py video       clips from APPROVED frames only ~3 x 4s
-    python make.py assemble    ffmpeg concat
+    make.py plan     E01    LLM: brief + bible -> out/E01/shots.json   (~Rs 1)
+    make.py portraits       canonical identity anchors, channel-wide, generated once
+    make.py frames   E01    first frames                               (~Rs 3.5 each)
+    make.py video    E01    clips from frames                          (~Rs 18 each)
+    make.py assemble E01    -> out/E01/episode.mp4
 
-Nothing past `frames` runs until you approve. Spend is tracked against BUDGET_INR and
-the script refuses to exceed it.
+Every stage resumes: an artifact that exists is never regenerated, so a failure costs
+only the stage that broke. Spend is tracked append-only against a hard cap.
 
-Design rules carried over from the frozen contract:
-  - every provider parameter explicit, no adapter defaults
-  - identity anchors first, temporal reference after them
-  - the previous accepted frame tells the model what CHANGED;
-    canonical portraits tell it what must NOT change
-  - no audio direction in the video prompt (audio is a separate spine)
+The continuity rules learned from production are enforced in the PLANNER prompt, so
+every episode gets them automatically rather than by hand-editing shots.
 """
-import io, json, os, sys, time
+import argparse, hashlib, json, os, sys, time
 from pathlib import Path
 
+import yaml
 from google import genai
 from google.genai import types
 from PIL import Image
 
 import config as C
-from cast import CAST, GEOGRAPHY, LOCATION, SHOTS, STYLE_LOCK
+from validate import validate, report
 
 ROOT = Path(__file__).parent
 OUT = ROOT / "out"
+BIBLE = yaml.safe_load((ROOT / "bible.yaml").read_text())
+PORTRAITS = OUT / "portraits"
+PORTRAITS.mkdir(parents=True, exist_ok=True)
 LEDGER = OUT / "ledger.json"
-for d in ("portraits", "frames", "approved", "clips"):
-    (OUT / d).mkdir(parents=True, exist_ok=True)
+
+
+def input_hash(**parts):
+    """Identity of the inputs that produced an artifact. If any changes, the artifact
+    is stale and must be recomputed — existence alone proves nothing."""
+    blob = json.dumps(parts, sort_keys=True, default=str).encode()
+    return hashlib.sha256(blob).hexdigest()[:16]
+
+
+def sha_file(p: Path):
+    return hashlib.sha256(p.read_bytes()).hexdigest()[:16]
+
+
+def write_atomic(dest: Path, data: bytes):
+    """A process dying mid-write must never look like a completed artifact."""
+    tmp = dest.with_suffix(dest.suffix + ".tmp")
+    tmp.write_bytes(data)
+    if tmp.stat().st_size == 0:
+        tmp.unlink(); raise RuntimeError(f"refusing to commit empty artifact {dest.name}")
+    tmp.replace(dest)
+
+
+def usable(dest: Path, prov_path: Path, expect_hash: str):
+    """Resume requires ALL of: artifact exists, provenance COMPLETE, input hash matches,
+    checksum matches. Anything else recomputes."""
+    if not dest.exists() or not prov_path.exists():
+        return False, "no artifact/provenance"
+    try:
+        pv = json.loads(prov_path.read_text())
+    except Exception:
+        return False, "unreadable provenance"
+    if pv.get("status") != "COMPLETE":
+        return False, f"status={pv.get('status')}"
+    if pv.get("input_hash") != expect_hash:
+        return False, "inputs changed since it was made"
+    if pv.get("sha") != sha_file(dest):
+        return False, "checksum mismatch (partial or altered file)"
+    return True, "valid"
+
+
+def ep_dir(eid): 
+    d = OUT / eid
+    for sub in ("frames", "clips", "transitions"):
+        (d / sub).mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def load_ep(eid):
+    p = ROOT / "episodes" / f"{eid}.yaml"
+    if not p.exists():
+        sys.exit(f"no brief at {p}")
+    return yaml.safe_load(p.read_text())
 
 
 def client():
@@ -45,20 +96,20 @@ def ledger():
 
 
 def charge(kind, detail, inr):
+    inr = inr * getattr(C, "SAFETY_MARGIN", 1.0)   # estimates have drifted before
     L = ledger()
     if L["spent_inr"] + inr > C.BUDGET_INR:
         sys.exit(f"BUDGET STOP: {L['spent_inr']:.2f} + {inr:.2f} exceeds {C.BUDGET_INR}")
     L["spent_inr"] += inr
     L["ops"].append({"kind": kind, "detail": detail, "inr": inr, "at": time.strftime("%F %T")})
     LEDGER.write_text(json.dumps(L, indent=2))
-    print(f"    spent {inr:.2f}  running total {L['spent_inr']:.2f} / {C.BUDGET_INR}")
+    print(f"    spent {inr:.2f}   total {L['spent_inr']:.2f}/{C.BUDGET_INR}")
 
 
-def gen_image(cl, prompt, refs, dest: Path):
-    parts = [Image.open(p) for p in refs] + [prompt]
+def gen_image(cl, prompt, refs, dest):
     resp = cl.models.generate_content(
         model=C.IMAGE_MODEL,
-        contents=parts,
+        contents=[Image.open(p) for p in refs] + [prompt],
         config=types.GenerateContentConfig(
             response_modalities=["IMAGE"],
             image_config=types.ImageConfig(aspect_ratio=C.IMAGE_ASPECT),
@@ -67,127 +118,453 @@ def gen_image(cl, prompt, refs, dest: Path):
     for part in resp.candidates[0].content.parts:
         if getattr(part, "inline_data", None):
             dest.write_bytes(part.inline_data.data)
-            im = Image.open(dest)
-            print(f"    -> {dest.name}  {im.size[0]}x{im.size[1]}")
-            return dest
+            print(f"    -> {dest.name}  {Image.open(dest).size}")
+            return
     raise RuntimeError(f"no image returned for {dest.name}")
 
 
-def stage_portraits():
+# ─────────────────────────────── plan ────────────────────────────────
+PLANNER_RULES = """
+HARD CONSTRAINTS. These come from production failures; violating them breaks continuity.
+
+1. CONNECTED STATES, NOT PICTURES. The shots are one continuous scene, not independent
+   images. Each shot must begin exactly where the previous one ended.
+2. NO MATERIALISING CHARACTERS. Every character listed in the cast must be present and
+   visible from the FIRST shot and remain present. A character may not appear or vanish
+   mid-sequence; there is no time to stage an entrance in a short scene.
+3. LOCKED CAMERA. Unless the mode explicitly allows movement, every shot uses an
+   identical camera position, angle and shot size. State this explicitly in each frame
+   description. Only the characters' poses change between shots.
+4. RESPECT FIXED GEOGRAPHY. Never mirror, flip or rearrange the room. Restate the key
+   landmark positions in every frame description.
+5. PERSISTENT PROPS ONLY. Do not introduce objects that are not in the location
+   description. Anything mentioned must already exist there.
+6. ONE DOMINANT ACTION per shot, small and achievable. No handoffs, no complex
+   multi-character choreography.
+"""
+
+SHOT_SCHEMA = """
+Return ONLY a JSON array, no prose, no code fence. Each element:
+{
+  "id": "s01",
+  "cast": ["<cast keys in this shot>"],
+  "frame": "<the FIRST FRAME: camera, shot size, where each character is, landmark
+             positions. Restate that framing is identical to the other shots.>",
+  "motion": "<the single action during the clip. No camera direction here.>",
+  "camera": "<camera instruction only, e.g. 'Locked static camera. No movement.'>",
+  "start_state": {...}, "end_state": {...},
+  "boundary": {"type": "CONTINUOUS"}
+}
+
+BOUNDARY declares how this shot joins the PREVIOUS one. Default and strongly preferred is
+CONTINUOUS. Only if the mode permits it may you use TIME_JUMP, LOCATION_CHANGE or MONTAGE,
+and then you must supply "reason". Do not use a non-continuous boundary to avoid showing a
+transition — that is the defect this rule exists to prevent.
+
+STATE uses ONLY the closed vocabulary below. Never invent values, never use prose.
+
+  "environment": "<location id>"
+  "population":  ["<cast keys present>"]
+  "characters":  { "<cast key>": { "<dimension>": "<VALUE>", ... } }
+  "props":       { "<object>": "<VALUE>" }
+  "visual":      { "camera_setup_id": "<STABLE_ID>", "shot_size": "<VALUE>",
+                   "camera_angle": "<VALUE>" }
+  "location_id": "<one of the episode's declared locations>"
+
+EVENTS explain WHY state changed. State says what is true; events say why.
+Every discontinuity must be evented, in the shot that contains it:
+
+  "events": [
+    {"type": "ENTER",        "entity": "nana",  "from_zone": "OFFSCREEN", "to_zone": "CHAIR"},
+    {"type": "EXIT",         "entity": "pip",   "from_zone": "DOOR", "to_zone": "OFFSCREEN"},
+    {"type": "MOVE",         "entity": "nana",  "from_zone": "CHAIR", "to_zone": "WINDOW"},
+    {"type": "TRANSFER",     "object": "apple", "from": "coco", "to": "pip"},
+    {"type": "STATE_CHANGE", "entity": "door",  "field": "open_state",
+     "from": "CLOSED", "to": "OPEN"}
+  ]
+
+RULES: population change -> ENTER/EXIT. zone change -> MOVE. prop owner change ->
+TRANSFER. prop condition change -> STATE_CHANGE. A change with no event is REJECTED.
+camera_setup_id is a stable label for a physical camera position (e.g. BEDROOM_AXIS_A);
+reuse the same id whenever the camera has not moved.
+
+VOCABULARY (dimension -> allowed values):
+{vocab}
+
+VISUAL vocabulary (per shot, in state.visual):
+{visual}
+
+THE CUT RULE — the most important constraint.
+A dimension marked MATERIAL may NOT differ between one shot's end_state and the next
+shot's start_state. A material change must be SHOWN, inside a shot, by that shot's motion.
+
+  WRONG: s02.end awareness=DROWSY, s03.start awareness=ASLEEP
+         (falling asleep happened in the cut; the viewer never sees it)
+  RIGHT: s02.end awareness=DROWSY, s03.start awareness=DROWSY,
+         s03.motion "Coco's eyes close and he falls asleep", s03.end awareness=ASLEEP
+
+Plan the material transitions INSIDE shots. Non-material dimensions (facing, expression)
+may drift freely.
+"""
+
+
+def inherit_predecessor_pixels(prev_shot, shot, bible):
+    """True when the next first frame carries no new information at all.
+
+    Requires VISUAL-state continuity, not merely material-state continuity. A continuous
+    story moment can legitimately cut wide -> close, or eye-level -> over-shoulder, while
+    every material state is identical; inheriting pixels there would discard a composition
+    the planner intended. So camera and shot size must match too.
+
+    When composition DOES change on a continuous boundary, we generate a new frame and the
+    predecessor becomes a temporal reference while the canonical portraits and plates
+    remain the identity and world authority.
+    """
+    if (shot.get("boundary") or {}).get("type", "CONTINUOUS") != "CONTINUOUS":
+        return False
+    # visual state must be unchanged
+    pv = (prev_shot.get("end_state") or {}).get("visual") or {}
+    sv = (shot.get("start_state") or {}).get("visual") or {}
+    for dim in list(bible.get("visual_vocab", {})) + ["camera_setup_id"]:
+        if pv.get(dim) != sv.get(dim):
+            return False
+    if not pv and not sv:
+        return False        # unknown composition -> do not assume it is identical
+    material = {k for k, v in bible.get("state_vocab", {}).items() if v.get("material")}
+    a = (prev_shot.get("end_state") or {}).get("characters") or {}
+    b = (shot.get("start_state") or {}).get("characters") or {}
+    if set(a) != set(b) or not a:
+        return False
+    for who in a:
+        for dim in material:
+            if (a[who] or {}).get(dim) != (b[who] or {}).get(dim):
+                return False
+    return True
+
+
+def visual_block():
+    return "\n".join(f"  {k}: {', '.join(v)}"
+                     for k, v in BIBLE.get("visual_vocab", {}).items())
+
+
+def vocab_block():
+    return "\n".join(
+        f"  {k}: {'MATERIAL' if v.get('material') else 'free'} -> {', '.join(v['values'])}"
+        for k, v in BIBLE["state_vocab"].items())
+
+
+def stage_plan(eid):
+    d = ep_dir(eid)
+    dest = d / "shots.json"
+    if dest.exists():
+        print(f"  shots.json exists ({len(json.loads(dest.read_text()))} shots), skipping")
+        return
+    ep = load_ep(eid)
+    mode = BIBLE["modes"][ep["mode"]]
+    loc = BIBLE["locations"][ep["location"]]
+    cast_lines = "\n".join(
+        f"  {k} = {BIBLE['cast'][k]['name']}: {BIBLE['cast'][k]['features']}" for k in ep["cast"])
+
+    prompt = f"""You are a storyboard director for a preschool animation channel.
+
+EPISODE: {ep['title']}  (mode: {ep['mode']})
+IDEA: {ep['idea']}
+SHOT COUNT: exactly {ep['shots']}
+
+MODE DIRECTION
+  allowed boundaries: {', '.join(mode.get('allowed_boundaries', ['CONTINUOUS']))}
+  pacing: {mode['pacing']}
+  camera allowed: {', '.join(mode['camera_allowed'])}
+  camera avoid: {', '.join(mode['camera_avoid'])}
+  {mode['rules']}
+
+CAST (use only these, by these exact names)
+{cast_lines}
+
+LOCATION: {loc['name']}
+{loc['description']}
+{loc['geography']}
+
+STYLE: {BIBLE['style_lock']}
+{PLANNER_RULES}
+{SHOT_SCHEMA.replace("{vocab}", vocab_block()).replace("{visual}", visual_block())}"""
+
+    print(f"  planning {ep['shots']} shots for {eid}...")
+    cl = client()          # hold the reference; an inline client can be GC'd mid-request
+    resp = cl.models.generate_content(model=C.PLANNER_MODEL, contents=prompt)
+    raw = resp.text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    shots = json.loads(raw)
+
+    # HARD GATE: a plan with continuity errors never reaches image generation.
+    print("  validating plan...")
+    errs = report(validate(shots, ep, BIBLE))
+    if errs:
+        (d / "shots.rejected.json").write_text(json.dumps(shots, indent=2))
+        sys.exit(f"\n  PLAN REJECTED: {errs} continuity error(s). Nothing generated, "
+                 f"nothing spent. Rejected plan saved for inspection.")
+
+    dest.write_text(json.dumps(shots, indent=2))
+    u = getattr(resp, "usage_metadata", None)
+    charge("llm", f"plan:{eid}",
+           ((u.prompt_token_count / 1e6) * 0.10 + (u.candidates_token_count / 1e6) * 0.40) * 88
+           if u else 1.0)
+    print(f"  -> {dest}  ({len(shots)} shots)")
+    for s in shots:
+        print(f"     {s['id']}: {s['motion'][:70]}")
+
+
+# ──────────────────────── continuity compiler ────────────────────────
+TRANSIENT = ("spatial", "appearance", "possession", "physical")
+
+
+def derive_continuity(shots):
+    """Decide per shot whether it needs its predecessor's pixels.
+
+    Derived, never authored. A shot needs the previous frame only when it inherits
+    TRANSIENT state that canonical references cannot express — where a character is
+    standing, what they are holding, whether the door is open. Identity, location and
+    fixed geography all come from the bible, so they never justify chaining.
+    """
+    out = []
+    for i, s in enumerate(shots):
+        if i == 0:
+            out.append({"needs_predecessor": False, "reason": "first shot"}); continue
+        prev_end = shots[i - 1].get("end_state") or {}
+        start = s.get("start_state") or {}
+
+        if prev_end.get("environment") and start.get("environment") and \
+                prev_end["environment"] != start["environment"]:
+            out.append({"needs_predecessor": False,
+                        "reason": "LOCATION_CHANGE — use canonical environment"}); continue
+
+        carried = [k for k in TRANSIENT
+                   if start.get(k) and start.get(k) == prev_end.get(k)]
+        if carried:
+            out.append({"needs_predecessor": True,
+                        "reason": f"STATE_DEPENDENCY on {'+'.join(carried)}"})
+        else:
+            out.append({"needs_predecessor": False,
+                        "reason": "no transient state carried — canonical only"})
+    return out
+
+
+# ───────────────────────────── portraits ─────────────────────────────
+def stage_portraits(_=None):
     cl = client()
-    for name, desc in CAST.items():
-        dest = OUT / "portraits" / f"{name}.png"
+    for key, c in BIBLE["cast"].items():
+        dest = PORTRAITS / f"{key}.png"
         if dest.exists():
-            print(f"  {name}: exists, skipping"); continue
-        print(f"  {name}: generating canonical portrait")
-        prompt = (f"{STYLE_LOCK}\n\nFull-body character reference sheet on a plain white "
-                  f"background. Front view, neutral standing pose, neutral expression, even "
-                  f"lighting, no shadows, no props, no scenery.\n\nCHARACTER: {desc}")
-        gen_image(cl, prompt, [], dest)
-        charge("image", f"portrait:{name}", C.INR_PER_IMAGE)
-    print("\nREVIEW out/portraits/ — these are the identity anchors for everything after.")
+            print(f"  {key}: exists, skipping"); continue
+        print(f"  {key}: generating canonical portrait")
+        gen_image(cl, f"{BIBLE['style_lock']}\n\nFull-body character reference sheet on a "
+                      f"plain white background. Front view, neutral standing pose, neutral "
+                      f"expression, even lighting, no shadows, no props, no scenery.\n\n"
+                      f"CHARACTER: {c['features']}", [], dest)
+        charge("image", f"portrait:{key}", C.INR_PER_IMAGE)
 
 
-def stage_frames():
+# ────────────────────────────── frames ───────────────────────────────
+def stage_frames(eid, only=None):
+    d = ep_dir(eid); ep = load_ep(eid)
+    shots = json.loads((d / "shots.json").read_text())
+    if report(validate(shots, ep, BIBLE)):
+        sys.exit("  plan has continuity errors — fix or replan before spending")
+    loc = BIBLE["locations"][ep["location"]]
     cl = client()
+    cont = derive_continuity(shots)
+    for s, c in zip(shots, cont):
+        print(f"  {s['id']}: {'CHAIN' if c['needs_predecessor'] else 'canonical'} "
+              f"— {c['reason']}")
+
+    # regenerating frames invalidates everything derived from them
+    for stale in list((d / "clips").glob("*.mp4")) + list((d / "transitions").glob("*.png")):
+        if not (d / "frames" / f"{stale.stem.split('_')[0]}.png").exists():
+            stale.unlink(); print(f"  invalidated {stale.name}")
+
     prev = None
-    for shot in SHOTS:
-        dest = OUT / "frames" / f"{shot['id']}.png"
+    for idx, shot in enumerate(shots):
+        if only and shot["id"] != only:
+            prev = d / "frames" / f"{shot['id']}.png"; continue
+        dest = d / "frames" / f"{shot['id']}.png"
+        prov_p = d / "frames" / f"{shot['id']}.provenance.json"
+        ihash = input_hash(shot=shot, bible=BIBLE, model=C.IMAGE_MODEL,
+                           aspect=C.IMAGE_ASPECT, loc=loc)
+        ok, why = usable(dest, prov_p, ihash)
+        if ok:
+            print(f"  {shot['id']}: valid, skipping"); prev = dest; continue
         if dest.exists():
-            print(f"  {shot['id']}: exists, skipping"); prev = dest; continue
+            print(f"  {shot['id']}: RECOMPUTING — {why}")
+
+        # A CONTINUOUS edit whose material state is unchanged has no new information to
+        # generate: the next shot literally begins on the previous clip's final frame.
+        # Copying it is free, pixel-exact, and cannot drift. Asking an image model to
+        # reconstruct that continuity is both a cost and a risk we do not need to take.
+        if idx and inherit_predecessor_pixels(shots[idx - 1], shot, BIBLE):
+            tail = d / "transitions" / f"{shots[idx-1]['id']}_LAST.png"
+            if tail.exists():
+                write_atomic(dest, tail.read_bytes())
+                prov_p.write_text(json.dumps(
+                    {"status": "COMPLETE", "source": "PREDECESSOR_PIXELS",
+                     "from": tail.name, "input_hash": ihash, "sha": sha_file(dest),
+                     "reason": "CONTINUOUS boundary, material + visual state unchanged",
+                     "cost_inr": 0}, indent=2))
+                print(f"  {shot['id']}: INHERITED from {tail.name} (free, pixel-exact)")
+                prev = dest; continue
+            print(f"  {shot['id']}: would inherit, but {tail.name} not rendered yet")
 
         refs, legend = [], []
-        for i, who in enumerate(shot["cast"]):                    # identity anchors FIRST
-            p = OUT / "portraits" / f"{who}.png"
-            if not p.exists():
-                sys.exit(f"missing portrait {p} — run `make.py portraits` first")
-            refs.append(p); legend.append(f"Image {len(refs)-1}: canonical reference for {who}")
-        if prev:                                                   # temporal reference AFTER
-            refs.append(prev)
-            legend.append(f"Image {len(refs)-1}: the previous accepted shot, for continuity "
-                          f"of set dressing, lighting and layout")
+        for key in shot["cast"]:                              # identity anchors FIRST
+            p = PORTRAITS / f"{key}.png"
+            if not p.exists(): sys.exit(f"missing portrait {p} — run `make.py portraits`")
+            refs.append(p)
+            legend.append(f"Image {len(refs)-1}: canonical reference for "
+                          f"{BIBLE['cast'][key]['name']}")
+        # Temporal reference only when the compiler says this shot inherits transient
+        # state. Chaining has a real provenance/cache cost, so it must earn its use.
+        if prev and cont[shots.index(shot)]["needs_predecessor"]:
+            tail = d / "transitions" / f"{prev.stem}_LAST.png"
+            refs.append(tail if tail.exists() else prev)
+            legend.append(f"Image {len(refs)-1}: the previous shot. Continue directly from "
+                          f"it: identical camera, geometry and lighting.")
 
-        prompt = (
-            "\n".join(legend) + "\n\n"
-            + f"{STYLE_LOCK}\n\n"
-            + f"LOCATION (must be the identical room in every shot): {LOCATION}\n\n"
-            + f"{GEOGRAPHY}\n\n"
-            + f"SHOT: {shot['frame']}\n\n"
-            + "The characters must match their canonical reference images exactly: same fur "
-              "and feather colour, same clothing, same proportions, same face. "
-            + ("Keep the room, furniture layout and lighting identical to the previous shot; "
-               "only the framing and character positions change." if prev else "")
-            + "\nOnly the characters named above are present. No text or lettering."
-        )
+        prompt = ("\n".join(legend) + f"\n\n{BIBLE['style_lock']}\n\n"
+                  f"LOCATION (identical in every shot): {loc['description']}\n\n"
+                  f"{loc['geography']}\n\nSHOT: {shot['frame']}\n\n"
+                  "Characters must match their canonical reference images exactly: same "
+                  "colour, clothing, proportions and face. Only the characters named above "
+                  "are present. No text or lettering.")
         print(f"  {shot['id']}: generating first frame ({len(refs)} refs)")
         gen_image(cl, prompt, refs, dest)
-        charge("image", f"frame:{shot['id']}", C.INR_PER_IMAGE)
+        prov_p.write_text(json.dumps(
+            {"status": "COMPLETE", "source": "GENERATED", "model": C.IMAGE_MODEL,
+             "aspect": C.IMAGE_ASPECT, "input_hash": ihash, "sha": sha_file(dest),
+             "refs": [str(r.relative_to(OUT)) for r in refs],
+             "cost_inr": C.INR_PER_IMAGE}, indent=2))
+        charge("image", f"frame:{eid}/{shot['id']}", C.INR_PER_IMAGE)
         prev = dest
 
-    print("\nREVIEW out/frames/. Copy the GOOD ones into out/approved/ (same filename).")
-    print("Only approved frames are sent to video. Nothing else spends money.")
+
+# ─────────────────────────────── video ───────────────────────────────
+def preflight(eid, shots, d):
+    """Everything provable for free, asserted before a single rupee is spent."""
+    print("  PREFLIGHT")
+    fail = []
+    for s in shots:
+        f = d / "frames" / f"{s['id']}.png"
+        if not f.exists():
+            fail.append(f"{s['id']}: no first frame")
+        prov = d / "frames" / f"{s['id']}.provenance.json"
+        if not prov.exists():
+            fail.append(f"{s['id']}: no reference provenance recorded")
+    if C.VIDEO_SECONDS not in (4, 6, 8):
+        fail.append(f"duration {C.VIDEO_SECONDS}s is not a provider-supported value")
+    est = len(shots) * C.INR_PER_VID_SEC * C.VIDEO_SECONDS
+    spent = ledger()["spent_inr"]
+    if spent + est > C.BUDGET_INR:
+        fail.append(f"estimated Rs {est:.2f} would exceed the cap")
+    print(f"    contract: {C.PROVIDER_SURFACE} / {C.VIDEO_MODEL} / {C.VIDEO_RES} / "
+          f"{C.VIDEO_SECONDS}s / audio-in-prompt=NO")
+    print(f"    cost:     {len(shots)} clips x Rs {C.INR_PER_VID_SEC*C.VIDEO_SECONDS:.2f} "
+          f"= Rs {est:.2f}   (spent {spent:.2f}/{C.BUDGET_INR})")
+    for f in fail:
+        print(f"    x {f}")
+    if fail:
+        sys.exit("  PREFLIGHT FAILED — nothing generated, nothing spent")
+    print("    ok — only stochastic model behaviour remains untested")
 
 
-def stage_video():
+def stage_video(eid, only=None):
+    d = ep_dir(eid)
+    shots = json.loads((d / "shots.json").read_text())
+    if report(validate(shots, load_ep(eid), BIBLE)):
+        sys.exit("  plan has continuity errors")
+    if only:
+        shots = [s for s in shots if s["id"] == only]
+    preflight(eid, shots, d)
     cl = client()
-    approved = sorted((OUT / "approved").glob("*.png"))
-    if not approved:
-        sys.exit("out/approved/ is empty — copy the frames you accept into it first")
-    print(f"  {len(approved)} approved frame(s); {C.VIDEO_MODEL} "
-          f"{C.VIDEO_RES} {C.VIDEO_SECONDS}s")
-
-    for frame in approved:
-        shot = next((s for s in SHOTS if s["id"] == frame.stem), None)
-        if not shot:
-            print(f"  {frame.stem}: no shot definition, skipping"); continue
-        dest = OUT / "clips" / f"{frame.stem}.mp4"
+    for shot in shots:
+        frame = d / "frames" / f"{shot['id']}.png"
+        dest = d / "clips" / f"{shot['id']}.mp4"
+        if not frame.exists(): sys.exit(f"missing frame {frame}")
         if dest.exists():
-            print(f"  {frame.stem}: clip exists, skipping"); continue
-
-        # NO audio direction here — audio is a separate spine.
-        prompt = f"ACTION: {shot['motion']}\nCAMERA: {shot['camera']}\nSTYLE: {STYLE_LOCK}"
-        print(f"  {frame.stem}: generating clip")
+            print(f"  {shot['id']}: exists, skipping"); continue
+        # no audio direction: the audio spine is separate
+        prompt = (f"ACTION: {shot['motion']}\nCAMERA: {shot['camera']}\n"
+                  f"STYLE: {BIBLE['style_lock']}")
+        print(f"  {shot['id']}: generating clip")
         op = cl.models.generate_videos(
-            model=C.VIDEO_MODEL,
-            prompt=prompt,
+            model=C.VIDEO_MODEL, prompt=prompt,
             image=types.Image.from_file(location=str(frame)),
             config=types.GenerateVideosConfig(
-                resolution=C.VIDEO_RES,
-                aspect_ratio=C.VIDEO_ASPECT,
-                duration_seconds=C.VIDEO_SECONDS,
-            ),
+                resolution=C.VIDEO_RES, aspect_ratio=C.VIDEO_ASPECT,
+                duration_seconds=C.VIDEO_SECONDS),
         )
         while not op.done:
             time.sleep(5); op = cl.operations.get(op)
         if op.error:
             print(f"    FAILED: {op.error}"); continue
-        vid = op.response.generated_videos[0]
-        cl.files.download(file=vid.video)
-        dest.write_bytes(vid.video.video_bytes)
+        v = op.response.generated_videos[0]
+        cl.files.download(file=v.video)
+        dest.write_bytes(v.video.video_bytes)
+        os.system(f'ffmpeg -v error -y -sseof -0.1 -i "{dest}" -frames:v 1 '
+                  f'"{d / "transitions" / (dest.stem + "_LAST.png")}" 2>/dev/null')
         print(f"    -> {dest.name}")
-        charge("video", f"clip:{frame.stem}", C.INR_PER_VID_SEC * C.VIDEO_SECONDS)
-
-    print("\nREVIEW out/clips/. Then: python make.py assemble")
+        charge("video", f"clip:{eid}/{shot['id']}", C.INR_PER_VID_SEC * C.VIDEO_SECONDS)
 
 
-def stage_assemble():
-    clips = sorted((OUT / "clips").glob("*.mp4"))
-    if not clips:
-        sys.exit("no clips in out/clips/")
-    lst = OUT / "concat.txt"
-    lst.write_text("".join(f"file '{c.resolve()}'\n" for c in clips))
-    final = OUT / "episode.mp4"
-    rc = os.system(f'ffmpeg -y -f concat -safe 0 -i "{lst}" -c copy "{final}" 2>/dev/null')
-    if rc != 0:
-        sys.exit("ffmpeg failed or is not installed (brew install ffmpeg)")
-    print(f"  -> {final}")
+# ────────────────────────────── assemble ─────────────────────────────
+def stage_assemble(eid):
+    d = ep_dir(eid)
+    clips = sorted((d / "clips").glob("*.mp4"))
+    if not clips: sys.exit(f"no clips in {d/'clips'}")
+    final = d / "episode.mp4"
+    x = C.CROSSFADE_SECONDS
+    if len(clips) == 1 or x <= 0:
+        lst = d / "concat.txt"
+        lst.write_text("".join(f"file '{c.resolve()}'\n" for c in clips))
+        rc = os.system(f'ffmpeg -y -f concat -safe 0 -i "{lst}" -c copy "{final}" 2>/dev/null')
+    else:
+        inputs = " ".join(f'-i "{c}"' for c in clips)
+        parts, prev, off = [], "0:v", 0.0
+        for i in range(1, len(clips)):
+            off += C.VIDEO_SECONDS - x
+            parts.append(f"[{prev}][{i}:v]xfade=transition=fade:duration={x}:offset={off}[v{i}]")
+            prev = f"v{i}"
+        rc = os.system(f'ffmpeg -y {inputs} -filter_complex "{";".join(parts)}" '
+                       f'-map "[{prev}]" -c:v libx264 -preset medium -crf 20 '
+                       f'-pix_fmt yuv420p "{final}" 2>/dev/null')
+    if rc != 0: sys.exit("ffmpeg failed (brew install ffmpeg)")
+    print(f"  -> {final}  ({len(clips)} clips, crossfade {x}s)")
 
+
+def stage_episode(eid):
+    """Interleaved shot-by-shot run.
+
+    Predecessor-pixel inheritance only works if clip N exists before frame N+1 is
+    resolved, so frames and clips must alternate rather than run as separate passes.
+    Each shot: resolve its first frame (inherit free, or generate), then render it.
+    """
+    d = ep_dir(eid)
+    shots = json.loads((d / "shots.json").read_text())
+    if report(validate(shots, load_ep(eid), BIBLE)):
+        sys.exit("  plan has continuity errors")
+    for i, s in enumerate(shots):
+        print(f"\n── {s['id']} ({i+1}/{len(shots)}) ──")
+        stage_frames(eid, only=s["id"])
+        stage_video(eid, only=s["id"])
+    stage_assemble(eid)
+
+
+STAGES = {"plan": stage_plan, "portraits": stage_portraits, "frames": stage_frames,
+          "video": stage_video, "assemble": stage_assemble, "episode": stage_episode}
 
 if __name__ == "__main__":
-    stages = {"portraits": stage_portraits, "frames": stage_frames,
-              "video": stage_video, "assemble": stage_assemble}
-    if len(sys.argv) < 2 or sys.argv[1] not in stages:
-        sys.exit(f"usage: make.py [{'|'.join(stages)}]")
-    L = ledger()
-    print(f"stage: {sys.argv[1]}   spent so far: Rs {L['spent_inr']:.2f} / {C.BUDGET_INR}\n")
-    stages[sys.argv[1]]()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("stage", choices=STAGES)
+    ap.add_argument("episode", nargs="?", help="episode id, e.g. E01 (not needed for portraits)")
+    a = ap.parse_args()
+    if a.stage != "portraits" and not a.episode:
+        sys.exit(f"`{a.stage}` needs an episode id, e.g. make.py {a.stage} E01")
+    print(f"stage: {a.stage} {a.episode or ''}   spent: Rs {ledger()['spent_inr']:.2f}"
+          f"/{C.BUDGET_INR}\n")
+    STAGES[a.stage](a.episode)

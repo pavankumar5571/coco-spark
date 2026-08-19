@@ -1,0 +1,209 @@
+[
+  {
+    "id": "s01",
+    "cast": [
+      "coco",
+      "nana"
+    ],
+    "frame": "FIRST FRAME: Camera is a locked static medium shot at eye level. Fixed geography: round window on the LEFT wall, low bookshelf FAR LEFT, bed against the RIGHT wall with its head-end toward the BACK-RIGHT, wooden chair beside the bed on its LEFT, woven rug centre floor. Framing is identical to all other shots. Coco the Bear is lying in bed under the patchwork quilt. Nana Willow is standing near the bed on the woven rug facing Coco.",
+    "motion": "Nana turns gently from the bed and walks across the woven rug toward the round window on the left wall.",
+    "camera": "Locked static camera. No movement.",
+    "start_state": {
+      "environment": "Coco's Cottage (night)",
+      "population": [
+        "coco",
+        "nana"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "DROWSY",
+          "posture": "LYING_SIDE",
+          "facing": "RIGHT",
+          "zone": "BED",
+          "expression": "CALM"
+        },
+        "nana": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "LEFT",
+          "zone": "CHAIR",
+          "expression": "CALM"
+        }
+      },
+      "props": {},
+      "visual": {
+        "shot_size": "MEDIUM",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "end_state": {
+      "environment": "Coco's Cottage (night)",
+      "population": [
+        "coco",
+        "nana"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "DROWSY",
+          "posture": "LYING_SIDE",
+          "facing": "RIGHT",
+          "zone": "BED",
+          "expression": "CALM"
+        },
+        "nana": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "LEFT",
+          "zone": "WINDOW",
+          "expression": "CALM"
+        }
+      },
+      "props": {},
+      "visual": {
+        "shot_size": "MEDIUM",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "boundary": {
+      "type": "CONTINUOUS"
+    }
+  },
+  {
+    "id": "s02",
+    "cast": [
+      "coco",
+      "nana"
+    ],
+    "frame": "FIRST FRAME: Camera is a locked static medium shot at eye level, identical in position and framing to shots 1 and 3. Fixed geography: round window on the LEFT wall, low bookshelf FAR LEFT, bed against the RIGHT wall with its head-end toward the BACK-RIGHT, wooden chair beside the bed on its LEFT, woven rug centre floor. Coco remains lying in bed. Nana stands near the round window on the left wall.",
+    "motion": "Nana turns back from the window and walks slowly across the woven rug toward the bed.",
+    "camera": "Locked static camera. No movement.",
+    "start_state": {
+      "environment": "Coco's Cottage (night)",
+      "population": [
+        "coco",
+        "nana"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "DROWSY",
+          "posture": "LYING_SIDE",
+          "facing": "RIGHT",
+          "zone": "BED",
+          "expression": "CALM"
+        },
+        "nana": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "LEFT",
+          "zone": "WINDOW",
+          "expression": "CALM"
+        }
+      },
+      "props": {},
+      "visual": {
+        "shot_size": "MEDIUM",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "end_state": {
+      "environment": "Coco's Cottage (night)",
+      "population": [
+        "coco",
+        "nana"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "DROWSY",
+          "posture": "LYING_SIDE",
+          "facing": "RIGHT",
+          "zone": "BED",
+          "expression": "CALM"
+        },
+        "nana": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "RIGHT",
+          "zone": "CHAIR",
+          "expression": "CALM"
+        }
+      },
+      "props": {},
+      "visual": {
+        "shot_size": "MEDIUM",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "boundary": {
+      "type": "CONTINUOUS"
+    }
+  },
+  {
+    "id": "s03",
+    "cast": [
+      "coco",
+      "nana"
+    ],
+    "frame": "FIRST FRAME: Camera is a locked static medium shot at eye level, identical in position and framing to shots 1 and 2. Fixed geography: round window on the LEFT wall, low bookshelf FAR LEFT, bed against the RIGHT wall with its head-end toward the BACK-RIGHT, wooden chair beside the bed on its LEFT, woven rug centre floor. Coco is lying in bed. Nana stands beside the bed.",
+    "motion": "Coco slowly closes his eyes and drifts all the way into a deep, peaceful sleep under the quilt while Nana stands quietly by.",
+    "camera": "Locked static camera. No movement.",
+    "start_state": {
+      "environment": "Coco's Cottage (night)",
+      "population": [
+        "coco",
+        "nana"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "DROWSY",
+          "posture": "LYING_SIDE",
+          "facing": "RIGHT",
+          "zone": "BED",
+          "expression": "CALM"
+        },
+        "nana": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "RIGHT",
+          "zone": "CHAIR",
+          "expression": "CALM"
+        }
+      },
+      "props": {},
+      "visual": {
+        "shot_size": "MEDIUM",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "end_state": {
+      "environment": "Coco's Cottage (night)",
+      "population": [
+        "coco",
+        "nana"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "ASLEEP",
+          "posture": "LYING_SIDE",
+          "facing": "RIGHT",
+          "zone": "BED",
+          "expression": "CALM"
+        },
+        "nana": {
+          "awareness": "AWAKE",
+          "posture": "STANDING",
+          "facing": "RIGHT",
+          "zone": "CHAIR",
+          "expression": "CALM"
+        }
+      },
+      "props": {},
+      "visual": {
+        "shot_size": "MEDIUM",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "boundary": {
+      "type": "CONTINUOUS"
+    }
+  }
+]
