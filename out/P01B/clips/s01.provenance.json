@@ -1,0 +1,24 @@
+{
+  "status": "COMPLETE",
+  "qc": "PENDING_QC",
+  "video_prompt": "ACTION: Coco slowly lies down onto his side, lowering his head onto the pillow and settling under the patchwork quilt.\nCAMERA: Locked static camera. No camera movement, no cut.\nSTYLE: Bright 3D preschool animation, soft rounded shapes, warm saturated colours, gentle even lighting, simple friendly character design.\nCONSTRAINTS: clean still air, no floating particles, dust motes, sparkles or glows; only the specified characters and objects are present, no additional people, animals, toys or decorations; no text, letters, numbers, captions or watermarks; no rain, snow, fog or wind effects.",
+  "video_prompt_sha": "8c3b55cd21c9b3e7",
+  "input_hash": "dccee4dc8ed55847",
+  "sha": "90c58588a51ff318",
+  "model": "veo-3.1-lite-generate-preview",
+  "res": "720p",
+  "secs": 4,
+  "revision": {
+    "commit": "369b5ba4a856b1214c7f0647e0320c12ac5d614d",
+    "dirty": false,
+    "tag": null,
+    "sources": {
+      "make.py": "2783347fd32455c7",
+      "validate.py": "af84f65def4db5c7",
+      "camera.py": "4f6ed7b818d64008",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "f7ad4f4311c8d8f3",
+      "bible.yaml": "5ff9a482e3da5955"
+    }
+  }
+}

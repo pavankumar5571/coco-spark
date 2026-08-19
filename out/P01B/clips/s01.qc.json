@@ -1,0 +1,37 @@
+{
+  "shot_id": "s01",
+  "status": "ACCEPTED",
+  "findings": [],
+  "capability": {
+    "MOTION_PRIMITIVE": "PASS",
+    "IDENTITY_PRESERVATION": "PASS",
+    "WORLD_PRESERVATION": "PASS"
+  },
+  "judged_by": "HUMAN",
+  "revision": {
+    "commit": "369b5ba4a856b1214c7f0647e0320c12ac5d614d",
+    "dirty": true,
+    "tag": null,
+    "sources": {
+      "make.py": "3eb6ac557e7782a7",
+      "validate.py": "af84f65def4db5c7",
+      "camera.py": "4f6ed7b818d64008",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "f7ad4f4311c8d8f3",
+      "bible.yaml": "5ff9a482e3da5955"
+    }
+  },
+  "trial": {
+    "experiment": "P01B \u2014 constraint treatment",
+    "control": "P01, byte-identical start frame 51a1581920d1aa3f, same action/camera/style",
+    "variable": "the compiled CONSTRAINTS clause, and nothing else",
+    "UNREQUESTED_VISUAL_ADDITION_prevention": "POSITIVE_SINGLE_TRIAL",
+    "caveat": "n=1 against a stochastic generator. An unconstrained resample might also have come back clean. This is NOT a prevention rate and NOT validation.",
+    "observed": "no floating particles in first, mid or last sampled frame; P01 showed them throughout all three",
+    "prompt_sha": "8c3b55cd21c9b3e7"
+  },
+  "compare_to_baseline": {
+    "regressions": [],
+    "verdict": "NO_REGRESSION"
+  }
+}

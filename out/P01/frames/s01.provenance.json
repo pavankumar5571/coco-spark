@@ -1,0 +1,32 @@
+{
+  "status": "COMPLETE",
+  "source": "GENERATED",
+  "model": "gemini-3.1-flash-image",
+  "aspect": "16:9",
+  "input_hash": "5007e01b0d9fbec3",
+  "sha": "51a1581920d1aa3f",
+  "refs": [
+    "portraits/coco.png"
+  ],
+  "ref_ids": [
+    [
+      "identity",
+      "coco",
+      "a54f1abc63646919"
+    ]
+  ],
+  "revision": {
+    "commit": "3a4c88df0676a1c3e2a94ac6d034e343400a8d26",
+    "dirty": true,
+    "tag": "paid-probe-v1",
+    "sources": {
+      "make.py": "532cbe35f03a7718",
+      "validate.py": "af84f65def4db5c7",
+      "camera.py": "4f6ed7b818d64008",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "dc749f1be000dd18",
+      "bible.yaml": "f5dbd3cedb425f27"
+    }
+  },
+  "cost_inr": 5.0
+}

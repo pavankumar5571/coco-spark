@@ -1,0 +1,30 @@
+{
+  "shot_id": "s01",
+  "status": "REJECTED_QC",
+  "findings": [
+    {
+      "category": "UNREQUESTED_VISUAL_ADDITION",
+      "evidence": "floating luminous particles drift through the room across all 4 seconds; visible in first, mid and last sampled frames",
+      "specified": "cottage_night lists walls, window, bed, quilt, chair, rug, bookshelf, lamp light. No atmospheric effects in any prompt or bible entry."
+    }
+  ],
+  "capability": {
+    "MOTION_PRIMITIVE": "PASS",
+    "IDENTITY_PRESERVATION": "PASS",
+    "WORLD_PRESERVATION": "PASS"
+  },
+  "judged_by": "HUMAN",
+  "revision": {
+    "commit": "5797063dfb63411c022ac3da98c9fe43d9e86c24",
+    "dirty": false,
+    "tag": "paid-probe-v1",
+    "sources": {
+      "make.py": "f400e376a446d98d",
+      "validate.py": "af84f65def4db5c7",
+      "camera.py": "4f6ed7b818d64008",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "dc749f1be000dd18",
+      "bible.yaml": "f5dbd3cedb425f27"
+    }
+  }
+}

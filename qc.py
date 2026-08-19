@@ -41,11 +41,20 @@ TRIAL_STRENGTH = (
     "MIXED_SINGLE_TRIAL",                 # treatment traded one defect for another
 )
 
-UNTESTED_PREVENTION = {
-    "UNREQUESTED_VISUAL_ADDITION":
-        "compile_prompt.veo_constraint_clause emits a no-particles constraint. "
-        "IMPLEMENTED 2026-08-19, NEVER VALIDATED AGAINST THE PROVIDER — we deliberately "
-        "did not spend to test it. Do not assume it works.",
+UNTESTED_PREVENTION = {}
+
+# Preventions that have been put in front of the real provider at least once. The strength
+# label is load-bearing: it is what stops a single clean clip becoming "we solved that".
+TESTED_PREVENTION = {
+    "UNREQUESTED_VISUAL_ADDITION": {
+        "mechanism": "compile_prompt.veo_constraint_clause emits a no-particles constraint",
+        "trial": "P01B, 2026-08-19, controlled against P01 on a byte-identical start frame",
+        "strength": "POSITIVE_SINGLE_TRIAL",
+        "capability_effect": "NO_REGRESSION across MOTION_PRIMITIVE / IDENTITY_PRESERVATION "
+                             "/ WORLD_PRESERVATION",
+        "caveat": "n=1 against a stochastic generator. Not a prevention rate. A future "
+                  "episode may still produce additions; that would not be a contradiction.",
+    },
 }
 
 

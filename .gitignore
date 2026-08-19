@@ -6,8 +6,17 @@ out/concat.txt
 __pycache__/
 
 # generated media — regenerable, bloats the repo every render
-out/*/clips/
-out/*/frames/
-out/*/transitions/
+out/*/clips/*
+out/*/frames/*
+out/*/transitions/*
+out/*/probe/*
 out/*/episode.mp4
 out/*/concat.txt
+
+# ...but NOT the evidence. Provenance says what we paid for and QC says what it taught
+# us; neither is regenerable, because regenerating it costs money and the provider is
+# stochastic. Losing these is how the previous project ended up unable to say what it had
+# already learned.
+!out/*/clips/*.provenance.json
+!out/*/clips/*.qc.json
+!out/*/frames/*.provenance.json

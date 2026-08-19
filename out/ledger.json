@@ -1,5 +1,5 @@
 {
-  "spent_inr": 279.29184599999996,
+  "spent_inr": 327.29184599999996,
   "ops": [
     {
       "kind": "image",
@@ -269,6 +269,23 @@
       "inr": 48.0,
       "state": "SPENT",
       "at": "2026-08-19 06:27:51"
+    },
+    {
+      "kind": "video",
+      "detail": "clip:P01B/s01",
+      "inr": 48.0,
+      "state": "SPENT",
+      "at": "2026-08-19 06:57:47"
+    }
+  ],
+  "reconciliations": [
+    {
+      "at": "2026-08-19 08:03:38",
+      "balance_before": 2477.85,
+      "balance_after": 2433.0,
+      "actual_inr": 44.85,
+      "ledger_inr": 327.29184599999996,
+      "note": "P01 probe window. Reserved 63.00, estimated 42.00, actual 44.85 -> rate error +6.8%. Ops settled before the margin-release fix are still booked at 1.5x, so the ledger OVERSTATES spend (conservative: it can only stop us early, never overspend)."
     }
   ]
 }

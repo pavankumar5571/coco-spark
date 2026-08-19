@@ -488,10 +488,64 @@ def main():
     config.REQUIRE_CLEAN_TREE = False
     shutil.rmtree(tmp, ignore_errors=True)
 
+    results += ledger_properties()
+
     print(f"\n  {sum(results)}/{len(results)} runtime properties hold")
     if not all(results):
         sys.exit(1)
     print("  RUNTIME FIREWALL HELD")
+
+
+def _ok(name, cond):
+    print(f"  {'PASS' if cond else 'FAIL'}  {name:52s} {'' if cond else '<-- '}")
+    return bool(cond)
+
+
+def ledger_properties():
+    """Money accounting, isolated from any provider path.
+
+    These guard the two ways a cost ledger silently lies: holding the safety margin
+    forever (so every op reads 1.5x its real cost), and losing track of which episode an
+    op belonged to (so per-episode spend is unanswerable).
+    """
+    out = []
+    tmp, make = fresh_env(10_000)
+
+    i = make.reserve("video", "clip:E09/s01", 32.0)
+    held = make.ledger()["spent_inr"]
+    out.append(_ok("reserve holds the safety-margined worst case", abs(held - 48.0) < 1e-6))
+
+    make.settle(i, 32.0)
+    L = make.ledger()
+    out.append(_ok("settle releases the unused margin, books actual",
+                   abs(L["spent_inr"] - 32.0) < 1e-6 and abs(L["ops"][i]["inr"] - 32.0) < 1e-6))
+    out.append(_ok("settled op keeps what it originally reserved",
+                   abs(L["ops"][i]["reserved"] - 48.0) < 1e-6))
+
+    j = make.reserve("image", "frame:E09/s02", 5.0)
+    make.settle(j, None)
+    L = make.ledger()
+    out.append(_ok("released hold returns the whole reservation",
+                   abs(L["spent_inr"] - 32.0) < 1e-6 and L["ops"][j]["state"] == "RELEASED"))
+    out.append(_ok("a released op contributes nothing to spend",
+                   make.op_spent(L["ops"][j]) == 0.0))
+
+    out.append(_ok("reserve stamps the episode at authorisation time",
+                   L["ops"][i]["episode"] == "E09"))
+
+    cases = {("frame:E01/s01", "image"): "E01", ("clip:P01B/s01", "video"): "P01B",
+             ("plan:E02", "llm"): "E02", ("portrait:coco", "image"): "SHARED",
+             ("frame:s01", "image"): "UNATTRIBUTED"}
+    out.append(_ok("episode attribution reads structure, not a name list",
+                   all(make.op_episode({"detail": d, "kind": k}) == want
+                       for (d, k), want in cases.items())))
+
+    total = sum(make.op_spent(o) for o in L["ops"])
+    out.append(_ok("per-op spend reconciles to the ledger total",
+                   abs(total - L["spent_inr"]) < 1e-6))
+
+    shutil.rmtree(tmp, ignore_errors=True)
+    return out
 
 
 if __name__ == "__main__":

@@ -17,9 +17,6 @@ import argparse, hashlib, json, os, sys, time
 from pathlib import Path
 
 import yaml
-from google import genai
-from google.genai import types
-from PIL import Image
 
 import config as C
 import camera
@@ -209,11 +206,54 @@ def client():
     key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
     if not key:
         sys.exit("GOOGLE_API_KEY not set")
+    genai, _, _ = _sdk()
     return genai.Client(api_key=key)
+
+
+def _sdk():
+    """Import the paid-call SDKs on demand.
+
+    Reporting stages (`verify`, `costs`) and QC must run on any machine — including one
+    with no provider SDK installed. Importing google-genai/Pillow at module scope made
+    reading the ledger depend on the ability to spend money.
+    """
+    from google import genai
+    from google.genai import types
+    from PIL import Image
+    return genai, types, Image
 
 
 def ledger():
     return json.loads(LEDGER.read_text()) if LEDGER.exists() else {"spent_inr": 0.0, "ops": []}
+
+
+SHARED_KINDS = {"portrait"}          # channel-wide assets, generated once, used by every episode
+
+
+def op_episode(op):
+    """Attribute one ledger op to an episode, from data the op already carries.
+
+    Deterministic and convention-free: it reads the structure of `detail`, never a list of
+    known episode names, so a new episode id needs no code change. Legacy rows written
+    before episodes existed resolve to UNATTRIBUTED rather than being silently folded into
+    whichever episode happens to be reported.
+    """
+    if op.get("episode"):
+        return op["episode"]
+    what, _, rest = op.get("detail", "").partition(":")
+    if what in SHARED_KINDS:
+        return "SHARED"
+    head, slash, _ = rest.partition("/")
+    if slash:                                # frame:E01/s01, clip:E01/s01
+        return head
+    if op.get("kind") == "llm" and rest:     # plan:E01
+        return rest
+    return "UNATTRIBUTED"
+
+
+def op_spent(op):
+    """What this op currently commits. A released hold commits nothing."""
+    return 0.0 if op.get("state") == "RELEASED" else float(op.get("inr", 0.0))
 
 
 def reserve(kind, detail, inr):
@@ -230,22 +270,32 @@ def reserve(kind, detail, inr):
         sys.exit(f"  BUDGET STOP: reserving {worst:.2f} on top of {L['spent_inr']:.2f} "
                  f"would exceed the cap {C.BUDGET_INR}. Provider NOT called.")
     L["spent_inr"] += worst
-    L["ops"].append({"kind": kind, "detail": detail, "inr": worst, "state": "RESERVED",
-                     "at": time.strftime("%F %T")})
+    op = {"kind": kind, "detail": detail, "inr": worst, "reserved": worst,
+          "state": "RESERVED", "at": time.strftime("%F %T")}
+    op["episode"] = op_episode(op)
+    L["ops"].append(op)
     LEDGER.write_text(json.dumps(L, indent=2))
     print(f"    reserved {worst:.2f}   total {L['spent_inr']:.2f}/{C.BUDGET_INR}")
     return len(L["ops"]) - 1
 
 
 def settle(idx, actual=None):
-    """Mark a reservation spent. Release it if the call never happened."""
+    """Mark a reservation spent at its ACTUAL cost, releasing the unused safety margin.
+
+    The margin exists to guarantee the cap is never breached in the window between
+    authorising a call and learning what it cost. Once the call has completed that window
+    is closed, so continuing to hold the margin is not caution — it is a phantom charge.
+    Left uncorrected it burned 1.5x the real cost of every op against the cap, and made
+    "how much did this episode cost" unanswerable.
+    """
     L = ledger()
     op = L["ops"][idx]
-    if actual is None:                       # call failed -> give the money back
+    if actual is None:                       # call failed -> give the whole hold back
         L["spent_inr"] -= op["inr"]
-        op["state"] = "RELEASED"
+        op["inr"], op["state"] = 0.0, "RELEASED"
     else:
-        op["state"] = "SPENT"
+        L["spent_inr"] += actual - op["inr"]
+        op["inr"], op["state"] = actual, "SPENT"
     LEDGER.write_text(json.dumps(L, indent=2))
 
 
@@ -267,6 +317,7 @@ def gen_image(cl, prompt, refs, dest, kind="image", detail=""):
 
 
 def _gen_image_inner(cl, prompt, refs, dest, res_idx):
+    _, types, Image = _sdk()
     resp = cl.models.generate_content(
         model=C.IMAGE_MODEL,
         contents=[Image.open(p) for p in refs] + [prompt],
@@ -507,6 +558,7 @@ STYLE: {BIBLE['style_lock']}
             settle(res_idx, None); raise
 
     def _call_inner(extra, res_idx):
+        _, types, _ = _sdk()
         r = cl.models.generate_content(
             model=C.PLANNER_MODEL, contents=prompt + extra,
             config=types.GenerateContentConfig(
@@ -770,6 +822,7 @@ def stage_video(eid, only=None):
                           C.INR_PER_VID_SEC * C.VIDEO_SECONDS)
         settled = False
         try:
+            _, types, _ = _sdk()
             op = cl.models.generate_videos(
                 model=C.VIDEO_MODEL, prompt=prompt,
                 image=types.Image.from_file(location=str(frame)),
@@ -881,15 +934,99 @@ def stage_verify(_=None):
     print(f"  ledger : Rs {L['spent_inr']:.2f} reserved/spent, cap Rs {C.BUDGET_INR}")
 
 
+def reconcile(before, after, note=""):
+    """Record a real account-balance movement against what the ledger predicted.
+
+    The ledger can only ever say what we THINK we spent. Without periodic anchoring to an
+    actual balance that belief drifts silently — which is precisely how the previous
+    project ran for three months with cost tracking that was never once checked against
+    money. One measured datapoint beats any amount of estimating.
+    """
+    L = ledger()
+    spent = round(before - after, 2)
+    L.setdefault("reconciliations", []).append(
+        {"at": time.strftime("%F %T"), "balance_before": before, "balance_after": after,
+         "actual_inr": spent, "ledger_inr": L["spent_inr"], "note": note})
+    LEDGER.write_text(json.dumps(L, indent=2))
+    return spent
+
+
+def stage_costs(episode=None):
+    """What each episode cost. Pass an episode id to itemise it.
+
+    Every number here is OUR estimate at settlement time, not a provider invoice. The
+    ledger is an authorisation record; it is not billing truth, and the gap between the
+    two is exactly what went unnoticed for three months. Reconcile against the console.
+    """
+    L = ledger()
+    ops = L["ops"]
+    if not ops:
+        print("  ledger empty"); return
+
+    by_ep, kinds = {}, {}
+    for op in ops:
+        ep = op_episode(op)
+        amt = op_spent(op)
+        by_ep.setdefault(ep, {"total": 0.0, "n": 0, "kinds": {}})
+        by_ep[ep]["total"] += amt
+        by_ep[ep]["n"] += 1
+        by_ep[ep]["kinds"][op["kind"]] = by_ep[ep]["kinds"].get(op["kind"], 0.0) + amt
+        kinds[op["kind"]] = kinds.get(op["kind"], 0.0) + amt
+
+    if episode:
+        e = by_ep.get(episode)
+        if not e:
+            print(f"  no ops recorded for {episode}")
+            print(f"  known: {', '.join(sorted(by_ep))}")
+            return
+        print(f"  {episode}   Rs {e['total']:.2f}   ({e['n']} ops)\n")
+        for op in ops:
+            if op_episode(op) != episode:
+                continue
+            st = op.get("state", "SPENT")
+            flag = "  (released)" if st == "RELEASED" else ("  (held)" if st == "RESERVED" else "")
+            print(f"    {op['at']}  {op['kind']:6} {op['detail']:22} "
+                  f"Rs {op_spent(op):7.2f}{flag}")
+        print(f"\n    by kind: " + "  ".join(f"{k}={v:.2f}" for k, v in sorted(e["kinds"].items())))
+        return
+
+    print(f"  {'episode':14} {'ops':>4} {'Rs':>9}   breakdown")
+    for ep in sorted(by_ep, key=lambda k: -by_ep[k]["total"]):
+        e = by_ep[ep]
+        bd = " ".join(f"{k}={v:.2f}" for k, v in sorted(e["kinds"].items()))
+        print(f"  {ep:14} {e['n']:>4} {e['total']:>9.2f}   {bd}")
+
+    held = sum(op_spent(o) for o in ops if o.get("state") == "RESERVED")
+    rel = sum(1 for o in ops if o.get("state") == "RELEASED")
+    print(f"\n  total     Rs {L['spent_inr']:.2f} of cap Rs {C.BUDGET_INR} "
+          f"(Rs {C.BUDGET_INR - L['spent_inr']:.2f} left)")
+    print("  by kind   " + "  ".join(f"{k}={v:.2f}" for k, v in sorted(kinds.items())))
+    if held:
+        print(f"  WARNING   Rs {held:.2f} still RESERVED — a run died before settling")
+    if rel:
+        print(f"  {rel} released hold(s) excluded — failed calls cost nothing")
+    print("\n  SHARED = channel-wide assets (portraits), not charged to any one episode.")
+    print("  Estimates at settlement, NOT a provider invoice.")
+    rs = L.get("reconciliations") or []
+    if rs:
+        r = rs[-1]
+        print(f"  Last checked against a real balance on {r['at'][:10]}: "
+              f"Rs {r['actual_inr']:.2f} actually left the account.")
+        if r.get("note"):
+            print(f"    {r['note']}")
+    else:
+        print("  NEVER checked against a real balance — treat every figure above as unverified.")
+
+
 STAGES = {"verify": stage_verify, "plan": stage_plan, "portraits": stage_portraits, "frames": stage_frames,
-          "video": stage_video, "assemble": stage_assemble, "episode": stage_episode}
+          "video": stage_video, "assemble": stage_assemble, "episode": stage_episode, "costs": stage_costs}
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("stage", choices=STAGES)
     ap.add_argument("episode", nargs="?", help="episode id, e.g. E01 (not needed for portraits)")
     a = ap.parse_args()
-    if a.stage not in ("portraits", "verify") and not a.episode:
+    if a.stage not in ("portraits", "verify", "costs") and not a.episode:
         sys.exit(f"`{a.stage}` needs an episode id, e.g. make.py {a.stage} E01")
     print(f"stage: {a.stage} {a.episode or ''}   spent: Rs {ledger()['spent_inr']:.2f}"
           f"/{C.BUDGET_INR}\n")

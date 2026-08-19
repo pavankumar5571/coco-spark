@@ -1,0 +1,21 @@
+{
+  "status": "COMPLETE",
+  "input_hash": "dccee4dc8ed55847",
+  "sha": "f89a4d3ee0cec822",
+  "model": "veo-3.1-lite-generate-preview",
+  "res": "720p",
+  "secs": 4,
+  "revision": {
+    "commit": "5797063dfb63411c022ac3da98c9fe43d9e86c24",
+    "dirty": false,
+    "tag": "paid-probe-v1",
+    "sources": {
+      "make.py": "f400e376a446d98d",
+      "validate.py": "af84f65def4db5c7",
+      "camera.py": "4f6ed7b818d64008",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "dc749f1be000dd18",
+      "bible.yaml": "f5dbd3cedb425f27"
+    }
+  }
+}
