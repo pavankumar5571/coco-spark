@@ -6,11 +6,37 @@
       "pip",
       "nana"
     ],
-    "frame": "The FIRST FRAME: camera is a WIDE shot at EYE_LEVEL, identical in position and angle to all other shots. Oak tree RIGHT, low wooden fence across BACK, open grass CENTRE and LEFT. Coco, Pip, and Nana are all present in MEADOW_CENTRE.",
-    "motion": "Coco, Pip, and Nana bounce up and down together in unison on the grass, counting 'One! Two!' with cheerful smiles.",
+    "frame": "Medium wide shot at eye level. Coco, Pip, and Nana are standing in the meadow centre facing the camera.",
+    "motion": "Coco, Pip, and Nana transition from standing to bouncing up and down energetically in place, counting to one.",
     "camera": "Locked static camera. No movement.",
+    "boundary": {
+      "type": "CONTINUOUS"
+    },
+    "events": [
+      {
+        "type": "STATE_CHANGE",
+        "entity": "coco",
+        "field": "posture",
+        "from": "STANDING",
+        "to": "BOUNCING"
+      },
+      {
+        "type": "STATE_CHANGE",
+        "entity": "pip",
+        "field": "posture",
+        "from": "STANDING",
+        "to": "BOUNCING"
+      },
+      {
+        "type": "STATE_CHANGE",
+        "entity": "nana",
+        "field": "posture",
+        "from": "STANDING",
+        "to": "BOUNCING"
+      }
+    ],
     "start_state": {
-      "environment": "Spark Meadow",
+      "location_id": "meadow_day",
       "population": [
         "coco",
         "pip",
@@ -36,17 +62,18 @@
           "posture": "STANDING",
           "facing": "CAMERA",
           "zone": "MEADOW_CENTRE",
-          "expression": "CALM"
+          "expression": "HAPPY"
         }
       },
       "props": {},
       "visual": {
-        "shot_size": "WIDE",
+        "camera_setup_id": "MEADOW_AXIS_A",
+        "shot_size": "MEDIUM_WIDE",
         "camera_angle": "EYE_LEVEL"
       }
     },
     "end_state": {
-      "environment": "Spark Meadow",
+      "location_id": "meadow_day",
       "population": [
         "coco",
         "pip",
@@ -72,17 +99,15 @@
           "posture": "BOUNCING",
           "facing": "CAMERA",
           "zone": "MEADOW_CENTRE",
-          "expression": "CALM"
+          "expression": "HAPPY"
         }
       },
       "props": {},
       "visual": {
-        "shot_size": "WIDE",
+        "camera_setup_id": "MEADOW_AXIS_A",
+        "shot_size": "MEDIUM_WIDE",
         "camera_angle": "EYE_LEVEL"
       }
-    },
-    "boundary": {
-      "type": "CONTINUOUS"
     }
   },
   {
@@ -92,11 +117,23 @@
       "pip",
       "nana"
     ],
-    "frame": "The FIRST FRAME: camera is a WIDE shot at EYE_LEVEL, identical in position and angle to all other shots. Oak tree RIGHT, low wooden fence across BACK, open grass CENTRE and LEFT. Coco, Pip, and Nana are all present in MEADOW_CENTRE.",
-    "motion": "Coco, Pip, and Nana continue bouncing in unison, shouting 'Three! Four!' with bright joyful expressions.",
-    "camera": "Locked static camera. No movement.",
+    "frame": "Medium wide shot at eye level. Coco, Pip, and Nana continue bouncing in the meadow centre.",
+    "motion": "Coco, Pip, and Nana bounce continuously and count to two with cheerful expressions.",
+    "camera": "Gentle slow push in towards the characters.",
+    "boundary": {
+      "type": "CONTINUOUS"
+    },
+    "events": [
+      {
+        "type": "STATE_CHANGE",
+        "entity": "coco",
+        "field": "posture",
+        "from": "BOUNCING",
+        "to": "BOUNCING"
+      }
+    ],
     "start_state": {
-      "environment": "Spark Meadow",
+      "location_id": "meadow_day",
       "population": [
         "coco",
         "pip",
@@ -122,17 +159,18 @@
           "posture": "BOUNCING",
           "facing": "CAMERA",
           "zone": "MEADOW_CENTRE",
-          "expression": "CALM"
+          "expression": "HAPPY"
         }
       },
       "props": {},
       "visual": {
-        "shot_size": "WIDE",
+        "camera_setup_id": "MEADOW_AXIS_A",
+        "shot_size": "MEDIUM_WIDE",
         "camera_angle": "EYE_LEVEL"
       }
     },
     "end_state": {
-      "environment": "Spark Meadow",
+      "location_id": "meadow_day",
       "population": [
         "coco",
         "pip",
@@ -158,17 +196,15 @@
           "posture": "BOUNCING",
           "facing": "CAMERA",
           "zone": "MEADOW_CENTRE",
-          "expression": "CALM"
+          "expression": "HAPPY"
         }
       },
       "props": {},
       "visual": {
-        "shot_size": "WIDE",
+        "camera_setup_id": "MEADOW_AXIS_A",
+        "shot_size": "MEDIUM",
         "camera_angle": "EYE_LEVEL"
       }
-    },
-    "boundary": {
-      "type": "CONTINUOUS"
     }
   },
   {
@@ -178,11 +214,15 @@
       "pip",
       "nana"
     ],
-    "frame": "The FIRST FRAME: camera is a WIDE shot at EYE_LEVEL, identical in position and angle to all other shots. Oak tree RIGHT, low wooden fence across BACK, open grass CENTRE and LEFT. Coco, Pip, and Nana are all present in MEADOW_CENTRE.",
-    "motion": "Coco, Pip, and Nana give one final big bounce together and land, cheering 'Five!'",
+    "frame": "Medium shot at eye level. Coco, Pip, and Nana are in the meadow centre.",
+    "motion": "Coco, Pip, and Nana bounce together and count to three and four with joyful cheers.",
     "camera": "Locked static camera. No movement.",
+    "boundary": {
+      "type": "CONTINUOUS"
+    },
+    "events": [],
     "start_state": {
-      "environment": "Spark Meadow",
+      "location_id": "meadow_day",
       "population": [
         "coco",
         "pip",
@@ -208,17 +248,18 @@
           "posture": "BOUNCING",
           "facing": "CAMERA",
           "zone": "MEADOW_CENTRE",
-          "expression": "CALM"
+          "expression": "HAPPY"
         }
       },
       "props": {},
       "visual": {
-        "shot_size": "WIDE",
+        "camera_setup_id": "MEADOW_AXIS_A",
+        "shot_size": "MEDIUM",
         "camera_angle": "EYE_LEVEL"
       }
     },
     "end_state": {
-      "environment": "Spark Meadow",
+      "location_id": "meadow_day",
       "population": [
         "coco",
         "pip",
@@ -227,34 +268,32 @@
       "characters": {
         "coco": {
           "awareness": "AWAKE",
-          "posture": "STANDING",
+          "posture": "BOUNCING",
           "facing": "CAMERA",
           "zone": "MEADOW_CENTRE",
           "expression": "HAPPY"
         },
         "pip": {
           "awareness": "AWAKE",
-          "posture": "STANDING",
+          "posture": "BOUNCING",
           "facing": "CAMERA",
           "zone": "MEADOW_CENTRE",
           "expression": "HAPPY"
         },
         "nana": {
           "awareness": "AWAKE",
-          "posture": "STANDING",
+          "posture": "BOUNCING",
           "facing": "CAMERA",
           "zone": "MEADOW_CENTRE",
-          "expression": "CALM"
+          "expression": "HAPPY"
         }
       },
       "props": {},
       "visual": {
-        "shot_size": "WIDE",
+        "camera_setup_id": "MEADOW_AXIS_A",
+        "shot_size": "MEDIUM",
         "camera_angle": "EYE_LEVEL"
       }
-    },
-    "boundary": {
-      "type": "CONTINUOUS"
     }
   },
   {
@@ -264,11 +303,37 @@
       "pip",
       "nana"
     ],
-    "frame": "The FIRST FRAME: camera is a WIDE shot at EYE_LEVEL, identical in position and angle to all other shots. Oak tree RIGHT, low wooden fence across BACK, open grass CENTRE and LEFT. Coco, Pip, and Nana are all present in MEADOW_CENTRE.",
-    "motion": "Coco, Pip, and Nana wave happily at the camera together to finish the song.",
+    "frame": "Medium shot at eye level. Coco, Pip, and Nana are in the meadow centre.",
+    "motion": "Coco, Pip, and Nana finish their counting song by landing from their bounce back into a standing posture.",
     "camera": "Locked static camera. No movement.",
+    "boundary": {
+      "type": "CONTINUOUS"
+    },
+    "events": [
+      {
+        "type": "STATE_CHANGE",
+        "entity": "coco",
+        "field": "posture",
+        "from": "BOUNCING",
+        "to": "STANDING"
+      },
+      {
+        "type": "STATE_CHANGE",
+        "entity": "pip",
+        "field": "posture",
+        "from": "BOUNCING",
+        "to": "STANDING"
+      },
+      {
+        "type": "STATE_CHANGE",
+        "entity": "nana",
+        "field": "posture",
+        "from": "BOUNCING",
+        "to": "STANDING"
+      }
+    ],
     "start_state": {
-      "environment": "Spark Meadow",
+      "location_id": "meadow_day",
       "population": [
         "coco",
         "pip",
@@ -277,34 +342,35 @@
       "characters": {
         "coco": {
           "awareness": "AWAKE",
-          "posture": "STANDING",
+          "posture": "BOUNCING",
           "facing": "CAMERA",
           "zone": "MEADOW_CENTRE",
           "expression": "HAPPY"
         },
         "pip": {
           "awareness": "AWAKE",
-          "posture": "STANDING",
+          "posture": "BOUNCING",
           "facing": "CAMERA",
           "zone": "MEADOW_CENTRE",
           "expression": "HAPPY"
         },
         "nana": {
           "awareness": "AWAKE",
-          "posture": "STANDING",
+          "posture": "BOUNCING",
           "facing": "CAMERA",
           "zone": "MEADOW_CENTRE",
-          "expression": "CALM"
+          "expression": "HAPPY"
         }
       },
       "props": {},
       "visual": {
-        "shot_size": "WIDE",
+        "camera_setup_id": "MEADOW_AXIS_A",
+        "shot_size": "MEDIUM",
         "camera_angle": "EYE_LEVEL"
       }
     },
     "end_state": {
-      "environment": "Spark Meadow",
+      "location_id": "meadow_day",
       "population": [
         "coco",
         "pip",
@@ -330,17 +396,15 @@
           "posture": "STANDING",
           "facing": "CAMERA",
           "zone": "MEADOW_CENTRE",
-          "expression": "CALM"
+          "expression": "HAPPY"
         }
       },
       "props": {},
       "visual": {
-        "shot_size": "WIDE",
+        "camera_setup_id": "MEADOW_AXIS_A",
+        "shot_size": "MEDIUM",
         "camera_angle": "EYE_LEVEL"
       }
-    },
-    "boundary": {
-      "type": "CONTINUOUS"
     }
   }
 ]

@@ -5,5 +5,13 @@ location: meadow_day
 cast: [coco, pip]
 shots: 4
 idea: >-
-  Coco finds an apple in the meadow and gives it to Pip, who is hungry. Include a clear
-  moment where the apple changes hands, and a later moment set after some time has passed.
+  Coco finds an apple in the meadow and gives it to Pip, who is hungry.
+props:
+  apple_01:
+    kind: APPLE
+    continuity: TRACKED
+requirements:
+  - id: apple_handoff
+    type: PROP_TRANSFER
+    strength: MUST
+    params: {object: apple_01, from: coco, to: pip}

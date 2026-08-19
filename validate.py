@@ -266,13 +266,65 @@ def check_locations(shots, ep):
     return out
 
 
-def validate(shots, ep, bible):
+def check_requirements(shots, ep, results):
+    """Prove each brief requirement from the PLAN, never from the planner's claim.
+
+    The planner declares SATISFIED or DECLINED; we verify independently. Asking the
+    planner to decide what must be audited while also asking it to pass the audit is how
+    R02 returned four WIDE shots against a brief demanding camera variety.
+    """
+    out = []
+    results = results or {}
+    for r in ep.get("requirements") or []:
+        rid, rtype = r["id"], r["type"]
+        claim = (results.get(rid) or {}).get("status")
+        params = r.get("params") or {}
+        proven, detail = None, ""
+
+        if rtype == "CAMERA_VARIATION":
+            need = set(params.get("required_sizes") or [])
+            actual = {(s.get("start_state") or {}).get("visual", {}).get("shot_size")
+                      for s in shots}
+            proven = need <= actual
+            detail = f"required {sorted(need)}, plan has {sorted(a for a in actual if a)}"
+        elif rtype == "PROP_TRANSFER":
+            obj, frm, to = params.get("object"), params.get("from"), params.get("to")
+            proven = any(e.get("type") == "TRANSFER" and e.get("object") == obj
+                         and e.get("from") == frm and e.get("to") == to
+                         for s in shots for e in _events(s))
+            detail = f"required TRANSFER {obj} {frm}->{to}"
+        elif rtype == "CHARACTER_PRESENT":
+            who = params.get("entity")
+            proven = any(who in _pop(s.get("start_state")) for s in shots)
+            detail = f"required {who} to appear"
+        else:
+            out.append(Issue("WARN", "REQUIREMENT_TYPE_UNKNOWN", "-", f"requirements.{rid}",
+                f"no verifier for type '{rtype}'"))
+            continue
+
+        if claim == "SATISFIED" and not proven:
+            out.append(Issue("ERROR", "REQUIREMENT_FALSE_CLAIM", "-", f"requirements.{rid}",
+                f"planner claimed SATISFIED but the plan does not show it: {detail}"))
+        elif proven and claim == "DECLINED":
+            out.append(Issue("WARN", "REQUIREMENT_UNDERCLAIMED", "-", f"requirements.{rid}",
+                f"declined but actually satisfied: {detail}"))
+        elif not proven and r.get("strength", "MUST") == "MUST":
+            reason = (results.get(rid) or {}).get("reason", "")
+            out.append(Issue("ERROR", "REQUIREMENT_NOT_MET", "-", f"requirements.{rid}",
+                f"MUST requirement unmet: {detail}"
+                + (f" (planner said: {reason[:60]})" if reason else
+                   " and the planner did not declare it declined")))
+    return out
+
+
+def validate(shots, ep, bible, requirement_results=None):
     return (check_completeness(shots, ep, bible)
             + check_entities(shots, ep, bible)
             + check_vocab(shots, bible)
             + check_boundaries(shots, bible, ep)
             + check_events_explain_changes(shots, bible)
-            + check_locations(shots, ep))
+            + check_locations(shots, ep)
+            + check_requirements(shots, ep, requirement_results))
 
 
 def report(issues):

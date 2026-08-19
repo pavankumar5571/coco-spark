@@ -5,5 +5,10 @@ location: meadow_day
 cast: [coco, pip, nana]
 shots: 4
 idea: >-
-  A counting song. All three friends bounce and count to five together, with the camera
-  moving between wide group views and closer single shots on each count.
+  A counting song. All three friends bounce and count to five together.
+requirements:
+  - id: camera_variety
+    type: CAMERA_VARIATION
+    strength: MUST
+    params:
+      required_sizes: [WIDE, CLOSE]

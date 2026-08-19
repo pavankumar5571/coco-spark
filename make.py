@@ -22,6 +22,7 @@ from google.genai import types
 from PIL import Image
 
 import config as C
+from schema import shot_plan_schema
 from validate import validate, report
 
 ROOT = Path(__file__).parent
@@ -125,23 +126,24 @@ def gen_image(cl, prompt, refs, dest):
 
 # ─────────────────────────────── plan ────────────────────────────────
 PLANNER_RULES = """
-HARD CONSTRAINTS. These come from production failures; violating them breaks continuity.
+HARD CONSTRAINTS. These come from production failures.
 
-1. CONNECTED STATES, NOT PICTURES. The shots are one continuous scene, not independent
-   images. Each shot must begin exactly where the previous one ended.
-2. NO MATERIALISING CHARACTERS. Every character listed in the cast must be present and
-   visible from the FIRST shot and remain present. A character may not appear or vanish
-   mid-sequence; there is no time to stage an entrance in a short scene.
-3. LOCKED CAMERA. Unless the mode explicitly allows movement, every shot uses an
-   identical camera position, angle and shot size. State this explicitly in each frame
-   description. Only the characters' poses change between shots.
-4. RESPECT FIXED GEOGRAPHY. Never mirror, flip or rearrange the room. Restate the key
-   landmark positions in every frame description.
-5. PERSISTENT PROPS ONLY. Do not introduce objects that are not in the location
-   description. Anything mentioned must already exist there.
-6. ONE DOMINANT ACTION per shot, small and achievable. No handoffs, no complex
-   multi-character choreography.
+1. CONNECTED STATES, NOT PICTURES. The shots are one continuous scene. Each shot must
+   begin exactly where the previous one ended.
+2. EVERY CHANGE NEEDS AN EVENT. State says what is true; events say why it changed.
+   A character appearing needs ENTER. Leaving needs EXIT. Changing zone needs MOVE.
+   A prop changing hands needs TRANSFER. Any other material change needs STATE_CHANGE.
+   The event must match the exact from/to of the state change it explains.
+3. MATERIAL TRANSITIONS HAPPEN INSIDE SHOTS. Never across a cut. If a character falls
+   asleep, some shot must SHOW them falling asleep. A CONTINUOUS boundary forbids any
+   material difference between one shot's end and the next shot's start.
+4. RESPECT FIXED GEOGRAPHY. Never mirror or rearrange the location.
+5. PERSISTENT PROPS ONLY. The set of props may not change; anything present must be
+   present throughout.
+6. ONE DOMINANT ACTION per shot, small and achievable.
+7. REUSE camera_setup_id whenever the camera has not physically moved.
 """
+
 
 SHOT_SCHEMA = """
 Return ONLY a JSON array, no prose, no code fence. Each element:
@@ -269,10 +271,14 @@ def vocab_block():
 def stage_plan(eid):
     d = ep_dir(eid)
     dest = d / "shots.json"
-    if dest.exists():
-        print(f"  shots.json exists ({len(json.loads(dest.read_text()))} shots), skipping")
-        return
     ep = load_ep(eid)
+    ihash = input_hash(ep=ep, bible=BIBLE, model=C.PLANNER_MODEL, rules=PLANNER_RULES)
+    ok, why = usable(dest, d / "shots.provenance.json", ihash)
+    if ok:
+        print(f"  shots.json valid ({len(json.loads(dest.read_text()))} shots), skipping")
+        return
+    if dest.exists():
+        print(f"  REPLANNING — {why}")
     mode = BIBLE["modes"][ep["mode"]]
     loc = BIBLE["locations"][ep["location"]]
     cast_lines = "\n".join(
@@ -302,21 +308,47 @@ STYLE: {BIBLE['style_lock']}
 {PLANNER_RULES}
 {SHOT_SCHEMA.replace("{vocab}", vocab_block()).replace("{visual}", visual_block())}"""
 
-    print(f"  planning {ep['shots']} shots for {eid}...")
-    cl = client()          # hold the reference; an inline client can be GC'd mid-request
-    resp = cl.models.generate_content(model=C.PLANNER_MODEL, contents=prompt)
-    raw = resp.text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    shots = json.loads(raw)
+    schema = shot_plan_schema(BIBLE, ep)
+    cl = client()
 
-    # HARD GATE: a plan with continuity errors never reaches image generation.
-    print("  validating plan...")
-    errs = report(validate(shots, ep, BIBLE))
+    def call(extra=""):
+        r = cl.models.generate_content(
+            model=C.PLANNER_MODEL, contents=prompt + extra,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json", response_schema=schema))
+        u = getattr(r, "usage_metadata", None)
+        charge("llm", f"plan:{eid}",
+               ((u.prompt_token_count / 1e6) * 0.10 +
+                (u.candidates_token_count / 1e6) * 0.40) * 88 if u else 1.0)
+        d = json.loads(r.text)
+        return d.get("shots", []), d.get("requirement_results", {})
+
+    print(f"  planning {ep['shots']} shots for {eid} (schema-enforced)...")
+    shots, results = call()
+    issues = validate(shots, ep, BIBLE, results)
+    errs = report(issues)
+
+    # EXACTLY ONE repair. An unbounded loop is the retry pathology that began this project.
     if errs:
-        (d / "shots.rejected.json").write_text(json.dumps(shots, indent=2))
-        sys.exit(f"\n  PLAN REJECTED: {errs} continuity error(s). Nothing generated, "
-                 f"nothing spent. Rejected plan saved for inspection.")
+        print(f"  {errs} error(s) — one bounded repair attempt")
+        payload = json.dumps([{"code": i.code, "shot_id": i.shot_id, "path": i.path,
+                               "message": i.message}
+                              for i in issues if i.severity == "ERROR"], indent=2)
+        shots, results = call(
+            "\n\nYour previous plan was REJECTED by a deterministic validator. Here is "
+            "the machine-readable issue list. Fix exactly these and change nothing else.\n"
+            + payload + "\n\nPrevious plan:\n" + json.dumps(shots, indent=2))
+        issues = validate(shots, ep, BIBLE, results)
+        if report(issues):
+            (d / "shots.rejected.json").write_text(json.dumps(shots, indent=2))
+            sys.exit("\n  PLAN REJECTED after one repair. Nothing generated, nothing "
+                     "spent on images or video. Rejected plan saved for inspection.")
+        print("  repair succeeded")
 
     dest.write_text(json.dumps(shots, indent=2))
+    (d / "shots.provenance.json").write_text(json.dumps(
+        {"status": "COMPLETE", "input_hash": ihash, "sha": sha_file(dest),
+         "model": C.PLANNER_MODEL, "requirement_results": results}, indent=2))
     u = getattr(resp, "usage_metadata", None)
     charge("llm", f"plan:{eid}",
            ((u.prompt_token_count / 1e6) * 0.10 + (u.candidates_token_count / 1e6) * 0.40) * 88
