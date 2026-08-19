@@ -14,7 +14,9 @@ VIDEO_ASPECT  = "16:9"
 INR_PER_IMAGE   = 5.0    # MEASURED-ish; was 3.5 (underestimated)
 INR_PER_VID_SEC = 8.0    # MEASURED: ~Rs 32/4s clip, was 4.4 (underestimated ~2x)
 
-BUDGET_INR = 293.51   # ledger 214.62 + Rs 78.89 usable (Rs 100 topped up, Rs 21.11 cleared the overdraft)
+BUDGET_INR = 330.0   # ledger 279.29 + ONE approved 48.00 clip. NOT the account balance
+                     # (Rs 2433 available). The cap is per-experiment on purpose: an
+                     # open cap is how the previous project reached Rs 30,000.
 
 CROSSFADE_SECONDS = 0.0   # hard cut; do not use transitions to conceal bad continuity
 

@@ -1,0 +1,15 @@
+{
+  "measured_at": "2026-08-19",
+  "balance_before": 2477.85,
+  "balance_after": 2433.0,
+  "actual_debit": 44.84999999999991,
+  "estimated": 42.0,
+  "reserved": 63.0,
+  "estimate_error_ratio": 1.068,
+  "calls": [
+    "portrait:coco",
+    "frame:P01/s01",
+    "clip:P01/s01"
+  ],
+  "note": "provider balance updates lag; actual may rise slightly"
+}
