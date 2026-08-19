@@ -1,9 +1,67 @@
 id: E02
-mode: BEDTIME_STORY
-title: Pip's Quiet Night
+mode: SONG
+title: Five Little Stars
 location: cottage_night
-cast: [coco, pip]
-shots: 3
+cast: [coco]
+shots: 6
+# Pip is deliberately NOT in this episode. He has never existed in a single generated
+# pixel, and E01 taught us that a character who appears without an entrance is the defect a
+# viewer notices first. The first piece meant for the public proves a repeatable format; it
+# does not also debut a character.
 idea: >-
-  Pip the Rabbit is too excited to sleep. Coco shows him how to breathe slowly and
-  count the stars, and Pip settles down.
+  A gentle counting lullaby. Coco counts five stars through the round window and they go to
+  sleep one by one until only he is left awake, and then he is not.
+
+  The song is the spine. Every picture change lands on a phrase boundary from the track's
+  own word timings, and the counting gives each beat a REASON to be different from the last
+  one — five stars, then four, then three, then two, then one — rather than six decorative
+  pictures of the same bear.
+
+  Nothing enters or leaves the room. Nobody speaks. Coco never sings on camera: this
+  provider cannot do lip sync and a song does not need a moving mouth to be a song.
+
+song:
+  lyrics: |
+    [Verse 1]
+    Five little stars are shining bright,
+    Peeking through my window light.
+    Coco counts them, one by one,
+    Softly now the day is done.
+
+    [Chorus]
+    Twinkle, twinkle, close your eyes,
+    Sleepy stars in sleepy skies.
+    Count them with me, drift away,
+    Goodnight, goodnight, till a brand new day.
+
+    [Verse 2]
+    Four little stars, then three, then two,
+    One last star is watching you.
+    Coco yawns and snuggles deep,
+    Warm and cosy, off to sleep.
+
+    [Outro]
+    Goodnight, goodnight, little bear,
+    Goodnight, goodnight, everywhere.
+  bpm: 72
+  direction: >-
+    Slow, warm lullaby. Soft acoustic guitar or celesta, brushed light percussion or none at
+    all, no build, no key change, no big finish. It should be quieter at the end than at the
+    start.
+
+# The beat map is provisional until the track exists. Suno's word timings decide where the
+# cuts land; these are the visual STATES the song needs, in order, and the renderer each is
+# expected to need. Nothing here is bought until the timings are in.
+beats:
+  - {state: five stars in the round window, wide room, Coco awake in bed, visual_change: CAMERA_ONLY, renderer: PROGRAMMED_CAMERA}
+  - {state: close on Coco looking up, counting, visual_change: NONE, renderer: STILL_HOLD}
+  - {state: the window, five stars, one fading, visual_change: CAMERA_ONLY, renderer: PROGRAMMED_CAMERA}
+  - {state: three stars left, room a little dimmer, visual_change: NONE, renderer: STILL_HOLD}
+  - {state: Coco yawns and settles down onto the pillow, visual_change: CHARACTER_DEFORMATION, renderer: GENERATIVE_VIDEO}
+  - {state: one star, Coco asleep, the closing image, visual_change: CAMERA_ONLY, renderer: PROGRAMMED_CAMERA}
+
+requirements:
+  - id: one_paid_motion_beat
+    type: BUDGET
+    strength: MUST
+    params: {max_generative_beats: 1, max_paid_stills: 6}

@@ -1676,8 +1676,17 @@ def stage_stabilize(eid):
         if not c.exists() or clip_verdict(d, s["id"]) != "ACCEPTED":
             continue
         m = measure_camera_lock(c)
-        if not m or not m.get("is_zoom"):
-            print(f"  {s['id']}: no unrequested zoom to remove")
+        if not m:
+            print(f"  {s['id']}: could not measure")
+            continue
+        # MEASURE -> CLASSIFY -> CORRECT ONLY IF RIGID. A correction applied to motion the
+        # model does not explain would distort genuine character movement to flatten a
+        # number, which is the worst thing an automatic fix can do.
+        if not m.get("is_zoom"):
+            why = ("no unrequested zoom to remove" if abs(m["zoom_percent"] - 100) < 0.5
+                   else f"motion is not confidently rigid — a fitted zoom explains only "
+                        f"{int(m['zoom_explains'] * 100)}% of it, so nothing is corrected")
+            print(f"  {s['id']}: {why}")
             continue
         k = m["zoom_percent"] / 100.0 - 1.0
         secs = media_duration(c)
@@ -2332,6 +2341,75 @@ def stage_bed(eid):
     print(f"    now: python3 make.py assemble {eid} && python3 make.py audio {eid}")
 
 
+SONG_REQUEST_VERSION = "1"
+
+
+def stage_song(eid):
+    """Prepare a Suno request for this episode. FREE — it writes, it does not generate.
+
+    Deliberately the same split as everywhere else in this pipeline: preparation is free and
+    reviewable, spending is a separate, explicit act. The request and the lyrics land on disk
+    where a human can read them before a single credit moves.
+
+    Generation is NOT run from here, and that is not an oversight. It spends Pavan's Suno
+    credits under a licence whose terms depend on his subscription tier, and free-tier output
+    is not licensed for commercial use. A pipeline that generates a track for a monetised
+    channel without knowing the tier would be making a worse mistake than any pixel we have
+    argued about.
+    """
+    ep = load_ep(eid)
+    song = ep.get("song") or {}
+    if not song.get("lyrics"):
+        sys.exit(f"  {eid} has no song.lyrics — this stage prepares a SONG episode")
+    lyrics = song["lyrics"].strip()
+    if not lyrics.lstrip().startswith("["):
+        sys.exit("  lyrics must use explicit section labels such as [Verse 1] and [Chorus]")
+    bpm = int(song.get("bpm", 72))
+    d = ep_dir(eid) / "suno"
+    d.mkdir(parents=True, exist_ok=True)
+
+    # Tag vocabulary follows the implementation already proven in Pavan's enterprise-ai-yt
+    # repo rather than being reinvented here. Two copies of a house voice drift apart.
+    tags = ", ".join(filter(None, [
+        f"original preschool song at {bpm} BPM in a bright major key",
+        "warm natural adult female lead vocal",
+        "clear English diction, stable pitch, minimal vibrato",
+        "friendly moderate phrase speed, easy for ages two to six to imitate",
+        (song.get("direction") or "").strip().replace("\n", " "),
+    ]))[:1000]
+    request = {
+        "provider": "paperfoot/suno-cli", "model": "v5.5",
+        "title": ep["title"][:100], "vocal": "female",
+        "tags": tags,
+        "exclude": ", ".join(["spoken narration", "child choir", "wide vibrato", "belting",
+                              "shouting", "spooky", "eerie", "robotic", "strained",
+                              "distorted vocals", "rap", "heavy drums", "long intro",
+                              "long outro"]),
+        "weirdness": 20, "styleInfluence": 80, "captcha": "disabled",
+        "compiler": SONG_REQUEST_VERSION,
+    }
+    (d / "lyrics.txt").write_text(lyrics + "\n")
+    (d / "request.json").write_text(json.dumps(request, indent=2) + "\n")
+    (d / "GATE.md").write_text(
+        f"# {eid} — before a single Suno credit moves\n\n"
+        "1. CONFIRM THE SUBSCRIPTION TIER. Free-tier Suno output is not licensed for\n"
+        "   commercial use. This episode is intended for a monetised channel. If the tier\n"
+        "   is not one that grants commercial rights, STOP — nothing else here matters.\n"
+        "2. Read lyrics.txt as a parent, not as an engineer. It is original work and it is\n"
+        "   the first thing anyone will hear from this channel.\n"
+        "3. Generate with the CLI from the enterprise-ai-yt implementation, CAPTCHA\n"
+        "   automation disabled, and pull the word timings — the timings are the point.\n"
+        "   The picture is cut to the song, not the other way around.\n"
+        "4. Bring the track back and run `make.py beatmap " + eid + "`.\n\n"
+        "No Gemini image or video call is authorised before the timings exist. Beats are\n"
+        "chosen by where the phrases fall, and buying pictures first would mean buying\n"
+        "pictures for cuts nobody has heard yet.\n")
+    print(f"  {eid}: prepared a Suno request. NOTHING generated, no credits spent.")
+    print(f"    lyrics   {d / 'lyrics.txt'}")
+    print(f"    request  {d / 'request.json'}")
+    print(f"    gate     {d / 'GATE.md'}   <- the licence question is in here")
+
+
 BED_COMPILER_VERSION = "1"
 
 
@@ -2688,7 +2766,7 @@ def stage_costs(episode=None):
 
 STAGES = {"verify": stage_verify, "plan": stage_plan, "portraits": stage_portraits, "frames": stage_frames,
           "video": stage_video, "assemble": stage_assemble, "episode": stage_episode,
-          "costs": stage_costs, "audio": stage_audio, "bed": stage_bed,
+          "costs": stage_costs, "audio": stage_audio, "bed": stage_bed, "song": stage_song,
           "ending": stage_ending, "estimate": stage_estimate, "release": stage_release, "contact": stage_contact, "lock": stage_lock, "stabilize": stage_stabilize,
           # dispatched explicitly below: these take a LOCATION id, not an episode id
           "plate-candidate": None, "plate-approve": None}

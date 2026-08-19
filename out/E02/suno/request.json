@@ -1,0 +1,12 @@
+{
+  "provider": "paperfoot/suno-cli",
+  "model": "v5.5",
+  "title": "Five Little Stars",
+  "vocal": "female",
+  "tags": "original preschool song at 72 BPM in a bright major key, warm natural adult female lead vocal, clear English diction, stable pitch, minimal vibrato, friendly moderate phrase speed, easy for ages two to six to imitate, Slow, warm lullaby. Soft acoustic guitar or celesta, brushed light percussion or none at all, no build, no key change, no big finish. It should be quieter at the end than at the start.",
+  "exclude": "spoken narration, child choir, wide vibrato, belting, shouting, spooky, eerie, robotic, strained, distorted vocals, rap, heavy drums, long intro, long outro",
+  "weirdness": 20,
+  "styleInfluence": 80,
+  "captcha": "disabled",
+  "compiler": "1"
+}
