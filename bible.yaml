@@ -218,5 +218,22 @@ framing:
 # every frame's identity. Putting it there would invalidate accepted paid frames for a
 # change that could not have altered them.
 persistent_objects:
-  cottage_night: [walls, round window, bed, patchwork quilt, wooden chair, woven rug, low bookshelf, floor, lamp light]
+  cottage_night: [walls, round window, bed, patchwork quilt, wooden chair, woven rug, low bookshelf, floor]
   meadow_day: [grass, daisies, oak tree, wooden fence, hills, sky]
+
+# Environmental PROPERTIES of a place, which are not objects and must never be listed as
+# ones. Attempt 002 is the evidence: "lamp light" sat in persistent_objects, the compiled
+# prompt therefore asked the model to preserve the design, materials, shape and
+# proportions of the lighting, and it obliged by inventing a physical lantern on the floor
+# where accepted footage shows only a warm glow with no fixture in frame. An intangible
+# property described as an object gets drawn as one.
+#
+# `source_visible: false` states that the thing producing the light is NOT in frame in the
+# accepted footage, which is a fact about the world worth carrying rather than rediscovering.
+environment:
+  cottage_night:
+    lighting: warm low lamp light, pooling on the wall behind the bed
+    source_visible: false
+  meadow_day:
+    lighting: bright warm daylight from a high sun
+    source_visible: false

@@ -930,6 +930,22 @@ def canon_agreement_properties():
     out.append(_ok("approved canon is byte-identical to the judged candidate",
                    plate.exists() and make.sha_file(plate) == make.sha_file(d / "plate.png")))
 
+    # an intangible property must never appear in the OBJECT list. Attempt 002 drew a
+    # lantern on the floor because "lamp light" was listed as an object to preserve.
+    for lid in make.BIBLE["locations"]:
+        objs = [o.lower() for o in make.persistent_objects(lid)]
+        out.append(_ok(f"{lid}: no object is named 'light'",
+                       not any("light" in o for o in objs)))
+
+    # and the compiled prompt must say lighting is a property, and say so from the bible
+    p = make.compile_plate_completion_prompt("cottage_night", ["coco"])
+    out.append(_ok("the prompt states lighting as a property, not an object",
+                   "property of this place, not an object in it" in p))
+    out.append(_ok("an unseen light source is explicitly not to be drawn",
+                   "must not be drawn" in p))
+    out.append(_ok("no object list entry leaks into the prompt as a light fixture",
+                   "lamp light" not in p.split("Image 0 —")[-1].split(".")[0]))
+
     shutil.rmtree(tmp, ignore_errors=True)
     return out
 

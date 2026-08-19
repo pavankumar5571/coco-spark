@@ -701,7 +701,7 @@ def resolve_location_plate(location_id):
     return plate, ("world", location_id, sha_file(plate)), None
 
 
-PLATE_COMPILER_VERSION = "3"
+PLATE_COMPILER_VERSION = "4"
 
 
 def persistent_objects(location_id):
@@ -711,6 +711,17 @@ def persistent_objects(location_id):
     no prompt, and `locations` is hashed into every frame's identity.
     """
     return tuple((BIBLE.get("persistent_objects") or {}).get(location_id) or ())
+
+
+def location_environment(location_id):
+    """PURE. The environmental PROPERTIES of a place — lighting and the like.
+
+    Kept separate from persistent_objects on purpose, and the separation was paid for:
+    attempt 002 put a physical lantern on the floor because "lamp light" was in the object
+    list and the prompt asked it to preserve that object's materials and proportions.
+    Properties are described as properties, or the model draws them as things.
+    """
+    return dict((BIBLE.get("environment") or {}).get(location_id) or {})
 
 
 def plate_attempt_dir(location_id, n):
@@ -753,6 +764,14 @@ def compile_plate_completion_prompt(location_id, occupants=()):
         sys.exit(f"  '{location_id}' declares no persistent_objects, so there is nothing "
                  f"to tell the model to preserve. Declare them in the bible first.")
     keep = ", ".join(objs[:-1]) + (" and " + objs[-1] if len(objs) > 1 else "")
+    env = location_environment(location_id)
+    light = ""
+    if env.get("lighting"):
+        light = f"The light is {env['lighting']}. Keep it exactly as it falls in "
+        light += "Image 0. Lighting is a property of this place, not an object in it"
+        light += (" — the source is not visible in Image 0 and must not be drawn."
+                  if env.get("source_visible") is False else ".")
+        light += "\n\n"
     names = [BIBLE["cast"][c]["name"] for c in occupants if c in BIBLE["cast"]]
     if names:
         who = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
@@ -764,6 +783,7 @@ def compile_plate_completion_prompt(location_id, occupants=()):
             "Keep the established viewpoint, perspective, lighting and mood, and the "
             "visible design, materials, shape and proportions of every object, exactly as "
             f"shown in Image 0 — {keep}.\n\n"
+            f"{light}"
             "For any object currently cut off by a frame edge, preserve its visible "
             "portion exactly and extend only the previously unseen portion needed to "
             "complete it.\n\n"
