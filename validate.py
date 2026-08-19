@@ -317,13 +317,76 @@ def check_requirements(shots, ep, results):
     return out
 
 
-def validate(shots, ep, bible, requirement_results=None):
+def check_progression(shots, bible, frozen=0):
+    """Every shot must EARN its place, or the episode is padding held together by valid
+    continuity.
+
+    Continuity checks ask "is this legal". They cannot ask "is this worth watching", and a
+    sequence of shots in which nothing changes is perfectly legal: same composition, same
+    material state, no events, every boundary continuous. Three such shots in a row read
+    as a freeze, not as deliberate stillness — and they cost exactly as much to generate
+    as shots that carry the story.
+
+    A shot contributes if ANY of these is true:
+      - material state changes inside it
+      - it carries a typed event
+      - its composition differs from the previous shot
+      - it is explicitly typed as a RESOLUTION beat, which is allowed to simply close
+
+    NOT "something must move". A held frame is a legitimate storytelling choice exactly
+    once, at the end, and it has to be declared rather than drifted into.
+
+    `frozen` exempts already-generated shots. This is a PRE-GENERATION gate: footage that
+    has been paid for and accepted by a human is not re-litigated by a rule written after
+    it was made.
+    """
+    out = []
+    material = {k for k, v in bible.get("state_vocab", {}).items() if v.get("material")}
+    for i, s in enumerate(shots):
+        if i < frozen or i == 0:
+            continue
+        sid = s.get("id", f"#{i}")
+        if s.get("events"):
+            continue
+        if (s.get("coverage_role") or "") == "RESOLUTION":
+            continue
+
+        start, end = s.get("start_state") or {}, s.get("end_state") or {}
+        changed = False
+        for who, st in (start.get("characters") or {}).items():
+            en = (end.get("characters") or {}).get(who) or {}
+            if any(st.get(dim) != en.get(dim) for dim in material):
+                changed = True
+        if (start.get("population") != end.get("population")
+                or start.get("props") != end.get("props")
+                or start.get("location_id") != end.get("location_id")):
+            changed = True
+        if changed:
+            continue
+
+        prev_vis = ((shots[i - 1].get("end_state") or {}).get("visual") or {})
+        vis = (start.get("visual") or {})
+        if any(prev_vis.get(k) != vis.get(k)
+               for k in ("composition_id", "shot_size", "camera_angle", "camera_setup_id")):
+            continue
+
+        out.append(Issue(
+            "ERROR", "SHOT_ADDS_NOTHING", sid, "motion",
+            "nothing changes in this shot and nothing changed coming into it: same "
+            "composition as the previous shot, no material state change, no event. Either "
+            "give it a purpose, or mark it coverage_role RESOLUTION if it is the closing "
+            "beat, or cut it. Slow is not the same as redundant."))
+    return out
+
+
+def validate(shots, ep, bible, requirement_results=None, frozen=0):
     return (check_completeness(shots, ep, bible)
             + check_entities(shots, ep, bible)
             + check_vocab(shots, bible)
             + check_boundaries(shots, bible, ep)
             + check_events_explain_changes(shots, bible)
             + check_locations(shots, ep)
+            + check_progression(shots, bible, frozen)
             + check_requirements(shots, ep, requirement_results))
 
 

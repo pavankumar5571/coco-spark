@@ -105,7 +105,34 @@ def mutations():
     b["cast"] = ["coco", "nana", "pip"]
     m.append(("character materialises across the cut", [a, b]))
 
+    # a shot in which nothing changes, coming from a shot it is identical to, is padding
+    a, b = good_shot("s01"), good_shot("s02")
+    m.append(("shot that changes nothing and is not a resolution", [a, b]))
+
     return m
+
+
+def positive_progression_cases():
+    """Plans the progression invariant must NOT reject. A rule that blocks padding is
+    only useful if it still permits the legitimate ways a shot can hold still."""
+    out = []
+
+    a, b = good_shot("s01"), good_shot("s02")
+    b["coverage_role"] = "RESOLUTION"
+    out.append(("a held closing beat, explicitly typed RESOLUTION", [a, b]))
+
+    a, b = good_shot("s01"), good_shot("s02")
+    b["start_state"]["visual"]["shot_size"] = "CLOSE"
+    b["end_state"]["visual"]["shot_size"] = "CLOSE"
+    out.append(("same state but the camera moves in", [a, b]))
+
+    a, b = good_shot("s01"), good_shot("s02")
+    b["end_state"]["characters"]["coco"]["awareness"] = "ASLEEP"
+    b["events"] = [{"type": "STATE_CHANGE", "entity": "coco", "field": "awareness",
+                    "from": "AWAKE", "to": "ASLEEP"}]
+    out.append(("held framing but the character changes inside the shot", [a, b]))
+
+    return out
 
 
 def main():
@@ -124,6 +151,25 @@ def main():
         else:
             print(f"  blocked  {name:46s} {errs[0].code}")
 
+    # the invariant must not reject legitimate stillness
+    for name, shots in positive_progression_cases():
+        checked += 1
+        bad = [i for i in validate(shots, EP, BIBLE, {})
+               if i.severity == "ERROR" and i.code == "SHOT_ADDS_NOTHING"]
+        if bad:
+            failures.append(f"FALSE POSITIVE: {name}")
+        else:
+            print(f"  passed   {name:46s} not padding")
+
+    # accepted footage is never re-litigated by a rule written after it was made
+    checked += 1
+    a, b = good_shot("s01"), good_shot("s02")
+    if [i for i in validate([a, b], EP, BIBLE, {}, frozen=2)
+            if i.code == "SHOT_ADDS_NOTHING"]:
+        failures.append("FALSE POSITIVE: frozen shots judged by the progression rule")
+    else:
+        print(f"  passed   {'frozen shots exempt from progression rule':46s} pre-generation gate only")
+
     # unsatisfiable requirement must be caught before planning
     checked += 1
     try:
@@ -140,6 +186,7 @@ def main():
     # the control: a valid plan must NOT be rejected
     checked += 1
     a, b = good_shot("s01"), good_shot("s02")
+    b["coverage_role"] = "RESOLUTION"     # a held closing beat, not accidental padding
     if [i for i in validate([a, b], EP, BIBLE, {}) if i.severity == "ERROR"]:
         failures.append("FALSE POSITIVE: a valid plan was rejected")
     else:

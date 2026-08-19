@@ -313,6 +313,9 @@ def main():
         d = seed_episode(tmp, mk, valid_clip=True)
         shots = json.loads((d / "shots.json").read_text())
         s2 = copy.deepcopy(shots[0]); s2["id"] = "s02"
+        # a shot that changes nothing is only legal as the closing beat — which is
+        # also the only place PREDECESSOR_PIXELS legitimately applies
+        s2["coverage_role"] = "RESOLUTION"
         shots.append(s2)
         (d / "shots.json").write_text(json.dumps(shots))
         clip = d / "clips" / "s01.mp4"
@@ -359,6 +362,9 @@ def main():
         d = seed_episode(tmp, mk, valid_clip=True)
         shots = json.loads((d / "shots.json").read_text())
         s2 = copy.deepcopy(shots[0]); s2["id"] = "s02"
+        # a shot that changes nothing is only legal as the closing beat — which is
+        # also the only place PREDECESSOR_PIXELS legitimately applies
+        s2["coverage_role"] = "RESOLUTION"
         shots.append(s2)
         (d / "shots.json").write_text(json.dumps(shots))
         clip = d / "clips" / "s01.mp4"
@@ -408,6 +414,9 @@ def main():
         d = seed_episode(tmp, mk, valid_clip=True)
         shots = json.loads((d / "shots.json").read_text())
         s2 = copy.deepcopy(shots[0]); s2["id"] = "s02"
+        # a shot that changes nothing is only legal as the closing beat — which is
+        # also the only place PREDECESSOR_PIXELS legitimately applies
+        s2["coverage_role"] = "RESOLUTION"
         s2["start_state"]["visual"]["shot_size"] = "CLOSE"      # composition changes
         s2["end_state"]["visual"]["shot_size"] = "CLOSE"
         s2["start_state"]["visual"]["camera_setup_id"] = "B"

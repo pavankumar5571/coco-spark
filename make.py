@@ -658,7 +658,7 @@ STYLE: {BIBLE['style_lock']}
     if not frozen:
         print(f"  planning {ep['shots']} shots for {eid} (schema-enforced)...")
     shots, results, cam_err = call()
-    issues = validate(shots, ep, BIBLE, results)
+    issues = validate(shots, ep, BIBLE, results, frozen=len(frozen))
     if cam_err:
         from validate import Issue
         issues.append(Issue("ERROR", "COVERAGE_ROLES_INSUFFICIENT", "-", "coverage_role",
@@ -675,7 +675,7 @@ STYLE: {BIBLE['style_lock']}
             "\n\nYour previous plan was REJECTED by a deterministic validator. Here is "
             "the machine-readable issue list. Fix exactly these and change nothing else.\n"
             + payload + "\n\nPrevious plan:\n" + json.dumps(shots, indent=2))
-        issues = validate(shots, ep, BIBLE, results)
+        issues = validate(shots, ep, BIBLE, results, frozen=len(frozen))
         if cam_err:
             from validate import Issue
             issues.append(Issue("ERROR", "COVERAGE_ROLES_INSUFFICIENT", "-",
@@ -785,7 +785,7 @@ def stage_portraits(only=None):
 def stage_frames(eid, only=None):
     d = ep_dir(eid); ep = load_ep(eid)
     shots = json.loads((d / "shots.json").read_text())
-    if report(validate(shots, ep, BIBLE)):
+    if report(validate(shots, ep, BIBLE, frozen=frozen_prefix(eid, shots))):
         sys.exit("  plan has continuity errors — fix or replan before spending")
     loc = BIBLE["locations"][ep["location"]]
     cl = client()
@@ -908,7 +908,8 @@ def preflight(eid, shots, d, targets=None):
 def stage_video(eid, only=None):
     d = ep_dir(eid)
     shots = json.loads((d / "shots.json").read_text())
-    if report(validate(shots, load_ep(eid), BIBLE)):
+    if report(validate(shots, load_ep(eid), BIBLE,
+                       frozen=frozen_prefix(eid, shots))):
         sys.exit("  plan has continuity errors")
     # full plan for context, targets for scope — never truncate continuity context
     preflight(eid, shots, d, targets=[only] if only else None)
@@ -1054,7 +1055,8 @@ def stage_episode(eid, upto=None):
     """
     d = ep_dir(eid)
     shots = json.loads((d / "shots.json").read_text())
-    if report(validate(shots, load_ep(eid), BIBLE)):
+    if report(validate(shots, load_ep(eid), BIBLE,
+                       frozen=frozen_prefix(eid, shots))):
         sys.exit("  plan has continuity errors")
 
     done = frozen_prefix(eid, shots)
