@@ -694,6 +694,21 @@ def append_properties():
     except BaseException:
         pass
     out.append(_ok("accepted shots are skipped, not re-rendered", fake.calls == 0))
+    # every paid image must leave behind the words that produced it
+    tmp2, mk = fresh_env(10_000)
+    fake2 = FakeClient(); mk.client = lambda: fake2
+    try:
+        mk.stage_portraits()
+    except BaseException:
+        pass
+    provs = list((mk.PORTRAITS).glob("*.provenance.json"))
+    import json as _j
+    has = [p_ for p_ in provs
+           if "image_prompt" in _j.loads(p_.read_text())]
+    out.append(_ok("a generated image records the prompt that produced it",
+                   bool(provs) and len(has) == len(provs)))
+    shutil.rmtree(tmp2, ignore_errors=True)
+
     shutil.rmtree(tmp, ignore_errors=True)
 
     return out

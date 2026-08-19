@@ -4,14 +4,14 @@
   "findings": [
     {
       "category": "UNREQUESTED_VISUAL_ADDITION",
-      "evidence": "the room is rebuilt, not preserved: rectangular fringed rug -> round braided rug; tall dark bookshelf with vertical spines -> low bookcase with front-facing picture books; straight plank walls -> curved barrel walls; bed repositioned and reoriented",
-      "specified": "cottage_night declares FIXED GEOGRAPHY. s01 shows the canonical room and s04 is the same continuous moment in the same location.",
+      "evidence": "object FORM changed while arrangement held: rectangular fringed rug -> round braided rug; tall dark bookshelf with vertical spines -> low bookcase with front-facing picture books; straight plank walls -> curved barrel walls",
+      "specified": "cottage_night names 'a woven rug' and 'a low bookshelf' but describes neither's shape or construction. The prompt's FIXED LAYOUT block pins POSITIONS only.",
       "severity": "BLOCKING"
     },
     {
       "category": "UNREQUESTED_VISUAL_ADDITION",
-      "evidence": "legible lettering on the book covers in the bookcase",
-      "specified": "compiled constraint explicitly says: no text, letters, numbers, captions or watermarks",
+      "evidence": "legible lettering on the book covers",
+      "specified": "the frame prompt ends with the literal instruction 'No text or lettering.' and the video constraint clause forbids text as well. Both were ignored.",
       "severity": "BLOCKING"
     }
   ],
@@ -22,11 +22,11 @@
   },
   "judged_by": "HUMAN",
   "revision": {
-    "commit": "7e87069f6fb812356c08614516b7c55da439c7d7",
-    "dirty": false,
+    "commit": "44bd7b4baac2f8399d820a5bf42298be3cee235b",
+    "dirty": true,
     "tag": null,
     "sources": {
-      "make.py": "48fb0e6e39e605b2",
+      "make.py": "07f2332fe07035e2",
       "validate.py": "735d13f9b05466d2",
       "camera.py": "d584a57da7476037",
       "schema.py": "01e444c6c344289c",
@@ -35,6 +35,8 @@
     }
   },
   "diagnosis": {
+    "correction": "An earlier verdict said the bed was repositioned and the room 'rebuilt'. That was wrong. Checking the output against the prompt's FIXED LAYOUT line: window LEFT, bookshelf FAR LEFT, bed RIGHT, chair beside the bed, rug centre floor \u2014 every position was obeyed.",
+    "what_actually_failed": "Prose pinned every object's POSITION and none of their FORM. The layout instruction worked. There is no sentence in the bible describing what the rug or the bookshelf LOOK like, so the model chose, and chose differently from s01.",
     "refs_available": [
       [
         "identity",
@@ -45,8 +47,9 @@
         "s03"
       ]
     ],
-    "root_cause": "s04 is the first shot that had to show MORE of the world than its temporal reference contained. s03 is a CLOSE on a sleeping bear; pulling back to MEDIUM_WIDE required inventing everything outside that crop, and the model invented it differently from canon.",
-    "structural_gap": "We have canonical IDENTITY authority for characters (portraits) and NO canonical authority for locations. The room exists only as prose in the bible, and prose is not pixel authority \u2014 the same lesson the particles taught. A location plate is the missing analogue of a character portrait.",
-    "note": "This is not a TEMPORAL_REFERENCE defect in general. The WIDE->CLOSE direction (s01->s02) held perfectly, because narrowing needs no invention. It is specifically the widening direction that is unsupported."
+    "why_here_first": "s04 is the first shot needing to show more of the world than its reference contained. s03 is a CLOSE on a sleeping bear; the rug and bookshelf are simply not in it, so there were no pixels to copy and only prose to go on.",
+    "structural_gap": "Characters have pixel authority (portraits, injected every frame). Locations have only prose. Text controls arrangement well and appearance not at all \u2014 which is exactly the gap a location plate closes.",
+    "not_a_general_defect": "WIDE->CLOSE held perfectly at s01->s02. Narrowing needs no invention. Widening is the unsupported direction.",
+    "text_violation_is_separate": "'No text or lettering' was in the prompt verbatim and was ignored. That is a provider compliance failure, not a missing-reference failure, and a location plate will not fix it."
   }
 }

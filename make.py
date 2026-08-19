@@ -770,14 +770,16 @@ def stage_portraits(only=None):
         if dest.exists():
             print(f"  {key}: REGENERATING — {why}")
         print(f"  {key}: generating canonical portrait")
-        gen_image(cl, f"{BIBLE['style_lock']}\n\nFull-body character reference sheet on a "
-                      f"plain white background. Front view, neutral standing pose, neutral "
-                      f"expression, even lighting, no shadows, no props, no scenery.\n\n"
-                      f"CHARACTER: {c['features']}", [], dest,
-                      kind="image", detail=f"portrait:{key}")
+        prompt = (f"{BIBLE['style_lock']}\n\nFull-body character reference sheet on a "
+                  f"plain white background. Front view, neutral standing pose, neutral "
+                  f"expression, even lighting, no shadows, no props, no scenery.\n\n"
+                  f"CHARACTER: {c['features']}")
+        gen_image(cl, prompt, [], dest, kind="image", detail=f"portrait:{key}")
         prov_p.write_text(json.dumps(
             {"status": "COMPLETE", "source": "GENERATED", "input_hash": ihash,
              "sha": sha_file(dest), "model": C.IMAGE_MODEL,
+             "image_prompt": prompt,
+             "image_prompt_sha": hashlib.sha256(prompt.encode()).hexdigest()[:16],
              "cost_inr": C.INR_PER_IMAGE}, indent=2))
 
 
@@ -849,6 +851,12 @@ def stage_frames(eid, only=None):
         gen_image(cl, prompt, refs, dest, kind="image", detail=f"frame:{eid}/{shot['id']}")
         prov_p.write_text(json.dumps(
             {"status": "COMPLETE", "source": "GENERATED", "model": C.IMAGE_MODEL,
+             # Record what we actually SENT. The clip path stored its prompt from the
+             # start and the frame path never did, so every image we had paid for was
+             # unauditable: we could see which references went in but not the words. A
+             # diagnosis you cannot check against the real request is a guess.
+             "image_prompt": prompt,
+             "image_prompt_sha": hashlib.sha256(prompt.encode()).hexdigest()[:16],
              "aspect": C.IMAGE_ASPECT, "input_hash": ihash, "sha": sha_file(dest),
              "refs": [str(r.relative_to(OUT)) for r in refs], "ref_ids": ref_ids,
              "revision": build_revision(),
