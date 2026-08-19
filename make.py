@@ -831,7 +831,7 @@ def compile_plate_prompt(location_id):
             f"lettering. This image defines what this place looks like.")
 
 
-def stage_plate_candidate(location_id, source=None):
+def stage_plate_candidate(location_id, source=None, override=None):
     """Generate ONE candidate plate for a location. Paid, reserved before invoked.
 
     Generation creates a candidate. QC creates acceptance. Promotion creates authority.
@@ -849,6 +849,15 @@ def stage_plate_candidate(location_id, source=None):
         if not prev.exists():
             sys.exit(f"  attempt {n-1:03d} has no recorded QC verdict. One candidate per "
                      f"location: judge the last one before buying another.")
+        # A RECORDED REJECTION IS NOT PERMISSION TO BUY ANOTHER. The guard used to stop
+        # only at "the last one was never judged", which let a duplicate attempt through
+        # on stale state after 002 had already been rejected — Rs 5 for nothing. Rejection
+        # is the normal outcome; it must not silently authorise the next purchase.
+        if not override:
+            sys.exit(f"  attempt {n-1:03d} exists and was judged. Buying attempt {n:03d} "
+                     f"needs an explicit reason:\n"
+                     f"    make.py plate-candidate {location_id} --override \"why\"\n"
+                     f"  Check whether another session already produced what you need.")
     # Deriving from ACCEPTED footage is stronger CONDITIONING, not a guarantee: the model
     # can still redesign things while removing the character, which is what QC must catch.
     # Attempt 001 established why prose alone cannot work — it pins arrangement and not
@@ -890,6 +899,7 @@ def stage_plate_candidate(location_id, source=None):
         {"status": "COMPLETE", "kind": "LOCATION_PLATE_CANDIDATE", "canonical": False,
          "location_id": location_id, "location_version": location_version(location_id),
          "attempt": n, "source": origin, **src_meta,
+         "override_reason": override,
          "image_prompt": prompt,
          "image_prompt_sha": hashlib.sha256(prompt.encode()).hexdigest()[:16],
          "sha": sha_file(d / "plate.png"),
@@ -3176,6 +3186,9 @@ if __name__ == "__main__":
                     help="track: which Suno take to use, by clip id prefix")
     ap.add_argument("--from", dest="source", default=None,
                     help="plate-candidate: derive from ACCEPTED footage, e.g. E01/s01")
+    ap.add_argument("--override", default=None,
+                    help="plate-candidate: reason for buying another attempt after a "
+                         "previous one was judged; recorded in provenance")
     a = ap.parse_args()
     plate_stage = a.stage.startswith("plate-")
     if a.stage not in ("portraits", "verify", "costs") and not a.episode:
@@ -3193,7 +3206,7 @@ if __name__ == "__main__":
     elif a.stage == "track":
         stage_track(a.episode, clip_id=a.clip)
     elif a.stage == "plate-candidate":
-        stage_plate_candidate(a.episode, source=a.source)   # positional = LOCATION id
+        stage_plate_candidate(a.episode, source=a.source, override=a.override)
     elif a.stage == "plate-approve":
         if a.attempt is None:
             sys.exit("  plate-approve needs --attempt N")

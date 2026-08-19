@@ -1,0 +1,10 @@
+{
+  "kind": "LOCATION_PLATE_QC",
+  "location_id": "cottage_night",
+  "attempt": 3,
+  "status": "VOID_UNAUTHORIZED_DUPLICATE",
+  "judged_by": "NOT_JUDGED",
+  "reason": "Produced by a session resuming from stale state. Attempt 002 had already been generated and rejected in another account, and GPT had authorised exactly ONE attempt. This is a duplicate purchase, not a candidate.",
+  "disposition": "NOT judged, NOT eligible for approval, NOT reusable. Kept on disk because attempts are immutable and a deleted mistake teaches nothing.",
+  "cost_inr": 5.0
+}

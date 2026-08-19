@@ -1,5 +1,5 @@
 {
-  "spent_inr": 480.52164039999997,
+  "spent_inr": 485.52164039999997,
   "ops": [
     {
       "kind": "image",
@@ -419,6 +419,15 @@
       "reserved": 7.5,
       "state": "SPENT",
       "at": "2026-08-19 10:45:49",
+      "episode": "cottage_night"
+    },
+    {
+      "kind": "image",
+      "detail": "plate:cottage_night/003",
+      "inr": 5.0,
+      "reserved": 7.5,
+      "state": "SPENT",
+      "at": "2026-08-19 14:11:34",
       "episode": "cottage_night"
     }
   ],

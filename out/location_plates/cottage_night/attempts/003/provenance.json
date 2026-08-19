@@ -1,0 +1,31 @@
+{
+  "status": "COMPLETE",
+  "kind": "LOCATION_PLATE_CANDIDATE",
+  "canonical": false,
+  "location_id": "cottage_night",
+  "location_version": 1,
+  "attempt": 3,
+  "source": "DERIVED_FROM_ACCEPTED_FRAME",
+  "derived_from": "E01/s01",
+  "source_frame_sha": "d7a254874096c381",
+  "image_prompt": "Image 0 is the established look of this place, taken from accepted footage.\n\nKeep the established viewpoint, perspective, lighting and mood, and the visible design, materials, shape and proportions of every object, exactly as shown in Image 0 \u2014 walls, round window, bed, patchwork quilt, wooden chair, woven rug, low bookshelf and floor.\n\nThe light is warm low lamp light, pooling on the wall behind the bed. Keep it exactly as it falls in Image 0. Lighting is a property of this place, not an object in it \u2014 the source is not visible in Image 0 and must not be drawn.\n\nFor any object currently cut off by a frame edge, preserve its visible portion exactly and extend only the previously unseen portion needed to complete it.\n\nMake exactly two changes and nothing else:\n1. Remove Coco the Bear completely, leaving the place exactly as it would look unoccupied.\n2. Extend the picture outward beyond its current edges so that every object sits fully inside the frame with clear space around it and nothing is cut off by an edge.\n\nDo not redesign, restyle or replace anything. Do not add people, animals, furniture, decoration or props. No text or lettering.",
+  "image_prompt_sha": "f33fa3bef9c2a5d3",
+  "sha": "2f12a745217960ff",
+  "model": "gemini-3.1-flash-image",
+  "aspect": "16:9",
+  "compiler": "4",
+  "revision": {
+    "commit": "adeedca95fcb86cf6823203f79e61c19c6717b98",
+    "dirty": false,
+    "tag": null,
+    "sources": {
+      "make.py": "dc5f1f261dff38f0",
+      "validate.py": "2575ced36821ab6a",
+      "camera.py": "9631f4435b8365cc",
+      "schema.py": "0ba81e3b7e46fe69",
+      "config.py": "a71ba387b9f3a9f9",
+      "bible.yaml": "9065f801b00b168c"
+    }
+  },
+  "cost_inr": 5.0
+}
