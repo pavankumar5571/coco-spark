@@ -54,3 +54,40 @@ schemas, manifests, hashes, provenance and QC verdicts — not a growing library
 **Not doing, and strongly:** moving `mini`'s paid artifacts to R2 before the channel has
 published anything. The expensive provider outputs stay local, immutable and provable during
 production.
+
+## "Proper video motion", and what we will spend to get it (2026-08-19)
+
+**Pavan's requirement:** *"i dont want kanban style i want proper video motion format"* —
+delivered after approving the animatic's pacing and locking take eb63dca0. An aesthetic
+rejection of the stills grammar, not a cost objection.
+
+**The number that bounds the argument.** Full generative motion for 71 seconds is 18 clips:
+**Rs 658, worst case Rs 987**, against **Rs 119.48** of authorisation. Even two generated
+beats do not fit (Rs 84 estimate → Rs 126 worst case). Exactly one 4-second generated beat
+fits alongside stills. So this is a **cap decision, and it is Pavan's alone.**
+
+**The false binary to avoid:** still-plus-zoom ←→ full generative video. There is a large
+design space between them, and we have only just stepped into it.
+
+**Ruling (GPT, agreed):**
+
+1. **Spend Rs 0 now.**
+2. **E01 → unlisted upload.** It validates YouTube ingestion, processing, Made-for-Kids,
+   metadata, thumbnail, and audio after transcoding. It tells us nothing about whether the
+   product works for viewers, and must not be treated as an audience test.
+3. **The 6-second per-frame motion sample → Pavan's eyes.** If he says it feels like Coco
+   Spark TV, we have found a very cheap production primitive and E02 continues under the
+   Rs 600 cap. If he says it still looks like a moving picture, **believe him and kill the
+   approach immediately** — do not spend a week improving it.
+4. **If the sample fails:** do NOT buy the Rs 57 stills episode and do NOT raise the cap to
+   Rs 1,000 for full Veo. Build one 5–8 second **deterministic character-motion prototype**
+   from existing Coco imagery first — breathing, blink, small head/arm movement, animated
+   stars, exact Suno timing — using layered assets over a stable world plate. The expensive
+   model would generate *assets and poses*, not every second of video. No framework, just
+   enough to answer the question.
+5. **If that also looks cheap:** we have strong evidence Coco Spark TV genuinely needs
+   generative video or another animation technology. *That* is when to investigate providers
+   and reconsider the budget — not after buying 71 seconds.
+
+**Not a gate yet:** audience retention. An unlisted upload is not an audience experiment.
+First prove Pavan considers the visual format worthy of the channel name.
