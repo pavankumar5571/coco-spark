@@ -22,6 +22,7 @@ class FakeClient:
     """Counts every paid invocation. Any unauthorised call is a firewall breach."""
     def __init__(self):
         self.image_calls, self.video_calls = 0, 0
+        self.last_video_kw = None
         outer = self
 
         class _Models:
@@ -30,6 +31,7 @@ class FakeClient:
                 return _resp()
             def generate_videos(self, **kw):
                 outer.video_calls += 1
+                outer.last_video_kw = kw          # so tests can assert the CONTRACT sent
                 raise RuntimeError("fake provider: video not implemented")
         self.models = _Models()
 
@@ -500,6 +502,7 @@ def main():
     shutil.rmtree(tmp, ignore_errors=True)
 
     results += ledger_properties()
+    results += contract_properties()
 
     print(f"\n  {sum(results)}/{len(results)} runtime properties hold")
     if not all(results):
@@ -554,6 +557,43 @@ def ledger_properties():
     total = sum(make.op_spent(o) for o in L["ops"])
     out.append(_ok("per-op spend reconciles to the ledger total",
                    abs(total - L["spent_inr"]) < 1e-6))
+
+    shutil.rmtree(tmp, ignore_errors=True)
+    return out
+
+
+
+def contract_properties():
+    """The compiled generation contract must actually REACH the provider.
+
+    Config that is set but never passed is worse than config that does not exist: it
+    reads as solved. These assert the real stage function puts the negative prompt, the
+    disabled enhancer and the seed into the actual request.
+    """
+    out = []
+    tmp, make = fresh_env(10_000)
+    import config
+    fake = FakeClient()
+    make.client = lambda: fake
+    try:
+        seed_episode(tmp, make, valid_frame=True)
+        make.stage_video("E01")
+    except BaseException:
+        pass
+
+    kw = fake.last_video_kw
+    out.append(_ok("the video request was actually attempted", kw is not None))
+    if kw:
+        cfg = kw.get("config")
+        neg = getattr(cfg, "negative_prompt", None) or ""
+        out.append(_ok("compiled negative_prompt reaches the provider",
+                       "floating particles" in neg and "dust motes" in neg))
+        out.append(_ok("prompt enhancer is disabled in the request",
+                       getattr(cfg, "enhance_prompt", None) is False))
+        out.append(_ok("seed is pinned in the request",
+                       getattr(cfg, "seed", None) == config.VIDEO_SEED))
+    else:
+        out += [False, False, False]
 
     shutil.rmtree(tmp, ignore_errors=True)
     return out
