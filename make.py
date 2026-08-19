@@ -615,7 +615,7 @@ STYLE: {BIBLE['style_lock']}
 
 
 # ──────────────────────── reference compiler ─────────────────────────
-def clip_identity(shot, frame, negative):
+def clip_identity(shot, frame, mode):
     """One definition of what a clip was generated FROM, consumed by both the resume check
     and the paid request — the same single-source-of-truth rule as frame_identity.
 
@@ -623,10 +623,20 @@ def clip_identity(shot, frame, negative):
     would treat a clip produced under an older contract as current, silently keeping
     rejected footage after the contract that produced it had changed.
     """
+    # Hash what the request ACTUALLY carries, not what we would like it to carry. A
+    # parameter this surface refuses is never sent, so it is not part of what produced the
+    # clip and must not change its identity — otherwise every clip we already paid for
+    # goes stale the moment we merely ATTEMPT an unsupported parameter.
+    extra = {}
+    neg = veo_negative_prompt(BIBLE, mode)
+    if neg and C.VIDEO_NEGATIVE_PROMPT_SUPPORTED:
+        extra["negative"] = neg
+    if C.VIDEO_ENHANCE_PROMPT is not None:
+        extra["enhance"] = C.VIDEO_ENHANCE_PROMPT
+    if C.VIDEO_SEED is not None:
+        extra["seed"] = C.VIDEO_SEED
     return input_hash(shot=shot, frame_sha=sha_file(frame), model=C.VIDEO_MODEL,
-                      res=C.VIDEO_RES, secs=C.VIDEO_SECONDS,
-                      negative=negative, enhance=C.VIDEO_ENHANCE_PROMPT,
-                      seed=C.VIDEO_SEED)
+                      res=C.VIDEO_RES, secs=C.VIDEO_SECONDS, **extra)
 
 
 def reference_policy(prev_shot, shot, bible):
@@ -822,7 +832,7 @@ def stage_video(eid, only=None):
         prov_p = d / "clips" / f"{shot['id']}.provenance.json"
         if not frame.exists(): sys.exit(f"missing frame {frame}")
         negative = veo_negative_prompt(BIBLE, load_ep(eid)["mode"])
-        chash = clip_identity(shot, frame, negative)
+        chash = clip_identity(shot, frame, load_ep(eid)["mode"])
         ok, why = usable(dest, prov_p, chash)
         if ok:
             print(f"  {shot['id']}: clip valid, skipping"); continue
@@ -893,10 +903,12 @@ def stage_assemble(eid):
     clips = []
     for s in shots:
         c = d / "clips" / f"{s['id']}.mp4"
+        # Call the REAL identity function. This duplicated the formula and would have
+        # silently refused to assemble the moment the clip contract changed — the same
+        # drift that has now bitten preflight, the frame path and two test fixtures.
         ok, why = usable(c, d / "clips" / f"{s['id']}.provenance.json",
-                         input_hash(shot=s, frame_sha=sha_file(d / "frames" / f"{s['id']}.png"),
-                                    model=C.VIDEO_MODEL, res=C.VIDEO_RES,
-                                    secs=C.VIDEO_SECONDS)) if c.exists() else (False, "missing")
+                         clip_identity(s, d / "frames" / f"{s['id']}.png",
+                                       load_ep(eid)["mode"])) if c.exists() else (False, "missing")
         if not ok:
             sys.exit(f"  refusing to assemble: {s['id']} clip is not provably current ({why})")
         verdict = json.loads((d / "clips" / f"{s['id']}.provenance.json").read_text()

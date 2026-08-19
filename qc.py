@@ -15,8 +15,45 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 CATEGORIES = (
-    "UNREQUESTED_VISUAL_ADDITION",   # observed: P01 floating particles, 2026-08-19
+    "UNREQUESTED_VISUAL_ADDITION",   # a thing that is not supposed to be there at all
+    "UNREQUESTED_AMBIENT_EFFECT",    # atmosphere the provider adds: motes, haze, glow
 )
+
+# SEVERITY, not a binary. "Anything unrequested is a reject" sounds rigorous and is
+# actually a way to never publish: one harmless deviation the provider cannot be talked
+# out of blocks every episode forever.
+BLOCKING = "BLOCKING"        # the clip cannot be published
+TOLERATED = "TOLERATED"      # real, recorded, and not worth blocking a launch over
+
+# Tolerance is granted per (category, mode) and NEVER by default. A warm bedtime room can
+# carry soft ambient motes; a counting lesson or a science demonstration cannot, because
+# there the same specks compete with the thing the child is supposed to be looking at.
+# Anything not listed here is BLOCKING.
+TOLERATED_DEVIATIONS = {
+    ("UNREQUESTED_AMBIENT_EFFECT", "BEDTIME_STORY"): {
+        "provider_surface": "GEMINI_DEVELOPER_API",
+        "model": "veo-3.1-lite-generate-preview",
+        "observed_frequency": "3 of 4 relevant clips (P01, E01/s01, s02, s03; P01B clean)",
+        "control_available": False,
+        "why_no_control": "seed, negative_prompt and enhance_prompt are ALL rejected by "
+                          "this model; prose is the only channel and it failed 3 of 4",
+        "rationale": "visually soft, does not alter characters or world topology, does "
+                     "not obscure the story, introduces no entity, changes no meaning",
+        "publication_blocking": False,
+        "escape_hatch": "Vertex surface documents negativePrompt. Revisit if this becomes "
+                        "a brand or content problem — NOT before the channel publishes.",
+        "recorded": "2026-08-19",
+    },
+}
+
+
+def severity(category, mode):
+    """Default BLOCKING. Tolerance is an explicit, mode-scoped, recorded decision.
+
+    Deliberately not inherited across modes: tolerating motes in a bedtime story says
+    nothing about tolerating them in a classroom scene.
+    """
+    return TOLERATED if (category, mode) in TOLERATED_DEVIATIONS else BLOCKING
 
 # PROVIDER CAPABILITY and CLIP PUBLISHABILITY are different measurements and must never
 # be collapsed. P01 is not a failed motion probe: it is MOTION_PRIMITIVE=PASS and
@@ -93,6 +130,7 @@ class QCFinding:
     category: str
     evidence: str            # what was seen, and where
     specified: str           # what the ShotSpec actually called for
+    severity: str = "BLOCKING"   # set by decide() from the mode-scoped tolerance table
 
 
 @dataclass
@@ -120,12 +158,20 @@ def compare_capability(baseline: dict, treatment: dict):
             "verdict": "TRADE_OFF" if regressions else "NO_REGRESSION"}
 
 
-def decide(shot_id, findings, revision=None, capability=None, judged_by="HUMAN"):
-    """No score, no threshold. Either the output matches the spec or it does not.
+def decide(shot_id, findings, revision=None, capability=None, judged_by="HUMAN",
+           mode=None):
+    """No score, no threshold — but severity-aware.
+
+    Every finding is still RECORDED. What changes is whether it blocks publication. A
+    TOLERATED deviation stays visible in the verdict forever, so nobody can later claim
+    the footage was clean; it simply does not veto the episode.
 
     `capability` records what the clip proved about the PROVIDER, independently of whether
     the clip itself is publishable.
     """
-    bad = [f for f in findings if f.category in CATEGORIES]
-    return QCVerdict(shot_id, "REJECTED_QC" if bad else "ACCEPTED", bad, revision or {},
-                     capability or {}, judged_by)
+    known = [f for f in findings if f.category in CATEGORIES]
+    for f in known:
+        f.severity = severity(f.category, mode)
+    blocking = [f for f in known if f.severity == BLOCKING]
+    return QCVerdict(shot_id, "REJECTED_QC" if blocking else "ACCEPTED", known,
+                     revision or {}, capability or {}, judged_by)

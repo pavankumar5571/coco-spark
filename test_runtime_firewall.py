@@ -155,9 +155,8 @@ def seed_episode(tmp, make, valid_frame=True, valid_clip=False):
              # Call the REAL identity function. Duplicating the formula here is the same
              # mistake that broke preflight and then this control the moment the clip
              # contract gained negative_prompt/enhance_prompt/seed.
-             "input_hash": make.clip_identity(
-                 shots[0], f,
-                 make.veo_negative_prompt(bible, make.load_ep("E01")["mode"]))}))
+             "input_hash": make.clip_identity(shots[0], f,
+                                              make.load_ep("E01")["mode"])}))
     return d
 
 

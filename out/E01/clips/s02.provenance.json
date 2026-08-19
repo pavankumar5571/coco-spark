@@ -1,6 +1,6 @@
 {
   "status": "COMPLETE",
-  "qc": "PENDING_QC",
+  "qc": "ACCEPTED",
   "video_prompt": "ACTION: Coco grows sleepy, his expression softening as he lies down onto his side with his head on the pillow, letting his eyes close.\nCAMERA: Locked static camera. Close shot at eye level, framed on coco.\nSTYLE: Bright 3D preschool animation, soft rounded shapes, warm saturated colours, gentle even lighting, simple friendly character design.\nCONSTRAINTS: clean still air, no floating particles, dust motes, sparkles or glows; only the specified characters and objects are present, no additional people, animals, toys or decorations; no text, letters, numbers, captions or watermarks; no rain, snow, fog or wind effects.",
   "video_prompt_sha": "a71869baf5037b83",
   "input_hash": "27bb0359ba06453f",
@@ -20,5 +20,8 @@
       "config.py": "22a834086b48dfb9",
       "bible.yaml": "5ff9a482e3da5955"
     }
-  }
+  },
+  "qc_findings": [
+    "UNREQUESTED_AMBIENT_EFFECT:TOLERATED"
+  ]
 }
