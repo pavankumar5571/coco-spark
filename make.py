@@ -819,8 +819,17 @@ def stage_frames(eid, only=None):
                 legend.append(f"Image {i_}: canonical reference for "
                               f"{BIBLE['cast'][key]['name']}")
             elif role == "temporal":
-                legend.append(f"Image {i_}: the previous shot. Continue directly from it: "
-                              f"identical camera, geometry and lighting.")
+                # NOT "identical camera". TEMPORAL_REFERENCE exists precisely BECAUSE the
+                # composition is allowed to change; demanding an identical camera here
+                # contradicted the new framing the camera compiler had just assigned.
+                # Freeze what this reference is actually authoritative for.
+                # "every ... object in it" was still too strong: a new composition may
+                # legitimately crop objects out. Preserve FORM, not visibility.
+                legend.append(f"Image {i_}: the previous moment in this same scene. "
+                              f"Preserve the visual identity and form of characters and "
+                              f"persistent objects, the room layout, and the lighting "
+                              f"continuity. Recompose the scene according to the new shot "
+                              f"described below.")
 
         ihash = frame_identity(shot, BIBLE, loc, ref_ids)
         ok, why = usable(dest, prov_p, ihash)
@@ -840,13 +849,17 @@ def stage_frames(eid, only=None):
             print(f"  {shot['id']}: INHERITED from {tail.name} (free, pixel-exact)")
             prev = dest; continue
 
+        # "identical in every shot" claimed an authority the words cannot carry. Pixel
+        # identity comes from references, not adjectives, and asserting it in prose only
+        # created false confidence when auditing prompts. State the invariants; let the
+        # reference images be the ones that promise sameness.
         prompt = ("\n".join(legend) + f"\n\n{BIBLE['style_lock']}\n\n"
-                  f"LOCATION (identical in every shot): {loc['description']}\n\n"
-                  f"{loc['geography']}\n\n"
+                  f"WORLD: {loc['description']}\n\n"
+                  f"WORLD GEOGRAPHY: {loc['geography']}\n\n"
                   f"SHOT: {shot.get('frame_compiled') or shot['frame']}\n\n"
                   "Characters must match their canonical reference images exactly: same "
-                  "colour, clothing, proportions and face. Only the characters named above "
-                  "are present. No text or lettering.")
+                  "colour, clothing, proportions and face. Only characters listed for this "
+                  "shot may be visible. No visible text or lettering.")
         print(f"  {shot['id']}: generating first frame ({len(refs)} refs)")
         gen_image(cl, prompt, refs, dest, kind="image", detail=f"frame:{eid}/{shot['id']}")
         prov_p.write_text(json.dumps(

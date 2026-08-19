@@ -5,6 +5,7 @@ style_lock: >-
 cast:
   coco:
     name: Coco the Bear
+    possessive: his          # as written throughout the episode briefs
     features: >-
       A small young bear cub with soft warm golden-brown fur, a lighter cream-coloured
       muzzle and belly patch, small rounded ears, large friendly dark-brown eyes, a small
@@ -31,7 +32,7 @@ locations:
       window showing a deep blue starry sky, a small bed with a patchwork quilt, a small
       wooden chair beside the bed, a woven rug, a low bookshelf. Warm low lamp light.
     geography: >-
-      FIXED LAYOUT, identical in every shot: round window on the LEFT wall, low bookshelf
+      FIXED LAYOUT: round window on the LEFT wall, low bookshelf
       FAR LEFT, bed against the RIGHT wall with its head-end toward the BACK-RIGHT, wooden
       chair beside the bed on its LEFT, woven rug centre floor. Never mirror or flip.
   meadow_day:
@@ -133,3 +134,53 @@ modes:
     camera_allowed: [STATIC, SLOW_PUSH_IN, SLOW_PULL_BACK, GENTLE_PAN, GENTLE_TRACK]
     camera_avoid: [handheld shake]
     rules: One dominant action per shot. Kindness and good habits.
+
+# Deterministic English for the typed vocabulary. The compiled SHOT line is rendered from
+# these, so the generator receives clean prose while the pipeline keeps enums as the only
+# source of truth. New vocabulary gets a phrase here rather than a code change; anything
+# missing falls back to its lowercased label, so an omission reads badly but never breaks.
+phrasing:
+  posture:
+    LYING_FLAT: lies on {pos} back
+    LYING_SIDE: lies on {pos} side
+    SITTING_UP: sits up
+    STANDING: stands
+    PERCHED: is perched
+    WALKING: is walking
+    BOUNCING: is bouncing
+  awareness:
+    AWAKE: awake
+    DROWSY: drowsy
+    EYES_CLOSED: with {pos} eyes closed
+    ASLEEP: asleep
+  zone:
+    BED: in the bed
+    CHAIR: on the chair
+    RUG: on the rug
+    WINDOW: by the window
+    DOOR: by the door
+    SHELF: by the bookshelf
+    MEADOW_CENTRE: in the middle of the meadow
+    MEADOW_TREE: by the oak tree
+  facing:
+    LEFT: facing left
+    RIGHT: facing right
+    CAMERA: facing the camera
+    AWAY: facing away
+    UP: looking up
+    DOWN: looking down
+  expression:
+    NEUTRAL: with a neutral expression
+    HAPPY: looking happy
+    CALM: looking calm
+    CURIOUS: looking curious
+    SLEEPY: looking sleepy
+    SURPRISED: looking surprised
+
+# An expression that merely restates the awareness adds nothing and reads badly
+# ("asleep, looking sleepy"). Suppression is data, not a special case in code.
+phrasing_suppress:
+  - when: {awareness: ASLEEP}
+    omit: [expression]
+  - when: {awareness: EYES_CLOSED}
+    omit: [expression]

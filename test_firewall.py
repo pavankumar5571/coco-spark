@@ -170,6 +170,28 @@ def main():
     else:
         print(f"  passed   {'frozen shots exempt from progression rule':46s} pre-generation gate only")
 
+    # the image compiler must have no FIELD capable of carrying camera motion.
+    # Asserted structurally, not as an English blacklist: whatever prose the planner
+    # writes in `frame`, none of it may survive into the compiled still description.
+    checked += 1
+    import camera as _cam
+    poison = ("The camera pulls back smoothly and pans left while zooming out to reveal "
+              "a completely different room with a round rug and a picture bookshelf.")
+    sp = good_shot("s01")
+    sp["frame"] = poison
+    sp["cast"] = ["coco"]
+    sp["focus"] = {"type": "CHARACTER", "ids": ["coco"]}
+    ep_one = dict(EP); ep_one["cast"] = ["coco"]; ep_one["shots"] = 1
+    compiled = _cam.assign([sp], ep_one, BIBLE)[0]["frame_compiled"]
+    leaked = [w for w in ("pulls back", "pans", "zooming", "round rug", "picture bookshelf")
+              if w in compiled]
+    if leaked:
+        failures.append(f"PLANNER PROSE REACHED THE IMAGE PROMPT: {leaked}")
+        provider.image()
+    else:
+        print(f"  blocked  {'planner camera prose in a still prompt':46s} "
+              f"NO_MOTION_FIELD_IN_IMAGE_COMPILER")
+
     # unsatisfiable requirement must be caught before planning
     checked += 1
     try:

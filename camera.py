@@ -61,6 +61,86 @@ def required_roles(ep, bible):
     return out
 
 
+def _subject_name(ids, bible):
+    """Human-readable subject, never a raw id.
+
+    "framed on coco" and "framed on cottage_night" were internal identifiers leaking into
+    text sent to a generator — the same class of defect as the planner's camera prose,
+    just quieter.
+    """
+    names = []
+    for i in ids:
+        c = (bible.get("cast") or {}).get(i)
+        loc = (bible.get("locations") or {}).get(i)
+        names.append((c or {}).get("name") or (loc or {}).get("name")
+                     or str(i).replace("_", " "))
+    if not names:
+        return "the scene"
+    return " and ".join(names)
+
+
+def _phrase(bible, dim, value, possessive):
+    """One typed value as English, from the bible lexicon. Falls back to the label."""
+    tpl = ((bible.get("phrasing") or {}).get(dim) or {}).get(value)
+    if not tpl:
+        return str(value).replace("_", " ").lower()
+    return tpl.replace("{pos}", possessive)
+
+
+def _suppressed(bible, st):
+    """Which dimensions this character's state makes redundant.
+
+    Data, not a special case in code: "asleep, looking sleepy" is not a bug in the
+    renderer, it is two fields saying the same thing, and the bible is where that
+    relationship belongs.
+    """
+    out = set()
+    for rule in bible.get("phrasing_suppress") or []:
+        if all(st.get(k) == v for k, v in (rule.get("when") or {}).items()):
+            out.update(rule.get("omit") or [])
+    return out
+
+
+def _compose(shot, size, angle, subj, bible):
+    """The composition to produce, rendered deterministically from TYPED state alone.
+
+    Every clause is derived, never quoted from the planner, so nothing here can describe a
+    change, a movement or a transition — it only has access to the state at the START of
+    the shot. The enums stay the source of truth; the generator gets clean prose, because
+    its consumer is a language model rather than a parser.
+    """
+    who = []
+    start = shot.get("start_state") or {}
+    chars = start.get("characters") or {}
+    for cid in sorted(chars):
+        st = chars[cid]
+        c = (bible.get("cast", {}).get(cid) or {})
+        name = c.get("name", cid)
+        pos = c.get("possessive", "their")
+        skip = _suppressed(bible, st)
+
+        # posture carries the verb, so it leads; zone attaches to it directly
+        parts = []
+        if st.get("posture") and "posture" not in skip:
+            parts.append(_phrase(bible, "posture", st["posture"], pos))
+        if st.get("awareness") and "awareness" not in skip:
+            parts.append(_phrase(bible, "awareness", st["awareness"], pos))
+        if st.get("zone") and "zone" not in skip:
+            parts.append(_phrase(bible, "zone", st["zone"], pos))
+        head = f"{name} " + " ".join(parts) if parts else name
+
+        tail = [_phrase(bible, d, st[d], pos)
+                for d in ("facing", "expression")
+                if st.get(d) and d not in skip]
+        who.append(head + (", " + ", ".join(tail) if tail else "") + ".")
+
+    frame = (f"{size.replace('_', ' ').title()} shot, "
+             f"{angle.replace('_', ' ').lower()}, framed on {subj}.")
+    if who:
+        frame += " " + " ".join(who)
+    return frame
+
+
 def assign(shots, ep, bible, frozen=0):
     """Assign visual state to every shot, satisfying MUST coverage requirements.
 
@@ -129,12 +209,16 @@ def assign(shots, ep, bible, frozen=0):
                "shot_size": size, "camera_angle": default_angle}
         for which in ("start_state", "end_state"):
             s.setdefault(which, {})["visual"] = dict(vis)
-        subj = fids.replace("+", " and ") or "the scene"
+        subj = _subject_name(foc.get("ids") or s.get("cast") or [], bible)
         s["camera"] = (f"Locked static camera. {size.replace('_',' ').title()} shot at eye "
                        f"level, framed on {subj}.")
-        # the image-facing description is COMPILED from the assigned camera, so the
-        # planner can never make a framing claim that deterministic code then overrides
-        s["frame_compiled"] = (f"{size.replace('_',' ').title()} shot, eye level, framed "
-                               f"on {subj}. {s.get('frame','')}")
+        # DESTINATION STATE ONLY. This used to append the planner's free-text `frame`,
+        # which is how "The camera pulls back smoothly from the close-up" reached a STILL
+        # image generator — in the same prompt that told it to keep the camera identical.
+        # Two contradictory instructions, both ours. A still generator needs the composition
+        # to arrive at, never the move used to get there, and motion belongs exclusively to
+        # the video prompt. The compiler now has no field capable of emitting camera motion,
+        # so the defect cannot recur by wording.
+        s["frame_compiled"] = _compose(s, size, default_angle, subj, bible)
         out.append(s)
     return out
