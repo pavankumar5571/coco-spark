@@ -1,12 +1,17 @@
 {
   "status": "COMPLETE",
-  "input_hash": "b61f87fa42861cf7",
-  "sha": "ca7e0b9fc4f4ac88",
+  "input_hash": "3ebaf446d0eef298",
+  "sha": "aa94054333df15cf",
   "model": "gemini-3.5-flash-lite",
   "requirement_results": {
     "framing_change_across_a_continuous_cut": {
       "status": "SATISFIED",
-      "reason": "All shots maintain continuity and transitions occur strictly on screen."
+      "reason": "All shots maintain continuous narrative flow with proper establishment and detail coverage."
     }
-  }
+  },
+  "frozen_shots": [
+    "s01",
+    "s02",
+    "s03"
+  ]
 }
