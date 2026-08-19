@@ -701,7 +701,7 @@ def resolve_location_plate(location_id):
     return plate, ("world", location_id, sha_file(plate)), None
 
 
-PLATE_COMPILER_VERSION = "1"
+PLATE_COMPILER_VERSION = "2"
 
 
 def persistent_objects(location_id):
@@ -732,25 +732,43 @@ def next_plate_attempt(location_id):
     return max(used) + 1 if used else 1
 
 
-def compile_plate_completion_prompt(location_id):
+def compile_plate_completion_prompt(location_id, occupants=()):
     """The SMALLEST transformation that fixes the defect, and nothing else.
 
     Deliberately does NOT ask for a wider viewpoint. Every additional transformation we
     request is another degree of freedom for the model to redesign something with, and
     attempt 001 proved it will use any freedom it is given. Two changes only: remove the
-    character, and extend past the existing edges so nothing is cropped.
+    characters the source frame happens to contain, and extend past the existing edges so
+    nothing is cropped.
+
+    The objects to preserve are compiled from the SAME declared persistent_objects list
+    that CANON_AGREEMENT judges the result against, and the occupants from the source
+    shot's own cast. Nothing about a particular room or a particular bear is written here:
+    a prompt that names what only one episode contains cannot be reused by the next one,
+    and a prompt that preserves a different list from the one QC checks is asking for one
+    thing and grading another.
     """
-    return ("Image 0 is the established look of this room, taken from accepted footage.\n\n"
-            "Keep the room EXACTLY as it appears in Image 0: the same camera position, the "
+    objs = persistent_objects(location_id)
+    if not objs:
+        sys.exit(f"  '{location_id}' declares no persistent_objects, so there is nothing "
+                 f"to tell the model to preserve. Declare them in the bible first.")
+    keep = ", ".join(objs[:-1]) + (" and " + objs[-1] if len(objs) > 1 else "")
+    names = [BIBLE["cast"][c]["name"] for c in occupants if c in BIBLE["cast"]]
+    if names:
+        who = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+        removal = (f"1. Remove {who} completely, leaving the place exactly as it would "
+                   f"look unoccupied.\n")
+    else:
+        removal = ("1. Leave the place unoccupied — no characters of any kind.\n")
+    return ("Image 0 is the established look of this place, taken from accepted footage.\n\n"
+            "Keep it EXACTLY as it appears in Image 0: the same camera position, the "
             "same lighting and mood, and the same design, materials, shape and proportions "
-            "for every object in it — the rug, the chair, the bed and its quilt, the "
-            "window, the walls, the floor and the bookshelf.\n\n"
+            f"for every object in it — {keep}.\n\n"
             "Make exactly two changes and nothing else:\n"
-            "1. Remove the bear completely, leaving the bed as it would look unoccupied.\n"
+            f"{removal}"
             "2. Extend the picture outward beyond its current edges so that every object "
             "sits fully inside the frame with clear space around it and nothing is cut off "
-            "by an edge — in particular the bookshelf on the left, which is currently "
-            "cropped.\n\n"
+            "by an edge.\n\n"
             "Do not redesign, restyle or replace anything. Do not add people, animals, "
             "furniture, decoration or props. No text or lettering.")
 
@@ -813,7 +831,15 @@ def stage_plate_candidate(location_id, source=None):
                      f"from footage a human has ACCEPTED.")
         refs = [sframe]
         src_meta = {"derived_from": source, "source_frame_sha": sha_file(sframe)}
-        prompt = compile_plate_completion_prompt(location_id)
+        # who to remove comes from the SOURCE SHOT's own cast, so this works for any
+        # episode, any location and any character rather than for one bear in one room
+        try:
+            sshots = json.loads((sd / "shots.json").read_text())
+            occupants = next(x for x in sshots if x["id"] == sid).get("cast") or []
+        except Exception:
+            sys.exit(f"  cannot read the cast of {source}; refusing to guess who is in "
+                     f"the frame we are paying to clear")
+        prompt = compile_plate_completion_prompt(location_id, occupants)
         origin = "DERIVED_FROM_ACCEPTED_FRAME"
     else:
         prompt = compile_plate_prompt(location_id)
