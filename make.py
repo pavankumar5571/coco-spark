@@ -124,12 +124,21 @@ def resolve_frame_refs(d, shots, idx, bible, loc, policy):
     for key in shot["cast"]:                                # identity anchors FIRST
         pth = PORTRAITS / f"{key}.png"
         ok, why = usable(pth, PORTRAITS / f"{key}.provenance.json",
-                         input_hash(character=bible["cast"][key],
-                                    style=bible["style_lock"], model=C.IMAGE_MODEL,
-                                    aspect=C.IMAGE_ASPECT))
+                         portrait_identity(bible["cast"][key], bible))
         if not ok:
             return RefResolution([], [], f"portrait '{key}' not provably current ({why})")
         paths.append(pth); ref_ids.append(("identity", key, sha_file(pth)))
+
+    # 2. WORLD-FORM AUTHORITY — mandatory on every frame, exactly like portraits.
+    #    Prose controls arrangement and cannot control appearance: s04 obeyed every
+    #    position in FIXED LAYOUT and still reinvented the rug, the shelf and the walls.
+    location_id = shot_location(shot)
+    if not location_id:
+        return RefResolution([], [], "shot has no location_id in its start_state")
+    world_path, world_ref_id, world_error = resolve_location_plate(location_id)
+    if world_error:
+        return RefResolution([], [], world_error)
+    paths.append(world_path); ref_ids.append(world_ref_id)
 
     if idx == 0 or policy == "CANONICAL_ONLY":
         return RefResolution(paths, ref_ids)
@@ -478,6 +487,166 @@ def vocab_block():
         for k, v in BIBLE["state_vocab"].items())
 
 
+LOCATION_PLATES = OUT / "location_plates"
+LOCATION_PLATES.mkdir(parents=True, exist_ok=True)
+LOCATION_PLATE_CONTRACT_VERSION = "1"
+
+
+# Keys on a cast entry that do NOT affect the generated pixels. A portrait's identity
+# must depend on what the request contains and nothing else. Adding `possessive` — a
+# LANGUAGE property used only by the sentence renderer — staled an already-paid portrait,
+# which is the same defect as hashing visual_constraints into frame identity: an input
+# that cannot change the artifact must not change its identity.
+CAST_NONVISUAL_KEYS = ("possessive",)
+
+
+def portrait_identity(character, bible):
+    """What a canonical portrait was generated FROM. One definition, two call sites."""
+    visual = {k: v for k, v in character.items() if k not in CAST_NONVISUAL_KEYS}
+    return input_hash(character=visual, style=bible["style_lock"],
+                      model=C.IMAGE_MODEL, aspect=C.IMAGE_ASPECT)
+
+
+def shot_location(shot):
+    """Where this shot happens. location_id lives in the typed STATE, not on the shot."""
+    return ((shot.get("start_state") or {}).get("location_id")) or None
+
+
+def location_plate_paths(location_id):
+    """V1 has ONE immutable canonical visual authority per location.
+
+    Never overwrite a plate: a future visual redesign must become a NEW VERSION rather
+    than silently changing what already-published episodes meant.
+    """
+    base = LOCATION_PLATES / location_id
+    base.mkdir(parents=True, exist_ok=True)
+    return base / "canonical.png", base / "canonical.provenance.json"
+
+
+def prove_location_plate(location_id):
+    """A plate is world authority, so existence is not enough.
+
+    Deliberately does NOT compare against the bible's location prose. Once accepted the
+    plate is immutable visual canon; editing prose later must not silently redefine the
+    pixels earlier episodes established.
+    """
+    if location_id not in BIBLE["locations"]:
+        return False, f"unknown location '{location_id}'", None, None
+    plate, prov_path = location_plate_paths(location_id)
+    if not plate.exists() or not prov_path.exists():
+        return False, "canonical location plate/provenance missing", plate, None
+    try:
+        pv = json.loads(prov_path.read_text())
+    except Exception:
+        return False, "unreadable location-plate provenance", plate, None
+    if pv.get("status") != "COMPLETE":
+        return False, f"status={pv.get('status')}", plate, pv
+    if pv.get("kind") != "LOCATION_PLATE":
+        return False, f"wrong artifact kind={pv.get('kind')}", plate, pv
+    if pv.get("location_id") != location_id:
+        return False, (f"plate belongs to location '{pv.get('location_id')}', "
+                       f"not '{location_id}'"), plate, pv
+    if pv.get("canonical") is not True:
+        return False, "plate is not marked canonical", plate, pv
+    if pv.get("sha") != sha_file(plate):
+        return False, "location plate checksum mismatch", plate, pv
+    return True, "valid", plate, pv
+
+
+def resolve_location_plate(location_id):
+    """Deterministic world-authority resolver. No camera heuristic in v1.
+
+    Temporal pixels answer "where did we just come from". Portraits answer "who are
+    these characters". This answers "what does this world look like".
+    """
+    ok, why, plate, _pv = prove_location_plate(location_id)
+    if not ok:
+        return None, None, (f"location '{location_id}' has no provably current canonical "
+                            f"world plate ({why})")
+    return plate, ("world", location_id, sha_file(plate)), None
+
+
+def promote_location_plate(eid, shot_id):
+    """Canonicalise an ALREADY ACCEPTED frame as location visual authority. Rs 0.
+
+    Provenance says exactly what happened — CANONICALIZED_FROM_ACCEPTED_FRAME — rather
+    than pretending a lucky generation was always canon.
+    """
+    d = ep_dir(eid); ep = load_ep(eid)
+    shots = json.loads((d / "shots.json").read_text())
+    try:
+        shot = next(s for s in shots if s["id"] == shot_id)
+    except StopIteration:
+        sys.exit(f"  no shot '{shot_id}' in {eid}")
+    location_id = shot_location(shot)
+    if not location_id:
+        sys.exit(f"  {eid}/{shot_id}: no location_id")
+    if location_id not in BIBLE["locations"]:
+        sys.exit(f"  {eid}/{shot_id}: unknown location '{location_id}'")
+
+    frame = d / "frames" / f"{shot_id}.png"
+    frame_prov = d / "frames" / f"{shot_id}.provenance.json"
+    clip = d / "clips" / f"{shot_id}.mp4"
+    clip_prov = d / "clips" / f"{shot_id}.provenance.json"
+    if not frame.exists() or not frame_prov.exists():
+        sys.exit(f"  {eid}/{shot_id}: source frame/provenance missing")
+    try:
+        fpv = json.loads(frame_prov.read_text())
+    except Exception:
+        sys.exit(f"  {eid}/{shot_id}: unreadable frame provenance")
+    if fpv.get("status") != "COMPLETE":
+        sys.exit(f"  {eid}/{shot_id}: source frame status={fpv.get('status')}")
+    if fpv.get("sha") != sha_file(frame):
+        sys.exit(f"  {eid}/{shot_id}: source frame checksum mismatch")
+
+    # The accepted CLIP proves this exact frame participated in footage a human judged
+    # acceptable. Do not canonicalise an unreviewed still because its PNG looks plausible.
+    cok, cwhy = usable(clip, clip_prov, clip_identity(shot, frame, ep["mode"]))
+    if not cok:
+        sys.exit(f"  {eid}/{shot_id}: source clip is not provably current ({cwhy})")
+    if clip_verdict(d, shot_id) != "ACCEPTED":
+        sys.exit(f"  {eid}/{shot_id}: clip verdict is {clip_verdict(d, shot_id)}, "
+                 f"not ACCEPTED")
+
+    dest, dest_prov = location_plate_paths(location_id)
+    source_sha = sha_file(frame)
+    if dest.exists() or dest_prov.exists():
+        ok, why, existing, _pv = prove_location_plate(location_id)
+        if not ok:
+            sys.exit(f"  existing location plate for '{location_id}' is invalid ({why}); "
+                     f"refusing to overwrite canon")
+        if sha_file(existing) == source_sha:
+            print(f"  {location_id}: canonical plate already matches {eid}/{shot_id}, "
+                  f"skipping")
+            return
+        sys.exit(f"  {location_id}: canonical plate already exists with DIFFERENT pixels. "
+                 f"Canon is immutable; create an explicit new version instead.")
+
+    write_atomic(dest, frame.read_bytes())
+    payload = {
+        "status": "COMPLETE", "kind": "LOCATION_PLATE", "canonical": True,
+        "location_id": location_id,
+        "source": "CANONICALIZED_FROM_ACCEPTED_FRAME",
+        "source_episode": eid, "source_shot": shot_id,
+        "source_frame_sha": source_sha,
+        "source_frame_provenance_sha": sha_file(frame_prov),
+        "source_clip_sha": sha_file(clip),
+        "source_clip_provenance_sha": sha_file(clip_prov),
+        "source_clip_verdict": "ACCEPTED",
+        "input_hash": input_hash(location_id=location_id, source_frame_sha=source_sha,
+                                 source_clip_sha=sha_file(clip),
+                                 contract=LOCATION_PLATE_CONTRACT_VERSION),
+        "sha": sha_file(dest),
+        "contract_version": LOCATION_PLATE_CONTRACT_VERSION,
+        "revision": build_revision(),
+        "canonicalized_at": time.strftime("%F %T"),
+        "cost_inr": 0,
+    }
+    write_atomic(dest_prov, json.dumps(payload, indent=2).encode())
+    print(f"  {location_id}: CANONICALIZED_FROM_ACCEPTED_FRAME {eid}/{shot_id} "
+          f"-> {dest.relative_to(ROOT)}  Rs 0")
+
+
 def clip_verdict(d, sid):
     """The recorded QC verdict for one shot's clip, or PENDING_QC if there is none."""
     prov = d / "clips" / f"{sid}.provenance.json"
@@ -751,8 +920,7 @@ def stage_portraits(only=None):
         prov_p = PORTRAITS / f"{key}.provenance.json"
         # A portrait is identity authority for every frame downstream. Reusing one made
         # from an older bible or style silently poisons the whole episode.
-        ihash = input_hash(character=c, style=BIBLE["style_lock"], model=C.IMAGE_MODEL,
-                           aspect=C.IMAGE_ASPECT)
+        ihash = portrait_identity(c, BIBLE)
         ok, why = usable(dest, prov_p, ihash)
         if ok:
             print(f"  {key}: valid, skipping"); continue
@@ -798,6 +966,17 @@ def stage_frames(eid, only=None):
             prev = d / "frames" / f"{shot['id']}.png"; continue
         dest = d / "frames" / f"{shot['id']}.png"
         prov_p = d / "frames" / f"{shot['id']}.provenance.json"
+
+        # A frame under an ACCEPTED clip is paid, judged footage. Its identity may go
+        # stale for reasons that cannot change what is already on disk — a new mandatory
+        # reference, a bible edit — and regenerating it would rewrite the exact pixels the
+        # accepted clip was rendered from, invalidating the clip too. stage_episode already
+        # skipped these; entering through stage_frames directly did not, which left roughly
+        # Rs 111 of accepted E01 footage one command away from being destroyed.
+        if clip_verdict(d, shot["id"]) == "ACCEPTED" and dest.exists():
+            print(f"  {shot['id']}: frame is under an ACCEPTED clip — protected, skipping")
+            prev = dest; continue
+
         res = resolve_frame_refs(d, shots, idx, BIBLE, loc, policy[idx][0])
         if res.error:
             sys.exit(f"  {shot['id']}: {res.error}")
@@ -807,6 +986,12 @@ def stage_frames(eid, only=None):
             if role == "identity":
                 legend.append(f"Image {i_}: canonical reference for "
                               f"{BIBLE['cast'][key]['name']}")
+            elif role == "world":
+                legend.append(f"Image {i_}: canonical visual reference for "
+                              f"{BIBLE['locations'][key]['name']}. Preserve the visual "
+                              f"form, materials, proportions and design of the persistent "
+                              f"environment objects shown in it. Use WORLD GEOGRAPHY below "
+                              f"for their spatial arrangement.")
             elif role == "temporal":
                 # NOT "identical camera". TEMPORAL_REFERENCE exists precisely BECAUSE the
                 # composition is allowed to change; demanding an identical camera here

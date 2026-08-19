@@ -131,18 +131,32 @@ def seed_episode(tmp, make, valid_frame=True, valid_clip=False):
         make.write_atomic(dest, _valid_png())
         (make.PORTRAITS / f"{key}.provenance.json").write_text(json.dumps(
             {"status": "COMPLETE", "sha": make.sha_file(dest),
-             "input_hash": make.input_hash(character=c, style=bible["style_lock"],
-                 model=config.IMAGE_MODEL, aspect=config.IMAGE_ASPECT)}))
+             # Call the REAL identity function, not a copy of its formula.
+             "input_hash": make.portrait_identity(c, bible)}))
 
     ep = make.load_ep("E01")
     loc = bible["locations"][(ep.get("locations") or [ep["location"]])[0]]
+
+    # World authority is mandatory on every generated frame, so a fixture episode needs a
+    # canonical plate exactly as it needs portraits. Seeded directly rather than by
+    # promoting footage: these tests are about the frame path, not about canonicalisation.
+    make.LOCATION_PLATES = tmp / "location_plates"
+    lid = make.shot_location(shots[0])
+    if lid:
+        plate, pprov = make.location_plate_paths(lid)
+        make.write_atomic(plate, _valid_png())
+        pprov.write_text(json.dumps(
+            {"status": "COMPLETE", "kind": "LOCATION_PLATE", "canonical": True,
+             "location_id": lid, "source": "CANONICALIZED_FROM_ACCEPTED_FRAME",
+             "sha": make.sha_file(plate)}))
+
     f = d / "frames" / "s01.png"
     make.write_atomic(f, _valid_png())
     # Call the REAL identity function. Duplicating the formula here is the same mistake
     # that silently broke preflight: two copies drift the moment the real one changes.
-    ref_ids = [("identity", k, make.sha_file(make.PORTRAITS / f"{k}.png"))
-               for k in shots[0]["cast"]]
-    ih = make.frame_identity(shots[0], bible, loc, ref_ids)
+    # Resolve through the REAL path so the fixture cannot drift from it. Building
+    # ref_ids by hand here is what broke the moment world authority became mandatory.
+    _, ih = make.frame_identity_from(shots, 0, d, bible, loc)
     (d / "frames" / "s01.provenance.json").write_text(json.dumps(
         {"status": "COMPLETE", "sha": make.sha_file(f),
          "input_hash": ih if valid_frame else "0" * 16}))
@@ -448,9 +462,11 @@ def main():
         if (d / "frames" / "s02.provenance.json").exists() else {}
     stale_sha = mk.sha_file(d / "transitions" / "s01_LAST.png")
     used = [r for r in prov.get("ref_ids", []) if r[0] == "temporal"]
-    ok = (fake.calls == 1
-          and used and used[0][2] != stale_sha
-          and used[0][2] == mk.sha_file(d / "frames" / "s01.png"))
+    # bool(): `used and ...` yields [] rather than False when `used` is empty, which
+    # put a list into the results and broke the tally instead of failing the case.
+    ok = bool(fake.calls == 1
+              and used and used[0][2] != stale_sha
+              and used[0][2] == mk.sha_file(d / "frames" / "s01.png"))
     print(f"  {'PASS' if ok else 'FAIL'}  "
           f"{'1 stale tail -> provenance records the FRAME, not the tail':52s} "
           f"calls={fake.calls}")
@@ -478,7 +494,11 @@ def main():
     config.REQUIRE_CLEAN_TREE = False
     shutil.rmtree(tmp, ignore_errors=True)
 
-    print(f"\n  {sum(results)}/{len(results)} runtime properties hold")
+    bad = [i for i, r in enumerate(results) if not isinstance(r, bool)]
+    if bad:
+        print(f"  HARNESS BUG: non-bool results at {bad}: "
+              f"{[type(results[i]).__name__ for i in bad]}")
+    print(f"\n  {sum(1 for r in results if r)}/{len(results)} runtime properties hold")
 
     # D. targeted video on shot 2 must not treat it as the first shot
     def targeted_second(tmp, mk):
@@ -512,6 +532,7 @@ def main():
     results += ledger_properties()
     results += contract_properties()
     results += append_properties()
+    results += plate_properties()
 
     print(f"\n  {sum(results)}/{len(results)} runtime properties hold")
     if not all(results):
@@ -711,6 +732,80 @@ def append_properties():
 
     shutil.rmtree(tmp, ignore_errors=True)
 
+    return out
+
+
+
+def plate_properties():
+    """Canonical location plates: world-form authority.
+
+    Adversarial against GPT's step-2 implementation. The defect these guard is not a
+    crash — it is a wrong-but-plausible frame generated from authority that was stale,
+    belonged to another location, or was never proven at all.
+    """
+    import json as _j
+    out = []
+    tmp, make = fresh_env(10_000)
+    d = seed_episode(tmp, make, valid_frame=True, valid_clip=True)
+    shots = _j.loads((d / "shots.json").read_text())
+    loc_id = make.shot_location(shots[0])
+
+    # point at an EMPTY store so "missing" really means missing
+    make.LOCATION_PLATES = tmp / "empty_plates"
+    make.LOCATION_PLATES.mkdir(parents=True, exist_ok=True)
+    _p, _r, err = make.resolve_location_plate(loc_id)
+    out.append(_ok("missing plate is refused, not defaulted", bool(err)))
+
+    # a frame may not be canonicalised from an unaccepted clip
+    try:
+        make.promote_location_plate("E01", "s01"); promoted = True
+    except SystemExit:
+        promoted = False
+    out.append(_ok("PENDING_QC footage cannot become canon", not promoted))
+
+    _accept(d, "s01")
+    make.promote_location_plate("E01", "s01")
+    plate, prov = make.location_plate_paths(loc_id)
+    pv = _j.loads(prov.read_text())
+    out.append(_ok("plate pixels are byte-identical to the accepted frame",
+                   make.sha_file(plate) == make.sha_file(d / "frames" / "s01.png")))
+    out.append(_ok("provenance states the honest origin",
+                   pv["source"] == "CANONICALIZED_FROM_ACCEPTED_FRAME"
+                   and pv["source_shot"] == "s01" and pv["cost_inr"] == 0))
+
+    ok, why, *_ = make.prove_location_plate(loc_id)
+    out.append(_ok("a promoted plate proves valid", ok))
+
+    # tampering with canon must be caught by checksum, not trusted by provenance
+    original = plate.read_bytes()
+    make.write_atomic(plate, _valid_png() + b"tampered")
+    ok, why, *_ = make.prove_location_plate(loc_id)
+    out.append(_ok("altered plate bytes are rejected", not ok))
+    make.write_atomic(plate, original)
+
+    # a plate belonging to a different location must never be accepted for this one
+    pv2 = dict(pv); pv2["location_id"] = "somewhere_else"
+    prov.write_text(_j.dumps(pv2))
+    ok, _why, *_ = make.prove_location_plate(loc_id)
+    out.append(_ok("a plate from another location is rejected", not ok))
+    prov.write_text(_j.dumps(pv))
+
+    # canon is immutable: same pixels idempotent, different pixels refused
+    try:
+        make.promote_location_plate("E01", "s01"); idem = True
+    except SystemExit:
+        idem = False
+    out.append(_ok("re-promoting identical pixels is idempotent", idem))
+
+    make.write_atomic(d / "frames" / "s01.png", _valid_png() + b"different")
+    try:
+        make.promote_location_plate("E01", "s01"); replaced = True
+    except SystemExit:
+        replaced = False
+    out.append(_ok("canon cannot be silently replaced with different pixels",
+                   not replaced))
+
+    shutil.rmtree(tmp, ignore_errors=True)
     return out
 
 

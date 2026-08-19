@@ -1,0 +1,32 @@
+{
+  "status": "COMPLETE",
+  "kind": "LOCATION_PLATE",
+  "canonical": true,
+  "location_id": "cottage_night",
+  "source": "CANONICALIZED_FROM_ACCEPTED_FRAME",
+  "source_episode": "E01",
+  "source_shot": "s01",
+  "source_frame_sha": "d7a254874096c381",
+  "source_frame_provenance_sha": "6ad72c840b4da595",
+  "source_clip_sha": "eb62f011d755fdf8",
+  "source_clip_provenance_sha": "89bcbc7ddbe6ef0f",
+  "source_clip_verdict": "ACCEPTED",
+  "input_hash": "f4324faabd93beb9",
+  "sha": "d7a254874096c381",
+  "contract_version": "1",
+  "revision": {
+    "commit": "395f6e7605e9f2963cff0f9f5471163cfc12a240",
+    "dirty": true,
+    "tag": null,
+    "sources": {
+      "make.py": "24d6037caa816b96",
+      "validate.py": "735d13f9b05466d2",
+      "camera.py": "9631f4435b8365cc",
+      "schema.py": "01e444c6c344289c",
+      "config.py": "7519260aaf0a4490",
+      "bible.yaml": "397a4dddbe303430"
+    }
+  },
+  "canonicalized_at": "2026-08-19 09:35:52",
+  "cost_inr": 0
+}
