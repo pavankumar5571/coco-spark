@@ -2341,6 +2341,247 @@ def stage_bed(eid):
     print(f"    now: python3 make.py assemble {eid} && python3 make.py audio {eid}")
 
 
+ANIMATIC_VERSION = "1"
+
+
+def load_beats(eid):
+    """The episode's beat map: which visual authority covers which phrases, and how."""
+    p = ep_dir(eid) / "beats.json"
+    if not p.exists():
+        sys.exit(f"  no beat map at {p} — write one against phrases.json first")
+    return json.loads(p.read_text())
+
+
+def beat_segments(eid):
+    """PURE-ish. Turn the beat map + phrase timings into concrete (start, end, spec) cuts.
+
+    The song decides where cuts fall. A beat names the PHRASE it starts on; its length is
+    whatever the music gives it, never a number somebody typed.
+    """
+    d = ep_dir(eid)
+    pm = json.loads((d / "phrases.json").read_text())
+    runtime = pm["trimmed"]["runtime_seconds"]
+    at = {i: p["at"] for i, p in enumerate(pm["phrases"])}
+    beats = load_beats(eid)["beats"]
+    segs = []
+    for i, b in enumerate(beats):
+        b.setdefault("source", {"kind": "STILL", "id": i})
+        start = at.get(b["from_phrase"])
+        if start is None:
+            sys.exit(f"  beat {i} names phrase {b['from_phrase']}, which does not exist")
+        if i == 0:
+            # picture must cover the instrumental pickup too. The first beat starts when
+            # the TRACK starts, not when the first word does, or the episode opens on
+            # black for two and a half seconds.
+            start = 0.0
+        nxt = beats[i + 1]["from_phrase"] if i + 1 < len(beats) else None
+        end = at.get(nxt, runtime) if nxt is not None else runtime
+        segs.append({**b, "start": round(start, 2), "end": round(end, 2),
+                     "seconds": round(end - start, 2)})
+    return segs, runtime
+
+
+def stage_beats(eid):
+    """Print the beat map against the song, so a human can see the pacing before buying."""
+    segs, runtime = beat_segments(eid)
+    pm = json.loads((ep_dir(eid) / "phrases.json").read_text())["phrases"]
+    print(f"  {eid}: {len(segs)} visual authorities across {runtime}s")
+    paid = 0
+    for s in segs:
+        renderer, cost, _why = renderer_for(s["visual_change"])
+        if s["source"]["kind"] == "GENERATIVE":
+            renderer, cost = "GENERATIVE_VIDEO", "PAID"
+        if cost == "PAID":
+            paid += 1
+        tag = {"STILL": f"still {s['source'].get('id')}", "GENERATIVE": "GENERATED",
+               "TAIL_OF": f"tail of beat {s['source'].get('beat')}"}[s["source"]["kind"]]
+        print(f"    {s['start']:6.2f}-{s['end']:6.2f} ({s['seconds']:5.2f}s) "
+              f"{s['move']:11s} {tag:16s} {s['state'][:34]}")
+        for p in pm[s["from_phrase"]:]:
+            if p["at"] >= s["end"]:
+                break
+            if not p["text"].startswith("["):
+                print(f"                    | {p['at']:6.2f}  {p['text'][:56]}")
+    stills = {b["source"]["id"] for b in segs if b["source"]["kind"] == "STILL"}
+    gens = [b for b in segs if b["source"]["kind"] == "GENERATIVE"]
+    over = [b for b in gens if b["seconds"] > C.VIDEO_SECONDS + 0.05]
+    cost = len(stills) * C.INR_PER_IMAGE + len(gens) * (C.INR_PER_IMAGE +
+                                                        C.VIDEO_SECONDS * C.INR_PER_VID_SEC)
+    print(f"  {len(stills)} paid stills + {len(gens)} generated beat(s) = "
+          f"Rs {cost:.2f}, worst case Rs {cost * getattr(C, 'SAFETY_MARGIN', 1.0):.2f}")
+    for b in over:
+        print(f"  x a generated beat covers {b['seconds']}s but a clip lasts "
+              f"{C.VIDEO_SECONDS}s. Cover the rest with TAIL_OF, or the picture freezes "
+              f"on a paid frame nobody chose.")
+
+
+def stage_animatic(eid):
+    """Watch the whole episode BEFORE buying a single picture. Rs 0.
+
+    GPT's gate, and it is the best idea either of us has had today: build the real
+    structure — real song, real cut points, real holds and moves — with placeholder
+    pictures. If it is boring with placeholders, Rs 5 images will not fix the pacing; if it
+    already feels musical, the structure has earned the money.
+    """
+    d = ep_dir(eid)
+    segs, runtime = beat_segments(eid)
+    bed = episode_audio_dir(eid) / "bed.wav"
+    if not bed.exists():
+        sys.exit(f"  no trimmed track at {bed} — run `track` first")
+    stand_in = d / "animatic" / "stills"
+    stand_in.mkdir(parents=True, exist_ok=True)
+    pool = sorted((OUT / "E01" / "frames").glob("*.png")) + \
+           sorted((OUT / "E01" / "transitions").glob("*_LAST.png"))
+    if not pool:
+        sys.exit("  no placeholder stills available")
+    parts = []
+    for i, s in enumerate(segs):
+        src = pool[i % len(pool)]
+        seg = d / "animatic" / f"{i:02d}.mp4"
+        ok = render_beat(src, seg, s["seconds"], s.get("move", "HOLD"), 1280, 720, 24,
+                         fade_out=(C.ENDING_FADE_SECONDS if i == len(segs) - 1 else 0.0))
+        if not ok:
+            sys.exit(f"  could not render animatic segment {i}")
+        parts.append(seg)
+    lst = d / "animatic" / "concat.txt"
+    lst.write_text("".join(f"file '{p.resolve()}'\n" for p in parts))
+    silent = d / "animatic" / "picture.mp4"
+    os.system(f'ffmpeg -nostdin -y -f concat -safe 0 -i "{lst}" -c copy "{silent}" '
+              f'2>/dev/null')
+    final = d / "animatic" / "animatic.mp4"
+    os.system(f'ffmpeg -nostdin -y -i "{silent}" -i "{bed}" -map 0:v -map 1:a '
+              f'-c:v copy -c:a aac -b:a 192k -shortest "{final}" 2>/dev/null')
+    print(f"  {eid}: animatic built from PLACEHOLDER pictures and the real song")
+    print(f"    {len(segs)} beats, {media_duration(final)}s, Rs 0")
+    print(f"    -> {final}")
+    print("  Watch the whole thing. If the pacing is boring here, paid stills will not "
+          "fix it.")
+
+
+TRACK_TRIM_VERSION = "1"
+
+
+def read_lrc(path):
+    """PURE. LRC -> [(seconds, text)] for LINES, dropping the per-word stamps.
+
+    Suno stamps every word. Cuts belong on PHRASES, not words: a cut mid-phrase reads as a
+    mistake even when it lands exactly on a beat.
+    """
+    import re
+    out, current, start = [], [], None
+    for raw in Path(path).read_text().splitlines():
+        m = re.match(r"\[(\d+):([\d.]+)\]\s*(.*)", raw)
+        if not m:
+            if raw.strip() == "" and current:
+                out.append((start, " ".join(current).strip())); current, start = [], None
+            elif raw.strip():
+                current.append(raw.strip())
+            continue
+        t = int(m.group(1)) * 60 + float(m.group(2))
+        text = m.group(3).strip()
+        if text.startswith("["):          # a section label, its own boundary
+            if current:
+                out.append((start, " ".join(current).strip())); current = []
+            out.append((t, text))
+            # the first sung word of the next line sits UNSTAMPED under the label. Dropping
+            # it loses the word the phrase begins with — "Five" from "Five little stars" —
+            # and puts every opening cut half a second late.
+            start = t
+            continue
+        if start is None:
+            start = t
+        current.append(text)
+    if current:
+        out.append((start, " ".join(current).strip()))
+    return [(round(t, 2), x) for t, x in out if t is not None and x]
+
+
+def trailing_silence(path, floor_db=-45, min_seconds=0.4):
+    """Where the music actually stops. MEASURED, not guessed at with a round number."""
+    out = os.popen(f'ffmpeg -nostdin -i "{path}" -af '
+                   f'silencedetect=noise={floor_db}dB:d={min_seconds} -f null - 2>&1 '
+                   f'| grep silence_start').read().strip().splitlines()
+    if not out:
+        return None
+    try:
+        return round(float(out[-1].split("silence_start:")[1].strip()), 3)
+    except (IndexError, ValueError):
+        return None
+
+
+def stage_track(eid, clip_id=None, lead_in=2.5):
+    """Choose the take, trim the dead air deterministically, make it the audio spine. Rs 0.
+
+    Both takes opened with a fourteen-second instrumental intro while "long intro" sat in
+    the exclude list that was sent. That is the seventh prose instruction a generator has
+    ignored on this project, and the answer is the same as it was for the unrequested camera
+    push-in: do not ask again, measure it and remove it.
+
+    Head is cut to `lead_in` seconds before the first sung word — enough to establish the
+    room before anyone sings, not enough for a preschooler to leave. Tail is cut where the
+    music MEASURABLY stops rather than at a round number.
+    """
+    d = ep_dir(eid)
+    suno = d / "suno"
+    lrcs = sorted(suno.glob("*.lrc"))
+    if not lrcs:
+        sys.exit(f"  no timings in {suno} — pull them with the Suno CLI first")
+    if clip_id:
+        lrcs = [p for p in lrcs if p.stem.startswith(clip_id)]
+        if not lrcs:
+            sys.exit(f"  no timings for clip {clip_id}")
+    lrc = lrcs[0]
+    cid = lrc.stem
+    audio = next((p for p in sorted((suno / "audio").glob("*.mp3"))
+                  if cid[:8] in p.name), None)
+    if not audio:
+        sys.exit(f"  no audio file for clip {cid}")
+
+    lines = read_lrc(lrc)
+    sung = [(t, x) for t, x in lines if not x.startswith("[")]
+    if not sung:
+        sys.exit("  the timings contain no sung lines")
+    first, last = sung[0][0], sung[-1][0]
+    total = media_duration(audio)
+    stop = trailing_silence(audio) or total
+    head = max(0.0, round(first - lead_in, 3))
+    tail = round(min(stop + 0.4, total), 3)
+    dur = round(tail - head, 3)
+
+    dest = episode_audio_dir(eid) / "bed.wav"
+    fade = min(C.AUDIO_FADE_SECONDS, dur / 6)
+    rc = os.system(f'ffmpeg -nostdin -y -ss {head} -to {tail} -i "{audio}" '
+                   f'-af "afade=t=out:st={round(dur - fade, 3)}:d={fade}" '
+                   f'-ar 48000 -ac 2 "{dest}" 2>/dev/null')
+    if rc != 0 or not dest.exists():
+        sys.exit("  ffmpeg could not trim the track")
+    phrases = [{"at": round(t - head, 2), "text": x} for t, x in lines
+               if t >= head and t <= tail]
+    (d / "phrases.json").write_text(json.dumps(
+        {"kind": "SONG_PHRASE_MAP", "episode": eid, "clip_id": cid,
+         "source_audio": audio.name, "source_seconds": total,
+         "trimmed": {"head_seconds": head, "tail_seconds": round(total - tail, 3),
+                     "runtime_seconds": dur, "lead_in": lead_in,
+                     "first_word_at": round(first - head, 2),
+                     "music_stops_at": stop},
+         "phrases": phrases, "trimmer": TRACK_TRIM_VERSION,
+         "revision": build_revision()}, indent=2))
+    (episode_audio_dir(eid) / "bed.provenance.json").write_text(json.dumps(
+        {"status": "COMPLETE", "kind": "EPISODE_AUDIO_BED", "episode": eid,
+         "origin": "SUNO_TRACK_TRIMMED", "clip_id": cid, "source_audio": audio.name,
+         "head_seconds": head, "runtime_seconds": dur,
+         "licence": "Suno Pro Plan — commercial_rights present on the account at generation",
+         "sha": sha_file(dest), "cost_inr": 0, "trimmer": TRACK_TRIM_VERSION,
+         "revision": build_revision()}, indent=2))
+    print(f"  {eid}: take {cid[:8]} — {total}s in, {dur}s out")
+    print(f"    cut {head}s of intro (first word now at {round(first - head, 2)}s) "
+          f"and {round(total - tail, 2)}s of tail")
+    print(f"    {len([p for p in phrases if not p['text'].startswith('[')])} sung phrases, "
+          f"{len([p for p in phrases if p['text'].startswith('[')])} section marks")
+    print(f"    -> {dest}")
+    print(f"    -> {d / 'phrases.json'}")
+
+
 SONG_REQUEST_VERSION = "1"
 
 
@@ -2766,7 +3007,7 @@ def stage_costs(episode=None):
 
 STAGES = {"verify": stage_verify, "plan": stage_plan, "portraits": stage_portraits, "frames": stage_frames,
           "video": stage_video, "assemble": stage_assemble, "episode": stage_episode,
-          "costs": stage_costs, "audio": stage_audio, "bed": stage_bed, "song": stage_song,
+          "costs": stage_costs, "audio": stage_audio, "bed": stage_bed, "song": stage_song, "track": stage_track, "beats": stage_beats, "animatic": stage_animatic,
           "ending": stage_ending, "estimate": stage_estimate, "release": stage_release, "contact": stage_contact, "lock": stage_lock, "stabilize": stage_stabilize,
           # dispatched explicitly below: these take a LOCATION id, not an episode id
           "plate-candidate": None, "plate-approve": None}
@@ -2780,6 +3021,8 @@ if __name__ == "__main__":
                          "can be authorised in bounded slices")
     ap.add_argument("--attempt", type=int, default=None,
                     help="plate-approve: which candidate attempt becomes canonical")
+    ap.add_argument("--clip", dest="clip", default=None,
+                    help="track: which Suno take to use, by clip id prefix")
     ap.add_argument("--from", dest="source", default=None,
                     help="plate-candidate: derive from ACCEPTED footage, e.g. E01/s01")
     a = ap.parse_args()
@@ -2796,6 +3039,8 @@ if __name__ == "__main__":
           f"/{C.BUDGET_INR}\n")
     if a.stage == "episode":
         stage_episode(a.episode, upto=a.upto)
+    elif a.stage == "track":
+        stage_track(a.episode, clip_id=a.clip)
     elif a.stage == "plate-candidate":
         stage_plate_candidate(a.episode, source=a.source)   # positional = LOCATION id
     elif a.stage == "plate-approve":

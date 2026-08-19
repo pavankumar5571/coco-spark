@@ -1,0 +1,103 @@
+{
+  "kind": "SONG_PHRASE_MAP",
+  "episode": "E02",
+  "clip_id": "eb63dca0-0e30-46d7-b060-de18654aef36",
+  "source_audio": "five-little-stars-eb63dca0.mp3",
+  "source_seconds": 83.8,
+  "trimmed": {
+    "head_seconds": 11.38,
+    "tail_seconds": 1.416,
+    "runtime_seconds": 71.004,
+    "lead_in": 2.5,
+    "first_word_at": 2.5,
+    "music_stops_at": 81.984
+  },
+  "phrases": [
+    {
+      "at": 2.5,
+      "text": "[Verse 1]"
+    },
+    {
+      "at": 2.5,
+      "text": "Five little stars are shining bright,"
+    },
+    {
+      "at": 5.91,
+      "text": "Peeking through my window light."
+    },
+    {
+      "at": 9.34,
+      "text": "Coco counts them, one by one,"
+    },
+    {
+      "at": 12.8,
+      "text": "Softly now the day is done."
+    },
+    {
+      "at": 19.27,
+      "text": "[Chorus]"
+    },
+    {
+      "at": 19.27,
+      "text": "Twinkle, twinkle, close your eyes,"
+    },
+    {
+      "at": 22.66,
+      "text": "Sleepy stars in sleepy skies."
+    },
+    {
+      "at": 26.01,
+      "text": "Count them with me, drift away,"
+    },
+    {
+      "at": 28.99,
+      "text": "Goodnight, goodnight, till a brand new day."
+    },
+    {
+      "at": 36.01,
+      "text": "[Verse 2]"
+    },
+    {
+      "at": 36.01,
+      "text": "Four little stars, then three, then two,"
+    },
+    {
+      "at": 39.52,
+      "text": "One last star is watching you."
+    },
+    {
+      "at": 42.93,
+      "text": "Coco yawns and snuggles deep,"
+    },
+    {
+      "at": 46.26,
+      "text": "Warm and cosy, off to sleep."
+    },
+    {
+      "at": 52.46,
+      "text": "[Outro]"
+    },
+    {
+      "at": 52.46,
+      "text": "Goodnight, goodnight, little bear,"
+    },
+    {
+      "at": 59.23,
+      "text": "Goodnight, goodnight, everywhere."
+    }
+  ],
+  "trimmer": "1",
+  "revision": {
+    "commit": "3b812aa0d1f461343e754baa559a0c22e87d744a",
+    "dirty": true,
+    "tag": null,
+    "sources": {
+      "make.py": "ddec261d860be6fb",
+      "validate.py": "2575ced36821ab6a",
+      "camera.py": "9631f4435b8365cc",
+      "schema.py": "0ba81e3b7e46fe69",
+      "config.py": "a71ba387b9f3a9f9",
+      "bible.yaml": "9065f801b00b168c"
+    }
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "kind": "EPISODE_BEAT_MAP",
+  "episode": "E02",
+  "note": "Fifteen cuts over seven paid pictures. A beat names the phrase it starts on and ends when the next begins, so the song sets every length. Pictures are REUSED with different framing where the lyric returns to the same idea; the frame changes on every phrase even though only seven pictures are bought. Exactly one beat is generated, it is capped at the 4s a clip actually lasts, and the phrase after it is covered free by that clip's own last frame. Beat starts name SUNG phrases, never section labels \u2014 a label shares its timestamp with the line under it and would create a zero-length cut.",
+  "beats": [
+    {
+      "from_phrase": 0,
+      "source": {
+        "kind": "STILL",
+        "id": 0
+      },
+      "move": "PUSH_IN",
+      "visual_change": "CAMERA_ONLY",
+      "state": "wide room at night, five stars in the round window, Coco awake in bed"
+    },
+    {
+      "from_phrase": 2,
+      "source": {
+        "kind": "STILL",
+        "id": 1
+      },
+      "move": "DRIFT_RIGHT",
+      "visual_change": "CAMERA_ONLY",
+      "state": "the round window filling the frame, five stars bright"
+    },
+    {
+      "from_phrase": 3,
+      "source": {
+        "kind": "STILL",
+        "id": 2
+      },
+      "move": "HOLD",
+      "visual_change": "NONE",
+      "state": "close on Coco looking up, counting"
+    },
+    {
+      "from_phrase": 4,
+      "source": {
+        "kind": "STILL",
+        "id": 2
+      },
+      "move": "PUSH_IN",
+      "visual_change": "CAMERA_ONLY",
+      "state": "the same close, tighter as the day ends"
+    },
+    {
+      "from_phrase": 6,
+      "source": {
+        "kind": "STILL",
+        "id": 1
+      },
+      "move": "PUSH_IN",
+      "visual_change": "CAMERA_ONLY",
+      "state": "back to the window for the chorus"
+    },
+    {
+      "from_phrase": 7,
+      "source": {
+        "kind": "STILL",
+        "id": 3
+      },
+      "move": "DRIFT_LEFT",
+      "visual_change": "CAMERA_ONLY",
+      "state": "medium wide, the room warm and settling"
+    },
+    {
+      "from_phrase": 8,
+      "source": {
+        "kind": "STILL",
+        "id": 3
+      },
+      "move": "PUSH_IN",
+      "visual_change": "CAMERA_ONLY",
+      "state": "the same room, drawing in"
+    },
+    {
+      "from_phrase": 9,
+      "source": {
+        "kind": "STILL",
+        "id": 4
+      },
+      "move": "HOLD",
+      "visual_change": "NONE",
+      "state": "the window, four stars now"
+    },
+    {
+      "from_phrase": 11,
+      "source": {
+        "kind": "STILL",
+        "id": 4
+      },
+      "move": "PUSH_IN",
+      "visual_change": "CAMERA_ONLY",
+      "state": "closer as the count comes down"
+    },
+    {
+      "from_phrase": 12,
+      "source": {
+        "kind": "STILL",
+        "id": 5
+      },
+      "move": "HOLD",
+      "visual_change": "NONE",
+      "state": "one last star, alone in the window"
+    },
+    {
+      "from_phrase": 13,
+      "source": {
+        "kind": "GENERATIVE",
+        "id": 6
+      },
+      "move": "HOLD",
+      "visual_change": "CHARACTER_DEFORMATION",
+      "state": "Coco yawns and settles down onto the pillow",
+      "why_paid": "a still cannot show a yawn becoming sleep, and this is the only line in the song where the picture has to move"
+    },
+    {
+      "from_phrase": 14,
+      "source": {
+        "kind": "TAIL_OF",
+        "beat": 10
+      },
+      "move": "HOLD",
+      "visual_change": "NONE",
+      "state": "asleep, held on the clip's own last frame"
+    },
+    {
+      "from_phrase": 16,
+      "source": {
+        "kind": "TAIL_OF",
+        "beat": 10
+      },
+      "move": "PULL_BACK",
+      "visual_change": "CAMERA_ONLY",
+      "state": "easing away from the sleeping bear"
+    },
+    {
+      "from_phrase": 17,
+      "source": {
+        "kind": "STILL",
+        "id": 0
+      },
+      "move": "PULL_BACK",
+      "visual_change": "CAMERA_ONLY",
+      "state": "the whole room again, one star, the closing image"
+    }
+  ]
+}
