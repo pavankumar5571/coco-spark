@@ -2,8 +2,18 @@ id: E01
 mode: BEDTIME_STORY
 title: Coco's Starlight Bedtime
 location: cottage_night
-cast: [coco, nana]
+cast: [coco]
 shots: 3
 idea: >-
-  Coco cannot fall asleep. Nana Willow sits beside his bed and quietly shows him the
-  stars through the round window, until Coco grows sleepy and drifts off.
+  A complete, calm bedtime moment, told in one unbroken stretch of time in Coco's room.
+  Coco is sitting up in bed under the patchwork quilt, still awake, looking out at the
+  stars through the round window. He grows sleepy, lies down onto his side with his head
+  on the pillow and lets his eyes close. He sleeps peacefully as the quilt rises and
+  falls. Nobody else is in the room at any point, nobody enters or leaves, and nothing is
+  picked up, put down or moved. The only thing that changes is Coco himself, and every
+  change must be shown happening on screen rather than between shots.
+requirements:
+  - id: framing_change_across_a_continuous_cut
+    type: CAMERA_VARIATION
+    strength: MUST
+    params: {required_sizes: [WIDE, CLOSE]}
