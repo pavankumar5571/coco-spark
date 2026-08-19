@@ -159,7 +159,15 @@ def resolve_frame_refs(d, shots, idx, bible, loc, policy):
             return RefResolution([], [], f"PREDECESSOR_PIXELS requires the exact "
                                          f"predecessor tail, which is unavailable "
                                          f"({tail_why}). Render or repair {prev_id} first.")
-        return RefResolution(paths, ref_ids + [("inherited", prev_id, sha_file(tail))])
+        # Identity here is the INHERITED PIXELS and nothing else. Portraits and the world
+        # plate are references for GENERATION; this frame is byte-copied, so neither
+        # caused a single pixel of it. Binding them in would stale an inherited frame
+        # whenever canon changed, for a frame the change provably could not have touched.
+        # Provenance says what CAUSED an artifact; whether canon has since moved is a
+        # policy question and does not belong in a cache key.
+        return RefResolution([], [("inherited", prev_id, sha_file(tail)),
+                                  ("inheritance_contract", INHERITANCE_CONTRACT_VERSION,
+                                   "")])
 
     # TEMPORAL_REFERENCE may fall back to a PROVEN predecessor frame
     if tail_ok:
@@ -486,6 +494,8 @@ def vocab_block():
         f"  {k}: {'MATERIAL' if v.get('material') else 'free'} -> {', '.join(v['values'])}"
         for k, v in BIBLE["state_vocab"].items())
 
+
+INHERITANCE_CONTRACT_VERSION = "1"
 
 LOCATION_PLATES = OUT / "location_plates"
 LOCATION_PLATES.mkdir(parents=True, exist_ok=True)
