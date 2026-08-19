@@ -756,6 +756,7 @@ def stage_video(eid, only=None):
         prompt = (f"ACTION: {shot['motion']}\nCAMERA: {shot['camera']}\n"
                   f"STYLE: {BIBLE['style_lock']}\n"
                   f"{veo_constraint_clause(BIBLE, load_ep(eid)['mode'])}")
+        prompt_sha = hashlib.sha256(prompt.encode()).hexdigest()[:16]
         print(f"  {shot['id']}: generating clip")
         res_idx = reserve("video", f"clip:{eid}/{shot['id']}",
                           C.INR_PER_VID_SEC * C.VIDEO_SECONDS)
@@ -779,6 +780,7 @@ def stage_video(eid, only=None):
 
             prov_p.write_text(json.dumps(
                 {"status": "COMPLETE", "qc": "PENDING_QC",
+                 "video_prompt": prompt, "video_prompt_sha": prompt_sha,
                  "input_hash": chash, "sha": sha_file(dest),
                  "model": C.VIDEO_MODEL, "res": C.VIDEO_RES, "secs": C.VIDEO_SECONDS,
                  "revision": build_revision()},

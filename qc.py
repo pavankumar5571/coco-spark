@@ -31,6 +31,16 @@ CAPABILITY_PROBES = (
 
 # Prevention implemented from a hypothesis is NOT prevention demonstrated. Anything listed
 # here is untested against the provider, and must not be treated as solved.
+# Evidence strength. n=1 against a STOCHASTIC generator does not validate anything: an
+# unconstrained sample might also have produced no particles. Strength is recorded
+# explicitly so a single lucky clip never gets promoted to "solved".
+TRIAL_STRENGTH = (
+    "UNTESTED",
+    "POSITIVE_SINGLE_TRIAL",              # helped once; not a prevention rate
+    "PREVENTION_FAILED_ON_CONTROLLED_TRIAL",
+    "MIXED_SINGLE_TRIAL",                 # treatment traded one defect for another
+)
+
 UNTESTED_PREVENTION = {
     "UNREQUESTED_VISUAL_ADDITION":
         "compile_prompt.veo_constraint_clause emits a no-particles constraint. "
@@ -60,6 +70,15 @@ class QCVerdict:
                 "findings": [f.__dict__ for f in self.findings],
                 "capability": self.capability, "judged_by": self.judged_by,
                 "revision": self.revision}
+
+
+def compare_capability(baseline: dict, treatment: dict):
+    """A treatment that removes one defect while degrading a proven capability is a
+    TRADE-OFF, not a success. Compare the whole vector, never the target defect alone."""
+    regressions = [k for k, v in baseline.items()
+                   if v == "PASS" and treatment.get(k) not in ("PASS", None)]
+    return {"regressions": regressions,
+            "verdict": "TRADE_OFF" if regressions else "NO_REGRESSION"}
 
 
 def decide(shot_id, findings, revision=None, capability=None, judged_by="HUMAN"):
