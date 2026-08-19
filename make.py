@@ -502,17 +502,27 @@ LOCATION_PLATES.mkdir(parents=True, exist_ok=True)
 LOCATION_PLATE_CONTRACT_VERSION = "1"
 
 
-# Keys on a cast entry that do NOT affect the generated pixels. A portrait's identity
-# must depend on what the request contains and nothing else. Adding `possessive` — a
-# LANGUAGE property used only by the sentence renderer — staled an already-paid portrait,
-# which is the same defect as hashing visual_constraints into frame identity: an input
-# that cannot change the artifact must not change its identity.
-CAST_NONVISUAL_KEYS = ("possessive",)
+# A POSITIVE contract: exactly which cast fields can affect the generated pixels.
+#
+# This was a blacklist ("everything except possessive") for one commit and that shape
+# rots: the next language-only field someone adds is silently causal, and every portrait
+# is re-bought for a word that cannot change a pixel. An allow-list fails the other way
+# — a genuinely visual field left off is ignored — which is the safe direction, because
+# it is caught by the artifact looking wrong rather than by a silent invoice.
+#
+# `name` is in this list and is NOT causal: the portrait prompt uses features and
+# style_lock only. It stays because removing it changes the hash of portraits already
+# paid for, and regenerating them would swap the canonical identity anchor for a
+# character mid-channel — a continuity risk, not just Rs 15. Moving to a nested `visual:`
+# block per GPT's proposal is the right end state and is a deliberate contract-version
+# bump with that cost attached, not a refactor to slip in unpriced.
+PORTRAIT_VISUAL_KEYS = ("name", "features")
+PORTRAIT_CONTRACT_VERSION = "1"
 
 
 def portrait_identity(character, bible):
-    """What a canonical portrait was generated FROM. One definition, two call sites."""
-    visual = {k: v for k, v in character.items() if k not in CAST_NONVISUAL_KEYS}
+    """What a canonical portrait was generated FROM. One definition, every call site."""
+    visual = {k: character[k] for k in PORTRAIT_VISUAL_KEYS if k in character}
     return input_hash(character=visual, style=bible["style_lock"],
                       model=C.IMAGE_MODEL, aspect=C.IMAGE_ASPECT)
 

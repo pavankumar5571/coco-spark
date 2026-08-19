@@ -729,6 +729,20 @@ def append_properties():
 
     shutil.rmtree(tmp, ignore_errors=True)
 
+    # a language-only cast field must never re-buy a portrait
+    tmp3, mk3 = fresh_env(10_000)
+    import copy as _c
+    b1 = _c.deepcopy(mk3.BIBLE)
+    before = mk3.portrait_identity(b1["cast"]["coco"], b1)
+    b1["cast"]["coco"]["voice_id"] = "vo_42"
+    b1["cast"]["coco"]["narrative_note"] = "likes honey"
+    out.append(_ok("new non-visual cast fields do not restale a paid portrait",
+                   before == mk3.portrait_identity(b1["cast"]["coco"], b1)))
+    b1["cast"]["coco"]["features"] = "a completely different bear"
+    out.append(_ok("a visual cast field DOES change portrait identity",
+                   mk3.portrait_identity(b1["cast"]["coco"], b1) != before))
+    shutil.rmtree(tmp3, ignore_errors=True)
+
     return out
 
 
