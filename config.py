@@ -26,11 +26,28 @@ BUDGET_INR = 500.0   # The cap is per-experiment on purpose: an open cap is how 
 # appeared despite an explicit no-particles clause.
 VIDEO_ENHANCE_PROMPT = False
 
-# REJECTED BY THE BACKEND: "seed parameter is not supported in Gemini API" (2026-08-19).
-# The SDK's GenerateVideosConfig accepts the field; this surface does not. Left here as
-# None, and recorded, rather than deleted -- the fact that a documented SDK field is not
-# honoured is exactly the kind of thing we lose and then rediscover by paying for it.
 VIDEO_SEED = None
+VIDEO_NEGATIVE_PROMPT_SUPPORTED = False
+
+# What this provider surface ACTUALLY accepts, established by making the call and reading
+# the rejection -- not by reading the SDK. GenerateVideosConfig exposes all three of these
+# fields; two of them are refused by the backend. A field existing in the client library
+# says nothing about the model honouring it.
+#
+# Each rejection below arrived BEFORE generation, so the reservation released and none of
+# them cost anything. That is the reserve-before-invoke design earning its keep.
+SURFACE_FINDINGS = {
+    ("veo-3.1-lite-generate-preview", "seed"):
+        "REJECTED 2026-08-19: 'seed parameter is not supported in Gemini API'. "
+        "No reproducible re-renders on this surface.",
+    ("veo-3.1-lite-generate-preview", "negative_prompt"):
+        "REJECTED 2026-08-19: 400 INVALID_ARGUMENT, '`negativePrompt` isn't supported by "
+        "this model'. Exclusion cannot be expressed as a parameter here; prose in the "
+        "prompt body is the only channel, and prose already failed 3 of 4 clips.",
+    ("veo-3.1-lite-generate-preview", "enhance_prompt"):
+        "ACCEPTED 2026-08-19 (not rejected at request time). Whether the backend HONOURS "
+        "it is untested and must not be assumed.",
+}
 
 CROSSFADE_SECONDS = 0.0   # hard cut; do not use transitions to conceal bad continuity
 

@@ -586,8 +586,14 @@ def contract_properties():
     if kw:
         cfg = kw.get("config")
         neg = getattr(cfg, "negative_prompt", None) or ""
-        out.append(_ok("compiled negative_prompt reaches the provider",
-                       "floating particles" in neg and "dust motes" in neg))
+        if config.VIDEO_NEGATIVE_PROMPT_SUPPORTED:
+            out.append(_ok("compiled negative_prompt reaches the provider",
+                           "floating particles" in neg and "dust motes" in neg))
+        else:
+            # The model rejects negativePrompt outright, so sending it fails the whole
+            # call. The property is that an unsupported parameter is never sent.
+            out.append(_ok("unsupported negative_prompt is omitted from the request",
+                           not neg))
         out.append(_ok("prompt enhancer is disabled in the request",
                        getattr(cfg, "enhance_prompt", None) is False))
         # This surface REJECTS seed ("not supported in Gemini API"), so the property is

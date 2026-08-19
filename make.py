@@ -845,7 +845,8 @@ def stage_video(eid, only=None):
                 config=types.GenerateVideosConfig(
                     resolution=C.VIDEO_RES, aspect_ratio=C.VIDEO_ASPECT,
                     duration_seconds=C.VIDEO_SECONDS,
-                    negative_prompt=negative or None,
+                    **({"negative_prompt": negative} if negative
+                       and C.VIDEO_NEGATIVE_PROMPT_SUPPORTED else {}),
                     enhance_prompt=C.VIDEO_ENHANCE_PROMPT,
                     **({"seed": C.VIDEO_SEED} if C.VIDEO_SEED is not None else {})),
             )
