@@ -1,0 +1,212 @@
+[
+  {
+    "id": "s01",
+    "cast": [
+      "coco"
+    ],
+    "frame": "Wide establishing shot of Coco's room at night, showing the round window on the left with starry sky, bookshelf, woven rug, and Coco sitting up in bed on the right under the patchwork quilt.",
+    "motion": "Coco sits quietly in bed under the patchwork quilt, looking out the round window at the twinkling stars with a calm and curious expression.",
+    "coverage_role": "ESTABLISH",
+    "focus": {
+      "type": "ENVIRONMENT",
+      "ids": [
+        "cottage_night"
+      ]
+    },
+    "boundary": {
+      "type": "CONTINUOUS"
+    },
+    "events": [],
+    "start_state": {
+      "location_id": "cottage_night",
+      "population": [
+        "coco"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "AWAKE",
+          "posture": "SITTING_UP",
+          "facing": "LEFT",
+          "zone": "BED",
+          "expression": "CURIOUS"
+        }
+      },
+      "props": {},
+      "visual": {
+        "camera_setup_id": "COTTAGE_NIGHT_AXIS_A",
+        "composition_id": "ENVIRONMENT:COTTAGE_NIGHT",
+        "shot_size": "WIDE",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "end_state": {
+      "location_id": "cottage_night",
+      "population": [
+        "coco"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "AWAKE",
+          "posture": "SITTING_UP",
+          "facing": "LEFT",
+          "zone": "BED",
+          "expression": "CALM"
+        }
+      },
+      "props": {},
+      "visual": {
+        "camera_setup_id": "COTTAGE_NIGHT_AXIS_A",
+        "composition_id": "ENVIRONMENT:COTTAGE_NIGHT",
+        "shot_size": "WIDE",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "camera": "Locked static camera. Wide shot at eye level, framed on cottage_night.",
+    "frame_compiled": "Wide shot, eye level, framed on cottage_night. Wide establishing shot of Coco's room at night, showing the round window on the left with starry sky, bookshelf, woven rug, and Coco sitting up in bed on the right under the patchwork quilt."
+  },
+  {
+    "id": "s02",
+    "cast": [
+      "coco"
+    ],
+    "frame": "Close framing on Coco in bed under the patchwork quilt, maintaining intimate detail on his face and posture.",
+    "motion": "Coco grows sleepy, his expression softening as he lies down onto his side with his head on the pillow, letting his eyes close.",
+    "coverage_role": "DETAIL",
+    "focus": {
+      "type": "CHARACTER",
+      "ids": [
+        "coco"
+      ]
+    },
+    "boundary": {
+      "type": "CONTINUOUS"
+    },
+    "events": [
+      {
+        "type": "STATE_CHANGE",
+        "entity": "coco",
+        "field": "awareness",
+        "from": "AWAKE",
+        "to": "ASLEEP"
+      },
+      {
+        "type": "STATE_CHANGE",
+        "entity": "coco",
+        "field": "posture",
+        "from": "SITTING_UP",
+        "to": "LYING_SIDE"
+      }
+    ],
+    "start_state": {
+      "location_id": "cottage_night",
+      "population": [
+        "coco"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "AWAKE",
+          "posture": "SITTING_UP",
+          "facing": "LEFT",
+          "zone": "BED",
+          "expression": "CALM"
+        }
+      },
+      "props": {},
+      "visual": {
+        "camera_setup_id": "COTTAGE_NIGHT_AXIS_A",
+        "composition_id": "CHARACTER:COCO",
+        "shot_size": "CLOSE",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "end_state": {
+      "location_id": "cottage_night",
+      "population": [
+        "coco"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "ASLEEP",
+          "posture": "LYING_SIDE",
+          "facing": "LEFT",
+          "zone": "BED",
+          "expression": "SLEEPY"
+        }
+      },
+      "props": {},
+      "visual": {
+        "camera_setup_id": "COTTAGE_NIGHT_AXIS_A",
+        "composition_id": "CHARACTER:COCO",
+        "shot_size": "CLOSE",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "camera": "Locked static camera. Close shot at eye level, framed on coco.",
+    "frame_compiled": "Close shot, eye level, framed on coco. Close framing on Coco in bed under the patchwork quilt, maintaining intimate detail on his face and posture."
+  },
+  {
+    "id": "s03",
+    "cast": [
+      "coco"
+    ],
+    "frame": "Close framing on Coco in bed, matching the previous shot's intimate scale and angle on the sleeping cub.",
+    "motion": "Coco remains fast asleep on his side, breathing gently as the patchwork quilt rises and falls softly with each breath.",
+    "coverage_role": "DETAIL",
+    "focus": {
+      "type": "CHARACTER",
+      "ids": [
+        "coco"
+      ]
+    },
+    "boundary": {
+      "type": "CONTINUOUS"
+    },
+    "events": [],
+    "start_state": {
+      "location_id": "cottage_night",
+      "population": [
+        "coco"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "ASLEEP",
+          "posture": "LYING_SIDE",
+          "facing": "LEFT",
+          "zone": "BED",
+          "expression": "SLEEPY"
+        }
+      },
+      "props": {},
+      "visual": {
+        "camera_setup_id": "COTTAGE_NIGHT_AXIS_A",
+        "composition_id": "CHARACTER:COCO",
+        "shot_size": "CLOSE",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "end_state": {
+      "location_id": "cottage_night",
+      "population": [
+        "coco"
+      ],
+      "characters": {
+        "coco": {
+          "awareness": "ASLEEP",
+          "posture": "LYING_SIDE",
+          "facing": "LEFT",
+          "zone": "BED",
+          "expression": "SLEEPY"
+        }
+      },
+      "props": {},
+      "visual": {
+        "camera_setup_id": "COTTAGE_NIGHT_AXIS_A",
+        "composition_id": "CHARACTER:COCO",
+        "shot_size": "CLOSE",
+        "camera_angle": "EYE_LEVEL"
+      }
+    },
+    "camera": "Locked static camera. Close shot at eye level, framed on coco.",
+    "frame_compiled": "Close shot, eye level, framed on coco. Close framing on Coco in bed, matching the previous shot's intimate scale and angle on the sleeping cub."
+  }
+]

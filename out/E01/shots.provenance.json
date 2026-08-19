@@ -1,0 +1,12 @@
+{
+  "status": "COMPLETE",
+  "input_hash": "b61f87fa42861cf7",
+  "sha": "ca7e0b9fc4f4ac88",
+  "model": "gemini-3.5-flash-lite",
+  "requirement_results": {
+    "framing_change_across_a_continuous_cut": {
+      "status": "SATISFIED",
+      "reason": "All shots maintain continuity and transitions occur strictly on screen."
+    }
+  }
+}

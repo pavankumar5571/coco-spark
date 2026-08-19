@@ -1,5 +1,5 @@
 {
-  "spent_inr": 327.3580924,
+  "spent_inr": 327.42022039999995,
   "ops": [
     {
       "kind": "image",
@@ -284,6 +284,15 @@
       "reserved": 4.5,
       "state": "SPENT",
       "at": "2026-08-19 08:15:18",
+      "episode": "E01"
+    },
+    {
+      "kind": "llm",
+      "detail": "plan:E01",
+      "inr": 0.062128,
+      "reserved": 4.5,
+      "state": "SPENT",
+      "at": "2026-08-19 08:16:46",
       "episode": "E01"
     }
   ],
