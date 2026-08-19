@@ -10,6 +10,9 @@ out/*/clips/*
 out/*/frames/*
 out/*/transitions/*
 out/*/probe/*
+out/*/postfx/*
+out/*/qcframes/*
+out/*/baseline/*
 out/*/episode.mp4
 out/*/concat.txt
 
@@ -20,3 +23,5 @@ out/*/concat.txt
 !out/*/clips/*.provenance.json
 !out/*/clips/*.qc.json
 !out/*/frames/*.provenance.json
+!out/*/baseline/*.provenance.json
+!out/*/baseline/*.qc.json

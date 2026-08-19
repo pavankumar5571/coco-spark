@@ -39,7 +39,26 @@ TRIAL_STRENGTH = (
     "POSITIVE_SINGLE_TRIAL",              # helped once; not a prevention rate
     "PREVENTION_FAILED_ON_CONTROLLED_TRIAL",
     "MIXED_SINGLE_TRIAL",                 # treatment traded one defect for another
+    # A BUNDLE of parameters changed together can only ever be judged as a bundle. Naming
+    # these separately stops a passing result being written up as "we found the cause",
+    # which is what a single-variable label would quietly imply.
+    "POSITIVE_SINGLE_TRIAL_FOR_GENERATION_CONTRACT",
+    "CONTRACT_FAILED_ON_CONTROLLED_TRIAL",
+    "TRADE_OFF",
 )
+
+# Changing several generation parameters in one paid call buys a production answer, not a
+# causal one. Recorded here so a later reader cannot mistake the two.
+CONFOUNDED_TREATMENTS = {
+    "GENERATION_CONTRACT_V2": {
+        "changed_together": ("enhance_prompt=False", "negative_prompt=<compiled>",
+                             "seed=<fixed>"),
+        "answers": "is the hardened contract production-useful",
+        "does_not_answer": "which of the three parameters mattered, or whether Veo on the "
+                           "Gemini Developer API honours enhance_prompt=False at all — "
+                           "the SDK accepting a field is not the backend obeying it",
+    },
+}
 
 UNTESTED_PREVENTION = {}
 
