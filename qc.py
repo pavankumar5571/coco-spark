@@ -136,6 +136,7 @@ PLATE_PROBES = (
     "TEXT_HALLUCINATION",    # any lettering at all is blocking
     "UNREQUESTED_ENTITIES",  # characters or props that are not part of the place
     "TECHNICAL_VALIDITY",    # dimensions, format, not corrupt
+    "CANON_AGREEMENT",       # does it agree with footage already ACCEPTED for this place
 )
 
 
@@ -189,3 +190,76 @@ def decide(shot_id, findings, revision=None, capability=None, judged_by="HUMAN",
     blocking = [f for f in known if f.severity == BLOCKING]
     return QCVerdict(shot_id, "REJECTED_QC" if blocking else "ACCEPTED", known,
                      revision or {}, capability or {}, judged_by)
+
+
+# ---------------------------------------------------------------------------
+# CANON_AGREEMENT — does a candidate plate agree with footage already ACCEPTED?
+#
+# A plate is not judged like a clip. It is long-lived authority: once canonical, every
+# future frame inherits object FORM from it, so a plate that disagrees with published
+# episodes is WORSE than no plate — the plate wins from that point onward and the
+# audience sees the contradiction, not the schema.
+#
+# Attempt 001 for cottage_night passed geography perfectly and still had to be rejected:
+# accepted s01-s03 show a RECTANGULAR FRINGED rug, the candidate invented a ROUND BRAIDED
+# one. No probe in the contract asked that question. This is that probe.
+#
+# Three outcomes per object, and the third is load-bearing:
+#   MATCH          the form visible in the source is preserved in the candidate
+#   CONTRADICTION  the candidate shows a DIFFERENT form for something already seen
+#   NOT_OBSERVABLE the source never showed it (e.g. the completed portion of a shelf
+#                  that was cropped), so there is nothing to agree or disagree with
+#
+# NOT_OBSERVABLE is not a soft pass. It is an honest statement that these pixels are
+# NEWLY ESTABLISHED and become canon only through human acceptance — which is legitimate,
+# because canon means "the accepted visual specification from here on", not "historically
+# observed everywhere". Collapsing it into MATCH would let a plate claim agreement with
+# footage that never showed the object.
+MATCH = "MATCH"
+CONTRADICTION = "CONTRADICTION"
+NOT_OBSERVABLE = "NOT_OBSERVABLE"
+CANON_JUDGEMENTS = (MATCH, CONTRADICTION, NOT_OBSERVABLE)
+
+
+def canon_agreement(required_objects, judgements):
+    """PURE. Decide the CANON_AGREEMENT probe from a per-object judgement map.
+
+    Returns (status, reasons). Status is PASS only when every required object has been
+    judged and none contradicts canon. Incompleteness FAILS: a probe that can be passed
+    by not looking at something is worse than no probe, because it retires the concern.
+    """
+    reasons = []
+    judgements = judgements or {}
+    missing = [o for o in required_objects if o not in judgements]
+    if missing:
+        reasons.append("NOT JUDGED: " + ", ".join(sorted(missing)))
+    bad = sorted(k for k, v in judgements.items() if v not in CANON_JUDGEMENTS)
+    if bad:
+        reasons.append("not a CANON_AGREEMENT judgement: " + ", ".join(bad))
+    contra = sorted(k for k, v in judgements.items() if v == CONTRADICTION)
+    if contra:
+        reasons.append("CONTRADICTS accepted footage: " + ", ".join(contra))
+    unknown = sorted(k for k in judgements if k not in required_objects)
+    if unknown:
+        reasons.append("not a declared persistent object: " + ", ".join(unknown))
+    return ("FAIL" if reasons else "PASS"), reasons
+
+
+def plate_probe_completeness(probes):
+    """PURE. Every plate probe must be answered, and every answer must be PASS.
+
+    Approval reads a verdict written by a human. Silence is not consent: a verdict that
+    simply omits a probe must not be able to authorise canon.
+    """
+    probes = probes or {}
+    missing = [p for p in PLATE_PROBES if p not in probes]
+    failed = [p for p, v in probes.items() if p in PLATE_PROBES and v != "PASS"]
+    extra = [p for p in probes if p not in PLATE_PROBES]
+    reasons = []
+    if missing:
+        reasons.append("probes not answered: " + ", ".join(missing))
+    if failed:
+        reasons.append("probes FAILED: " + ", ".join(sorted(failed)))
+    if extra:
+        reasons.append("unknown probes: " + ", ".join(sorted(extra)))
+    return (not reasons), reasons

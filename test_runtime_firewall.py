@@ -531,6 +531,7 @@ def main():
     results += contract_properties()
     results += append_properties()
     results += plate_properties()
+    results += canon_agreement_properties()
 
     print(f"\n  {sum(results)}/{len(results)} runtime properties hold")
     if not all(results):
@@ -825,6 +826,109 @@ def plate_properties():
         replaced = False
     out.append(_ok("canon cannot be silently replaced with different pixels",
                    not replaced))
+
+    shutil.rmtree(tmp, ignore_errors=True)
+    return out
+
+
+def canon_agreement_properties():
+    """CANON_AGREEMENT: a plate may not contradict footage the audience has already seen.
+
+    Attempt 001 for cottage_night passed every probe that existed and still had to be
+    rejected, because it invented a round braided rug where accepted s01-s03 show a
+    rectangular fringed one. These guard the probe that would have caught it, and the
+    approval path that must not be passable by omission.
+    """
+    import json as _j
+    import qc as _qc
+    out = []
+    objs = ("rug", "chair", "bookshelf")
+
+    # the pure decision, exercised directly — one definition, every consumer calls it
+    st, _r = _qc.canon_agreement(objs, {"rug": "MATCH", "chair": "MATCH",
+                                        "bookshelf": "NOT_OBSERVABLE"})
+    out.append(_ok("preserved forms + honestly unseen pixels PASS", st == "PASS"))
+    st, _r = _qc.canon_agreement(objs, {"rug": "CONTRADICTION", "chair": "MATCH",
+                                        "bookshelf": "NOT_OBSERVABLE"})
+    out.append(_ok("one contradicted form FAILS the whole plate", st == "FAIL"))
+    st, _r = _qc.canon_agreement(objs, {"rug": "MATCH", "chair": "MATCH"})
+    out.append(_ok("an unjudged object FAILS — silence is not agreement", st == "FAIL"))
+    st, _r = _qc.canon_agreement(objs, {"rug": "MATCH", "chair": "MATCH",
+                                        "bookshelf": "PROBABLY_FINE"})
+    out.append(_ok("an invented judgement word FAILS", st == "FAIL"))
+    st, _r = _qc.canon_agreement(objs, dict.fromkeys(objs, "MATCH") | {"lamp": "MATCH"})
+    out.append(_ok("judging an undeclared object FAILS", st == "FAIL"))
+    st, _r = _qc.canon_agreement(objs, None)
+    out.append(_ok("no judgements at all FAILS", st == "FAIL"))
+
+    ok, _r = _qc.plate_probe_completeness(dict.fromkeys(_qc.PLATE_PROBES, "PASS"))
+    out.append(_ok("a fully answered all-PASS verdict is complete", ok))
+    partial = dict.fromkeys(_qc.PLATE_PROBES, "PASS"); partial.pop("CANON_AGREEMENT")
+    ok, _r = _qc.plate_probe_completeness(partial)
+    out.append(_ok("a verdict missing a probe is incomplete", not ok))
+    out.append(_ok("CANON_AGREEMENT is part of the plate contract",
+                   "CANON_AGREEMENT" in _qc.PLATE_PROBES))
+
+    # and the same rules at the APPROVAL boundary, where canon is actually created
+    tmp, make = fresh_env(10_000)
+    lid = "cottage_night"
+    declared = make.persistent_objects(lid)
+    out.append(_ok("the bible declares this location's persistent objects",
+                   bool(declared)))
+
+    d = make.plate_attempt_dir(lid, 1)
+    d.mkdir(parents=True, exist_ok=True)
+    make.write_atomic(d / "plate.png", _valid_png())
+    (d / "provenance.json").write_text(_j.dumps(
+        {"status": "COMPLETE", "kind": "LOCATION_PLATE_CANDIDATE", "canonical": False,
+         "location_id": lid, "location_version": make.location_version(lid),
+         "attempt": 1, "source": "DERIVED_FROM_ACCEPTED_FRAME",
+         "sha": make.sha_file(d / "plate.png")}))
+
+    def _verdict(probes_override=None, judgements=None):
+        probes = dict.fromkeys(_qc.PLATE_PROBES, "PASS")
+        probes.update(probes_override or {})
+        (d / "qc.json").write_text(_j.dumps(
+            {"kind": "LOCATION_PLATE_QC", "location_id": lid, "attempt": 1,
+             "plate_sha": make.sha_file(d / "plate.png"), "judged_by": "HUMAN",
+             "status": "ACCEPTED", "probes": probes,
+             "canon_agreement": judgements}))
+
+    def _approves():
+        try:
+            make.approve_plate_attempt(lid, 1)
+            return True
+        except SystemExit:
+            return False
+
+    _verdict(judgements=dict.fromkeys(declared, "MATCH"))
+    del_probes = _j.loads((d / "qc.json").read_text())
+    del_probes["probes"].pop("CANON_AGREEMENT")
+    (d / "qc.json").write_text(_j.dumps(del_probes))
+    out.append(_ok("approval refuses a verdict that never judged CANON_AGREEMENT",
+                   not _approves()))
+
+    _verdict(judgements={o: "MATCH" for o in declared[:-1]})
+    out.append(_ok("approval refuses a partial per-object judgement", not _approves()))
+
+    contra = dict.fromkeys(declared, "MATCH")
+    contra[declared[0]] = "CONTRADICTION"
+    _verdict(judgements=contra)
+    out.append(_ok("a CONTRADICTION cannot be approved even when the probe says PASS",
+                   not _approves()))
+
+    _verdict(probes_override={"PERSISTENT_OBJECTS": "FAIL"},
+             judgements=dict.fromkeys(declared, "MATCH"))
+    out.append(_ok("any FAILED plate probe blocks approval", not _approves()))
+
+    passing = dict.fromkeys(declared, "MATCH")
+    passing[declared[-1]] = "NOT_OBSERVABLE"
+    _verdict(judgements=passing)
+    out.append(_ok("a complete, non-contradicting verdict DOES approve", _approves()))
+
+    plate, prov = make.location_plate_paths(lid)
+    out.append(_ok("approved canon is byte-identical to the judged candidate",
+                   plate.exists() and make.sha_file(plate) == make.sha_file(d / "plate.png")))
 
     shutil.rmtree(tmp, ignore_errors=True)
     return out

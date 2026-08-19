@@ -206,3 +206,17 @@ framing:
     HIGH: viewed from slightly above, looking down
     LOW: viewed from slightly below, looking up
     OVER_SHOULDER: viewed past the shoulder of another character in the foreground
+
+# The objects that PERSIST in a place across every shot filmed there, named explicitly so
+# a plate candidate can be judged object by object instead of by overall impression.
+# Attempt 001 for cottage_night looked right at a glance and had invented a different rug
+# and a different chair from the twelve accepted seconds; "it looks like the room" is not
+# a probe.
+#
+# Deliberately NOT nested inside `locations`. This list is judgement data, not generation
+# data -- it reaches no prompt and cannot change a pixel, and `locations` is hashed into
+# every frame's identity. Putting it there would invalidate accepted paid frames for a
+# change that could not have altered them.
+persistent_objects:
+  cottage_night: [walls, round window, bed, patchwork quilt, wooden chair, woven rug, low bookshelf, floor, lamp light]
+  meadow_day: [grass, daisies, oak tree, wooden fence, hills, sky]

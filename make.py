@@ -621,6 +621,27 @@ def approve_plate_attempt(location_id, attempt):
     if v.get("status") != "ACCEPTED":
         sys.exit(f"  attempt {attempt:03d} is {v.get('status')}. A bare approve cannot "
                  f"override a QC verdict.")
+
+    # Every probe must have been ANSWERED, and answered PASS. An omitted probe is not a
+    # pass; a verdict that can authorise canon by staying silent is not a contract.
+    complete, why = qc.plate_probe_completeness(v.get("probes"))
+    if not complete:
+        sys.exit(f"  attempt {attempt:03d} cannot become canon — " + "; ".join(why))
+
+    # CANON_AGREEMENT is BLOCKING and is RECOMPUTED here from the per-object judgements,
+    # never trusted as a summary word. A plate that contradicts footage the audience has
+    # already seen is worse than no plate: canon wins for every future frame.
+    declared = persistent_objects(location_id)
+    if not declared:
+        sys.exit(f"  '{location_id}' declares no persistent_objects, so CANON_AGREEMENT "
+                 f"cannot be judged. Declare them in the bible before approving canon.")
+    status, reasons = qc.canon_agreement(declared, v.get("canon_agreement"))
+    if status != v["probes"]["CANON_AGREEMENT"]:
+        sys.exit(f"  attempt {attempt:03d}: recorded CANON_AGREEMENT="
+                 f"{v['probes']['CANON_AGREEMENT']} but the per-object judgements say "
+                 f"{status} — " + "; ".join(reasons or ["no objection"]))
+    if status != "PASS":
+        sys.exit(f"  attempt {attempt:03d} cannot become canon — " + "; ".join(reasons))
     # the verdict must name the pixels it judged, or it can authorise different ones
     if v.get("plate_sha") != sha_file(d / "plate.png"):
         sys.exit(f"  attempt {attempt:03d} has changed since it was judged "
@@ -681,6 +702,15 @@ def resolve_location_plate(location_id):
 
 
 PLATE_COMPILER_VERSION = "1"
+
+
+def persistent_objects(location_id):
+    """PURE. The objects that persist in a place, as declared — never inferred from prose.
+
+    Lives outside `locations` in the bible on purpose: it is judgement data that reaches
+    no prompt, and `locations` is hashed into every frame's identity.
+    """
+    return tuple((BIBLE.get("persistent_objects") or {}).get(location_id) or ())
 
 
 def plate_attempt_dir(location_id, n):
