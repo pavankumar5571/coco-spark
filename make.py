@@ -34,6 +34,33 @@ PORTRAITS.mkdir(parents=True, exist_ok=True)
 LEDGER = OUT / "ledger.json"
 
 
+SOURCE_FILES = ("make.py", "validate.py", "camera.py", "schema.py", "config.py",
+                "bible.yaml")
+
+
+def build_revision():
+    """Identify the exact executable logic authorising a paid call.
+
+    Not part of continuity — part of accountability. After a bad generation we must be
+    able to say which code approved it. A green test suite on tree A means nothing if the
+    provider call ran from tree B.
+    """
+    import subprocess
+    def git(*a):
+        try:
+            return subprocess.run(("git", *a), cwd=ROOT, capture_output=True,
+                                  text=True, timeout=10).stdout.strip()
+        except Exception:
+            return ""
+    return {
+        "commit": git("rev-parse", "HEAD") or "unknown",
+        "dirty": bool(git("status", "--porcelain")),
+        "tag": git("describe", "--tags", "--exact-match") or None,
+        "sources": {f: hashlib.sha256((ROOT / f).read_bytes()).hexdigest()[:16]
+                    for f in SOURCE_FILES if (ROOT / f).exists()},
+    }
+
+
 def input_hash(**parts):
     """Identity of the inputs that produced an artifact. If any changes, the artifact
     is stale and must be recomputed — existence alone proves nothing."""
@@ -640,6 +667,7 @@ def stage_frames(eid, only=None):
             {"status": "COMPLETE", "source": "GENERATED", "model": C.IMAGE_MODEL,
              "aspect": C.IMAGE_ASPECT, "input_hash": ihash, "sha": sha_file(dest),
              "refs": [str(r.relative_to(OUT)) for r in refs], "ref_ids": ref_ids,
+             "revision": build_revision(),
              "cost_inr": C.INR_PER_IMAGE}, indent=2))
         prev = dest
 
@@ -673,6 +701,13 @@ def preflight(eid, shots, d, targets=None):
     if spent + worst > C.BUDGET_INR:
         fail.append(f"WORST-CASE Rs {worst:.2f} (margin applied) would exceed the cap "
                     f"{C.BUDGET_INR} at Rs {spent:.2f} spent")
+    rev = build_revision()
+    print(f"    revision: {rev['commit'][:12]}"
+          f"{' TAG=' + rev['tag'] if rev['tag'] else ''}"
+          f"{'  DIRTY' if rev['dirty'] else '  clean'}")
+    if rev["dirty"] and getattr(C, "REQUIRE_CLEAN_TREE", True):
+        fail.append("working tree is DIRTY — the executable logic is not the committed "
+                    "logic, so a paid result could not be attributed to a revision")
     print(f"    contract: {C.PROVIDER_SURFACE} / {C.VIDEO_MODEL} / {C.VIDEO_RES} / "
           f"{C.VIDEO_SECONDS}s / audio-in-prompt=NO")
     print(f"    cost:     {n_target} clips, worst case Rs {worst:.2f} with margin "
@@ -732,7 +767,8 @@ def stage_video(eid, only=None):
 
             prov_p.write_text(json.dumps(
                 {"status": "COMPLETE", "input_hash": chash, "sha": sha_file(dest),
-                 "model": C.VIDEO_MODEL, "res": C.VIDEO_RES, "secs": C.VIDEO_SECONDS},
+                 "model": C.VIDEO_MODEL, "res": C.VIDEO_RES, "secs": C.VIDEO_SECONDS,
+                 "revision": build_revision()},
                 indent=2))
             tail = d / "transitions" / f"{shot['id']}_LAST.png"
             os.system(f'ffmpeg -v error -y -sseof -0.1 -i "{dest}" -frames:v 1 '
@@ -804,7 +840,20 @@ def stage_episode(eid):
     stage_assemble(eid)
 
 
-STAGES = {"plan": stage_plan, "portraits": stage_portraits, "frames": stage_frames,
+def stage_verify(_=None):
+    """Print the attestation ChatGPT asked for: exactly which tree would run."""
+    rev = build_revision()
+    print(f"  commit : {rev['commit']}")
+    print(f"  tag    : {rev['tag'] or '(none)'}")
+    print(f"  tree   : {'DIRTY — will refuse to spend' if rev['dirty'] else 'clean'}")
+    print("  sources:")
+    for f, h in rev["sources"].items():
+        print(f"    {h}  {f}")
+    L = ledger()
+    print(f"  ledger : Rs {L['spent_inr']:.2f} reserved/spent, cap Rs {C.BUDGET_INR}")
+
+
+STAGES = {"verify": stage_verify, "plan": stage_plan, "portraits": stage_portraits, "frames": stage_frames,
           "video": stage_video, "assemble": stage_assemble, "episode": stage_episode}
 
 if __name__ == "__main__":

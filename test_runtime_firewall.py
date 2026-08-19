@@ -63,6 +63,8 @@ def fresh_env(budget):
     make.PORTRAITS.mkdir(parents=True)
     make.LEDGER = tmp / "ledger.json"
     config.BUDGET_INR = budget
+    config.REQUIRE_CLEAN_TREE = False   # exercising other properties; see the dedicated
+                                        # dirty-tree case below
     return tmp, make
 
 
@@ -436,6 +438,27 @@ def main():
     results.append(ok)
     shutil.rmtree(tmp, ignore_errors=True)
 
+    # the attribution guard itself: a dirty tree must not spend
+    tmp, mk = fresh_env(10_000)
+    import config
+    config.REQUIRE_CLEAN_TREE = True
+    fake = FakeClient(); mk.client = lambda: fake
+    seed_episode(tmp, mk)
+    mk.build_revision = lambda: {"commit": "deadbeef", "dirty": True, "tag": None,
+                                 "sources": {}}
+    try:
+        mk.stage_video("E01")
+    except SystemExit:
+        pass
+    except Exception:
+        pass
+    ok = fake.calls == 0
+    print(f"  {'PASS' if ok else 'FAIL'}  "
+          f"{'dirty working tree -> zero paid calls':52s} calls={fake.calls} (want 0)")
+    results.append(ok)
+    config.REQUIRE_CLEAN_TREE = False
+    shutil.rmtree(tmp, ignore_errors=True)
+
     print(f"\n  {sum(results)}/{len(results)} runtime properties hold")
 
     # D. targeted video on shot 2 must not treat it as the first shot
@@ -445,6 +468,27 @@ def main():
         _m.stage_frames("E01")                     # both frames now exist and are current
     results.append(run_stage("D targeted stage_video(only=s02) keeps full context",
         "stage_video", 10_000, targeted_second, 1, only="s02"))
+
+    # the attribution guard itself: a dirty tree must not spend
+    tmp, mk = fresh_env(10_000)
+    import config
+    config.REQUIRE_CLEAN_TREE = True
+    fake = FakeClient(); mk.client = lambda: fake
+    seed_episode(tmp, mk)
+    mk.build_revision = lambda: {"commit": "deadbeef", "dirty": True, "tag": None,
+                                 "sources": {}}
+    try:
+        mk.stage_video("E01")
+    except SystemExit:
+        pass
+    except Exception:
+        pass
+    ok = fake.calls == 0
+    print(f"  {'PASS' if ok else 'FAIL'}  "
+          f"{'dirty working tree -> zero paid calls':52s} calls={fake.calls} (want 0)")
+    results.append(ok)
+    config.REQUIRE_CLEAN_TREE = False
+    shutil.rmtree(tmp, ignore_errors=True)
 
     print(f"\n  {sum(results)}/{len(results)} runtime properties hold")
     if not all(results):

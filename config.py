@@ -30,3 +30,8 @@ SAFETY_MARGIN = 1.5      # every estimate is inflated by this before it is charg
 PLAN_CONTRACT_VERSION  = "1"
 FRAME_COMPILER_VERSION = "1"
 PLANNER_MAX_INR        = 3.0    # conservative reservation; token cost is unknown up front
+
+# Production spend requires a committed tree, so a paid result can always be attributed
+# to an exact revision. Tests set this False to exercise other properties, and one
+# dedicated test asserts the guard itself.
+REQUIRE_CLEAN_TREE = True
