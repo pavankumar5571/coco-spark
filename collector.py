@@ -84,6 +84,15 @@ class Collector:
             self._db.close()
             self._db = None
 
+    def channel(self, channel_id: str) -> dict | None:
+        """Return one preserved channel record without exposing mutable store state."""
+        record = self._channels.get(channel_id)
+        return dict(record) if record is not None else None
+
+    def channels(self) -> list[dict]:
+        """Return all preserved channel records in deterministic identifier order."""
+        return [dict(self._channels[channel_id]) for channel_id in sorted(self._channels)]
+
     def record_channel(self, *, channel_id: str, title: str,
                        hidden_subscriber_count: bool = False,
                        subscriber_count: int | None = None,

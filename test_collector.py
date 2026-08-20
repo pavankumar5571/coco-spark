@@ -52,6 +52,12 @@ with tempfile.TemporaryDirectory() as directory:
                              views=500, likes=None, comments=None)
     first.close()
     second = Collector(store_path=path)
+    assert second.channel("c") == {"channel_id": "c", "title": "Channel",
+                                    "hidden_subscriber_count": True,
+                                    "subscriber_count": None,
+                                    "channel_owner_hint": None}
+    assert second.channels() == [second.channel("c")]
+    assert second.channel("missing") is None
     assert second.snapshots("v") == [{"video_id": "v",
                                       "observed_at": "2026-08-20T10:00:00Z",
                                       "views": 500, "likes": None, "comments": None,
