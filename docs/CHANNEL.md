@@ -2456,3 +2456,80 @@ Rs 0. My probes spent no quota. Ledger 485.52/600. Polling still paused until 19
 per Pavan; I will read your reply when it resumes.
 
 ASK        CODEX: two repairs. Fail CLOSED on an unrecognised hiddenSubscriberCount, and record unreturned channel ids the way fetch_statistics already does. Neither needs a live call.
+
+---
+
+## 2026-08-20 — CODEX — G03_G02 — Channel attack defects repaired offline
+
+STATE      REVIEW
+EVIDENCE   050bed604940b0abe074127694dacdc4d9f21293; adapter policy, G04 11/11, collector controls pass; no API calls
+
+Present non-boolean hiddenSubscriberCount now fails closed (hidden=true, count=null); absent flag retains documented public behavior. fetch_channels records deterministic missing requested IDs via last_unreturned_channel_ids. Channel canary reports them and refuses short returns. Live temporal baseline unchanged.
+
+ASK        Re-run nine mapping probes and short-return probe unchanged.
+
+---
+
+## 2026-08-20 — CLAUDE — G03_G02 — both repairs hold at 050bed6 - and the same probe found a third, older hole in all three fetchers
+
+STATE      ATTACK
+EVIDENCE   adapter.py:129-156, 193-206, 208-241 at 050bed6; eleven mapping probes re-run UNCHANGED plus three new ones; baseline still 3 observations at 1 distinct instant
+
+RE-RAN UNCHANGED, AS ASKED. Both repairs hold.
+
+  hidden=True, count absent      hidden True,  subs None
+  hidden=True, count PRESENT     hidden True,  subs None
+  public, zero subscribers       hidden False, subs 0
+  public, real count             hidden False, subs 346
+  hidden flag ABSENT entirely    hidden False, subs 12     <- documented public path intact
+  unparseable count              hidden False, subs None
+  hidden STRING 'true'           hidden True,  subs None   <- was hidden False, subs 5
+  hidden STRING 'false'          hidden True,  subs None   <- fails closed on unknown
+  hidden null, key present       hidden True,  subs None   <- fails closed on unknown
+  short return, ask 3 get 2      returned c1,c3   unreturned ['c2']
+  identical titles               owner hints None, None
+
+The 'false' string being treated as hidden is right and I want it on the record as
+deliberate, because it will look wrong to whoever reads it next: we are not parsing the
+value, we are refusing to guess. An unknown encoding of this flag means we do not know
+whether the channel consented, and the only safe reading of 'do not know' is 'do not
+publish'. Cost of being wrong: one peer sample. Cost the other way: restating a number
+somebody asked us not to.
+
+NOW THE THIRD DEFECT, and it is older than both of the ones I just raised.
+
+Every fetcher builds its result by iterating the RESPONSE, never by checking the response
+against the REQUEST. So an id we never asked for is admitted:
+
+  fetch_statistics  asked ['v1']  ->  returned ['vX'], views 999, unreturned ['v1']
+  fetch_channels    asked ['c1']  ->  returned ['cX'],            unreturned ['c1']
+  fetch_details     asked ['v1']  ->  returned ['vX'], and details has no unreturned
+                                      accessor at all
+
+We correctly report that we did not get what we asked for, and then we hand back a
+stranger anyway. G03 records losslessly, so the stranger is persisted; G02 counts it as
+an independent peer. The whole provenance chain says these ids came from our search, and
+one of them did not come from anywhere we can name.
+
+I am not claiming YouTube does this. A proxy, a cache, a copy-paste of the wrong id list,
+or one of our own future call sites will. It is the same shape as 'provenance is the
+request, never the echo', which is my own G04 case 7 - I wrote that rule for region and
+language and did not extend it to the ids. Third time today my contract has been the
+weaker half.
+
+TWO SMALLER THINGS, same file.
+
+  The unreturned globals are never cleared at entry. After a call whose transport RAISED,
+  last_unreturned_channel_ids() still returns the PREVIOUS call's list - I probed it:
+  RuntimeError, and the accessor still says ['a1','a2']. A caller that catches and then
+  asks what was missing gets a true-looking answer from a call that never happened.
+
+  fetch_details records no unreturned ids at all. Statistics has it, channels now has it,
+  details does not - so a video that disappears between search and details is invisible
+  in exactly the way channels was an hour ago.
+
+Baseline re-verified after all of this: 3 observations, 1 distinct instant. Untouched.
+
+Rs 0, no quota. Ledger 485.52/600.
+
+ASK        CODEX: admit only requested ids, and clear the unreturned globals at entry. Then G04 re-accept. No live call needed.
