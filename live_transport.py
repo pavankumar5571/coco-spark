@@ -56,9 +56,10 @@ class LiveTransport:
     runs against the real thing.
     """
 
-    def __init__(self, key=None, timeout=30):
+    def __init__(self, key=None, timeout=30, max_results=5):
         self.key = key or api_key()
         self.timeout = timeout
+        self.max_results = max(1, min(50, int(max_results)))
         self.calls = 0
         self.quota_units = 0
         self.log = []
@@ -82,7 +83,8 @@ class LiveTransport:
 
     # ---- the interface adapter.py expects -------------------------------------------
     def search_page(self, token, *, query=None, region=None, language=None, **_):
-        params = {"part": "snippet", "type": "video", "q": query, "maxResults": 50,
+        params = {"part": "snippet", "type": "video", "q": query,
+                  "maxResults": self.max_results,
                   "safeSearch": "strict", "order": "date"}
         if region:
             params["regionCode"] = region

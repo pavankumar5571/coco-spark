@@ -8,11 +8,14 @@
     "searched_ids": 3,
     "statistics_rows": 3,
     "details_rows": 3,
+    "metadata_rows_with_title_channel": 3,
     "unreturned_statistics": [],
     "termination_reason": "page_limit_reached",
     "complete_market_collection": false,
     "first_observation_only": true,
     "opportunity_proof_allowed": false,
+    "evidence_matched_videos": 3,
+    "evidence_status": "OPPORTUNITY_UNPROVEN",
     "result": "PASS"
   },
   "initial_live_defect": {

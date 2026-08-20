@@ -56,4 +56,12 @@ assert rows["bad"]["raw_statistics"] == {
     "viewCount": "abc", "likeCount": "-5", "commentCount": "1.2e3"}
 assert (rows["good"]["views"], rows["good"]["likes"], rows["good"]["comments"]) == (1200, 12, 3)
 
+# Metadata required by G02 crosses the adapter boundary, while the socket-owning transport
+# remains a separate explicit module rather than a fallback hidden in adapter.py.
+t = adapter.FakeTransport(details={"v": {"title": "Counting Song", "channelId": "channel",
+                                                 "duration": "PT1M", "publishedAt": "2026-08-20T00:00:00Z"}})
+detail = adapter.fetch_details(["v"], transport=t)["v"]
+assert detail["title"] == "Counting Song" and detail["channel_id"] == "channel"
+assert not hasattr(adapter, "YouTubeTransport")
+
 print("adapter policy controls passed: loop / retries / provenance / malformed counters")
