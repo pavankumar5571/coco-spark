@@ -1,0 +1,161 @@
+{
+  "kind": "BLENDER_ANIMATION_PLAN",
+  "episode": "E02",
+  "source_brief": "out/E02/brief.json",
+  "character_canon": {
+    "manifest": "assets/design/coco/manifest.json",
+    "required_source_sha256": "1d787d5ca6ae364bf1be05ba7c5de1ba079114ae9dfa7d76be56bdd6c2ba970d",
+    "required": [
+      "blue bandana knotted at the back with pale-gold spark pattern",
+      "soft pink inner ears",
+      "cream star-shaped blaze intrinsic to the chest fur",
+      "golden-brown plush fur, cream muzzle, large dark eyes, toddler proportions"
+    ],
+    "forbidden": [
+      "red shirt",
+      "printed yellow chest star",
+      "circular makeup blush",
+      "new garment or accessory"
+    ]
+  },
+  "render_contract": {
+    "engine": "BLENDER_EEVEE",
+    "motion_format": "FULL_3D_CHARACTER_ANIMATION",
+    "not_allowed": [
+      "still-image pan or zoom as the primary motion",
+      "paid generated still",
+      "paid generated video",
+      "frame hold used as a substitute for authored character motion"
+    ],
+    "continuous_motion": [
+      "breathing",
+      "eye focus and blinks",
+      "small ear response",
+      "bandana secondary motion"
+    ],
+    "estimated_picture_cost_inr": 0
+  },
+  "world": {
+    "set": "sparse bedtime stage",
+    "persistent_objects": ["bed", "pillow", "blanket", "round window"],
+    "deterministic_star_objects": 5,
+    "rule": "Star count changes by hiding authored 3D star objects on the exact word anchors; a generator never decides the count."
+  },
+  "beats": [
+    {
+      "index": 0,
+      "source_beat": 0,
+      "action": "Coco sits awake in bed, breathing and blinking; ears lift slightly when the instrumental begins.",
+      "camera": "wide establishing dolly-in",
+      "stars": 5
+    },
+    {
+      "index": 1,
+      "source_beat": 1,
+      "action": "Coco turns head and upper torso toward the round window; eye focus lands on the five stars.",
+      "camera": "smooth lateral arc that preserves screen direction",
+      "stars": 5
+    },
+    {
+      "index": 2,
+      "source_beat": 2,
+      "action": "Coco raises one paw and counts with five small, readable beats of paw and eye movement.",
+      "camera": "medium close, no cut during the counting gesture"
+    },
+    {
+      "index": 3,
+      "source_beat": 3,
+      "action": "The counting paw lowers; shoulders soften and Coco exhales while remaining awake.",
+      "camera": "slow push-in"
+    },
+    {
+      "index": 4,
+      "source_beat": 4,
+      "action": "Coco looks back to the stars and makes a small inviting paw gesture on the chorus.",
+      "camera": "arc back toward the window without reversing screen geography",
+      "stars": 5
+    },
+    {
+      "index": 5,
+      "source_beat": 5,
+      "action": "Coco sways gently once with the lullaby; bandana tails follow with restrained secondary motion.",
+      "camera": "medium wide drift"
+    },
+    {
+      "index": 6,
+      "source_beat": 6,
+      "action": "Coco draws the blanket closer and settles deeper into the pillow, still looking toward the window.",
+      "camera": "slow dolly-in"
+    },
+    {
+      "index": 7,
+      "source_beat": 7,
+      "action": "Coco gives a small goodnight wave; breathing and gaze continue through the long line.",
+      "camera": "stable composition with subtle physical camera drift",
+      "stars": 5
+    },
+    {
+      "index": 8,
+      "source_beat": 8,
+      "action": "The first authored star dims out exactly on the sung word four; Coco's eyes track the remaining group.",
+      "camera": "close enough to read both Coco and window",
+      "stars": 4
+    },
+    {
+      "index": 9,
+      "source_beat": 9,
+      "action": "The second authored star dims exactly on three; Coco marks the count with one small paw motion.",
+      "camera": "continuous from beat 8",
+      "stars": 3
+    },
+    {
+      "index": 10,
+      "source_beat": 10,
+      "action": "The third authored star dims exactly on two; Coco's eyelids become visibly heavier.",
+      "camera": "continuous from beat 9",
+      "stars": 2
+    },
+    {
+      "index": 11,
+      "source_beat": 11,
+      "action": "The fourth authored star dims, leaving one; Coco and the last star hold eye-line contact.",
+      "camera": "gentle rack of attention from window to Coco",
+      "stars": 1
+    },
+    {
+      "index": 12,
+      "source_beat": 12,
+      "action": "Coco performs one full yawn, lowers onto the pillow, and pulls the blanket into the final sleeping pose.",
+      "camera": "medium close; the entire material state transition occurs inside this beat"
+    },
+    {
+      "index": 13,
+      "source_beat": 13,
+      "action": "Eyes close fully; jaw relaxes; breathing transitions from awake rhythm to slow sleep rhythm.",
+      "camera": "hold with living micro-motion, never a frozen frame"
+    },
+    {
+      "index": 14,
+      "source_beat": 14,
+      "action": "Coco sleeps continuously; one ear makes a tiny final release and the blanket rises with breathing.",
+      "camera": "slow physical pull-back"
+    },
+    {
+      "index": 15,
+      "source_beat": 15,
+      "action": "Wide closing view: Coco remains asleep and breathing while the last star gently lowers its glow.",
+      "camera": "wide crane-back into the outro composition",
+      "stars": 1
+    }
+  ],
+  "gate": {
+    "blocked_by": ["Gate 1-B accepted Coco mesh and deformation rig"],
+    "ready_when": [
+      "all 16 beat anchors resolve from out/E02/brief.json",
+      "Coco canon source hash matches",
+      "star visibility keys match the word-level count anchors",
+      "every beat contains authored character or environmental motion",
+      "final sleeping pose is the outro renderer's FINAL_ACCEPTED_IMAGE source"
+    ]
+  }
+}
