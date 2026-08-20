@@ -146,6 +146,15 @@ reported), but a tolerance must come from repeated uploads, not from n=1.
                                             "branding platform".
     E02 picture spend              BLOCKED until G01 rules on Five Little Stars
 
+## G01 opportunity ruling (2026-08-20)
+
+**Five Little Stars is an editorial candidate, not a demonstrated market opportunity.**
+The current enterprise opportunity engine measures video-level breakouts but explicitly
+defers the independent-channel topic clustering needed to recommend E02. No preserved report
+or reproducible observation series supports the selection. E02 picture spend therefore stays
+blocked if justified by demand evidence; choosing it as a production-format experiment is a
+separate spend decision. Full audit: `docs/G01-OPPORTUNITY-AUDIT.md`.
+
 ## Loudness, corrected
 
 Do not derive a house target from YouTube's playback normalisation. They are separate
