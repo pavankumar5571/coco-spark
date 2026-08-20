@@ -7,6 +7,8 @@ from eligible raw counters.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
+import sqlite3
 
 
 MINIMUM_INTERVAL_SECONDS = 3600
@@ -27,13 +29,60 @@ class ObservationConflict(ValueError):
 
 
 class Collector:
-    def __init__(self, minimum_interval_seconds: int = MINIMUM_INTERVAL_SECONDS):
+    def __init__(self, minimum_interval_seconds: int = MINIMUM_INTERVAL_SECONDS,
+                 store_path: str | Path | None = None):
         if minimum_interval_seconds <= 0:
             raise ValueError("minimum_interval_seconds must be positive")
         self.minimum_interval_seconds = minimum_interval_seconds
         self._channels: dict[str, dict] = {}
         self._raw: dict[str, dict[datetime, dict]] = {}
         self._discoveries: dict[str, dict[tuple[str, str, str], dict]] = {}
+        self.store_path = Path(store_path) if store_path is not None else None
+        self._db = None
+        if self.store_path is not None:
+            self.store_path.parent.mkdir(parents=True, exist_ok=True)
+            self._db = sqlite3.connect(self.store_path)
+            self._db.execute("PRAGMA journal_mode=WAL")
+            self._init_store()
+            self._load_store()
+
+    def _init_store(self):
+        self._db.executescript("""
+            CREATE TABLE IF NOT EXISTS channels(
+              channel_id TEXT PRIMARY KEY, title TEXT NOT NULL,
+              hidden_subscriber_count INTEGER NOT NULL, subscriber_count INTEGER,
+              channel_owner_hint TEXT);
+            CREATE TABLE IF NOT EXISTS observations(
+              video_id TEXT NOT NULL, observed_at TEXT NOT NULL, views INTEGER NOT NULL,
+              likes INTEGER, comments INTEGER, below_minimum_interval INTEGER NOT NULL,
+              PRIMARY KEY(video_id, observed_at));
+            CREATE TABLE IF NOT EXISTS discoveries(
+              video_id TEXT NOT NULL, query TEXT NOT NULL, region TEXT NOT NULL,
+              language TEXT NOT NULL, PRIMARY KEY(video_id, query, region, language));
+        """)
+        self._db.commit()
+
+    def _load_store(self):
+        for row in self._db.execute(
+                "SELECT channel_id,title,hidden_subscriber_count,subscriber_count,channel_owner_hint FROM channels"):
+            self._channels[row[0]] = {"channel_id": row[0], "title": row[1],
+                                      "hidden_subscriber_count": bool(row[2]),
+                                      "subscriber_count": row[3], "channel_owner_hint": row[4]}
+        for row in self._db.execute(
+                "SELECT video_id,observed_at,views,likes,comments,below_minimum_interval FROM observations"):
+            when = _instant(row[1])
+            self._raw.setdefault(row[0], {})[when] = {
+                "video_id": row[0], "observed_at": row[1], "views": row[2],
+                "likes": row[3], "comments": row[4],
+                "below_minimum_interval": bool(row[5])}
+        for row in self._db.execute("SELECT video_id,query,region,language FROM discoveries"):
+            record = {"video_id": row[0], "query": row[1], "region": row[2], "language": row[3]}
+            self._discoveries.setdefault(row[0], {})[(row[1], row[2], row[3])] = record
+
+    def close(self):
+        if self._db is not None:
+            self._db.close()
+            self._db = None
 
     def record_channel(self, *, channel_id: str, title: str,
                        hidden_subscriber_count: bool = False,
@@ -51,6 +100,12 @@ class Collector:
                   # This is accepted only when an upstream authority explicitly supplies it.
                   "channel_owner_hint": channel_owner_hint}
         self._channels[channel_id] = record
+        if self._db is not None:
+            self._db.execute(
+                "INSERT OR REPLACE INTO channels VALUES(?,?,?,?,?)",
+                (channel_id, title, int(bool(hidden_subscriber_count)),
+                 subscriber_count, channel_owner_hint))
+            self._db.commit()
         return dict(record)
 
     def record_discovery(self, *, video_id: str, query: str, region: str,
@@ -61,6 +116,10 @@ class Collector:
                   "region": region.upper(), "language": language.casefold()}
         key = (record["query"], record["region"], record["language"])
         self._discoveries.setdefault(video_id, {})[key] = record
+        if self._db is not None:
+            self._db.execute("INSERT OR IGNORE INTO discoveries VALUES(?,?,?,?)",
+                             (video_id, record["query"], record["region"], record["language"]))
+            self._db.commit()
         return dict(record)
 
     def discoveries(self, video_id: str) -> list[dict]:
@@ -92,6 +151,11 @@ class Collector:
             if 0 < elapsed < self.minimum_interval_seconds:
                 record["below_minimum_interval"] = True
         by_time[when] = record
+        if self._db is not None:
+            self._db.execute("INSERT INTO observations VALUES(?,?,?,?,?,?)",
+                             (video_id, record["observed_at"], views, likes, comments,
+                              int(record["below_minimum_interval"])))
+            self._db.commit()
         return dict(record)
 
     def raw_snapshots(self, video_id: str) -> list[dict]:

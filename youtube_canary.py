@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 
 import adapter
 from collector import Collector
@@ -16,6 +17,7 @@ def main():
     p.add_argument("--region", default="US")
     p.add_argument("--language", default="en")
     p.add_argument("--max-results", type=int, default=3)
+    p.add_argument("--state-db", type=Path, required=True)
     args = p.parse_args()
     transport = LiveTransport(max_results=args.max_results)
     batch = adapter.search(query=args.query, region=args.region, language=args.language,
@@ -25,7 +27,7 @@ def main():
     ids = batch["video_ids"] or batch["retry_video_ids"]
     stats = adapter.fetch_statistics(ids, transport=transport)
     details = adapter.fetch_details(ids, transport=transport)
-    collector = Collector()
+    collector = Collector(store_path=args.state_db)
     evidence_videos = []
     for video_id in ids:
         collector.record_discovery(video_id=video_id, query=batch["query"],
@@ -63,8 +65,10 @@ def main():
         "evidence_matched_videos": evidence["metrics"]["matched_videos"],
         "termination_reason": batch["termination_reason"],
         "first_observation_only": True, "opportunity_proof_allowed": False,
+        "persistent_state_db": str(args.state_db),
     }
     print(json.dumps(report, indent=2, sort_keys=True))
+    collector.close()
     bounded_partial = batch["termination_reason"] == "page_limit_reached"
     metadata_complete = all(x.get("title") and x.get("channel_id") for x in details.values())
     if (not (batch["complete"] or bounded_partial) or not ids or not stats or not details
