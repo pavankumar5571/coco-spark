@@ -24,6 +24,7 @@ from pathlib import Path
 
 PURPOSE = "PRIVATE_PUBLISH_PATH_TEST"
 DEFAULT_EPISODE = "E01"
+PRIVACY = "private"          # this module performs private uploads. Only. See prepare().
 
 
 def paths(episode=DEFAULT_EPISODE):
@@ -94,6 +95,16 @@ def prepare(episode=DEFAULT_EPISODE, master=None, metadata_path=None, manifest=N
     if not meta.get("title"):
         fails.append("metadata has no title")
 
+    # THE COMMAND NAME IS A SECURITY PROPERTY, NOT A CONVENTION. upload() ignores any
+    # privacy in the metadata and takes it as an argument, which means a file asking for
+    # public would have been silently overridden — the operator's intent and the system's
+    # action diverging without either saying so. Refuse instead: a public launch is a
+    # different command against an id that already exists, and it always will be.
+    declared = meta.get("privacy", PRIVACY)
+    if declared != PRIVACY:
+        fails.append(f"metadata declares privacy '{declared}'. upload-private performs "
+                     f"{PRIVACY} uploads only; a launch is a separate command.")
+
     # credentials PRESENT, never their values — this function must be safe to run anywhere
     for k in ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN"):
         if not yt._env(k, required=False):
@@ -113,7 +124,7 @@ def prepare(episode=DEFAULT_EPISODE, master=None, metadata_path=None, manifest=N
         "master": str(master), "master_sha256": _sha256(master) if master.exists() else None,
         "master_bytes": master.stat().st_size if master.exists() else None,
         "technical": tech,
-        "intended": {"title": meta.get("title"), "privacy": "private",
+        "intended": {"title": meta.get("title"), "privacy": PRIVACY,
                      "made_for_kids": bool(meta.get("made_for_kids", True)),
                      "tags": meta.get("tags", [])},
         "contains_no_secrets": True,
@@ -125,13 +136,11 @@ def prepare(episode=DEFAULT_EPISODE, master=None, metadata_path=None, manifest=N
         # fields no version of this function has heard of. Preserve by default.
         m = {**prior, **prepared}
     else:
+        # DIFFERENT BYTES. The old observations describe a different artifact and must not
+        # be inherited by these pixels — but attempts[] is history and survives regardless.
         m = dict(prepared)
-        if prior.get("youtube_video_id"):
-            # DIFFERENT BYTES. The old observations describe a different artifact and must
-            # not be inherited — but they are still what happened, so they are recorded as
-            # superseded rather than deleted.
-            m["supersedes"] = {k: prior.get(k) for k in
-                               ("master_sha256", "youtube_video_id", "uploaded_at")}
+        m["attempts"] = prior.get("attempts", [])
+        m.pop("current_attempt_id", None)
 
     manifest.parent.mkdir(parents=True, exist_ok=True)
     manifest.write_text(json.dumps(m, indent=2), encoding="utf-8")
@@ -179,13 +188,30 @@ def upload_private(episode=DEFAULT_EPISODE, master=None, metadata_path=None, man
         sys.exit("  cannot upload with this credential — re-run consent.")
 
     meta = json.loads(metadata_path.read_text(encoding="utf-8"))
-    print(f"  uploading {m['master_bytes']/1e6:.1f} MB as PRIVATE …")
-    vid = yt.upload(master, meta, privacy="private")
+    print(f"  uploading {m['master_bytes']/1e6:.1f} MB as {PRIVACY.upper()} …")
+    started = time.strftime("%F %T")
+    vid = yt.upload(master, meta, privacy=PRIVACY)
 
     m["youtube_video_id"] = vid
     m["uploaded_at"] = time.strftime("%F %T")
+    # APPEND-ONLY HISTORY. A single `supersedes` object kept the last attempt and lost the
+    # one before it, which makes the file a record of the latest success rather than of
+    # what happened. Same shape the plate store already uses: attempts are immutable and
+    # numbered, and a pointer says which one is current.
+    attempts = list(m.get("attempts", []))
+    attempts.append({
+        "attempt_id": f"{episode}-{len(attempts) + 1:03d}",
+        "master_sha256": m["master_sha256"],
+        "state": "PROVIDER_ACCEPTED",
+        "privacy_requested": PRIVACY,
+        "youtube_video_id": vid,
+        "started_at": started,
+        "uploaded_at": m["uploaded_at"],
+    })
+    m["attempts"] = attempts
+    m["current_attempt_id"] = attempts[-1]["attempt_id"]
     manifest.write_text(json.dumps(m, indent=2), encoding="utf-8")
-    print(f"  video id {vid}")
+    print(f"  video id {vid}   attempt {m['current_attempt_id']}")
     return vid
 
 
@@ -235,8 +261,13 @@ def verify(episode=DEFAULT_EPISODE, video_id=None, manifest=None):
     # as PT13S. Recording the delta rather than assuming agreement — the whole point of
     # reading the result is that it may differ from what we sent, in ways nobody predicted.
     m["duration_delta_s"] = _iso8601_s(observed["duration"]) - m.get("technical", {}).get("duration", 0)
-    m["matches_intent"] = (observed["privacy"] == "private"
+    m["matches_intent"] = (observed["privacy"] == PRIVACY
                            and observed["self_declared_made_for_kids"] is True)
+    # The verdict belongs to the attempt that produced the video, not only to the file.
+    for a in m.get("attempts", []):
+        if a.get("attempt_id") == m.get("current_attempt_id"):
+            a["state"] = "VERIFIED"
+            a["verified_at"] = m["verified_at"]
     manifest.write_text(json.dumps(m, indent=2), encoding="utf-8")
     return m
 

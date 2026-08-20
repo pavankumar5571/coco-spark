@@ -149,18 +149,21 @@ class FakeUploader:
     """
     def __init__(self):
         self.calls = 0
+        self.privacies = []
 
     def __call__(self, video_path, metadata, privacy="private"):
         self.calls += 1
+        self.privacies.append(privacy)          # what the PROVIDER was actually told
         return f"FAKEID{self.calls}"
 
 
-def _episode_dir(root, episode="E99", body=b"pretend master bytes"):
+def _episode_dir(root, episode="E99", body=b"pretend master bytes", meta=None):
     d = root / "out" / episode / "release"
     d.mkdir(parents=True, exist_ok=True)
     (d / f"{episode}_master.mp4").write_bytes(body)
     (d / "metadata.json").write_text(json.dumps(
-        {"title": "T", "made_for_kids": True, "tags": []}), encoding="utf-8")
+        meta if meta is not None else {"title": "T", "made_for_kids": True, "tags": []}),
+        encoding="utf-8")
     (d / "private_test_audit.json").write_text(json.dumps({"all_pass": True}), encoding="utf-8")
     return d
 
@@ -212,8 +215,11 @@ def mutation_properties():
         fake3 = FakeUploader(); yt.upload = fake3
         release.upload_private("E99")
         m = _read(manifest)
-        out.append(_ok("different bytes upload, and supersede rather than inherit",
-                       fake3.calls == 1 and m.get("supersedes", {}).get("youtube_video_id") == vid))
+        out.append(_ok("different bytes upload, and do not inherit old observations",
+                       fake3.calls == 1 and "observed" not in m))
+        out.append(_ok("...while the earlier attempt survives in history",
+                       [a["youtube_video_id"] for a in m["attempts"]][0] == vid
+                       and len(m["attempts"]) == 2))
 
         # NEGATIVE CONTROLS. Both are the authority guard, and both must fail CLOSED.
         _episode_dir(root, body=b"third distinct master")
@@ -222,6 +228,51 @@ def mutation_properties():
         out.append(_ok("missing upload scope refuses the mutation",
                        _exits(release.upload_private, "E99")))
         out.append(_ok("...and performs ZERO external calls", fake4.calls == 0))
+
+        # PRIVACY IS A SECURITY PROPERTY, NOT A CONVENTION. The command is named
+        # upload-private; these three assert the name is load-bearing. This is
+        # children's content — the cost of an accidental public upload is not a bug
+        # report, and no test previously covered it.
+        _episode_dir(root, episode="E97", body=b"public request",
+                     meta={"title": "T", "privacy": "public", "made_for_kids": True})
+        fakeP = FakeUploader(); yt.upload = fakeP
+        yt.granted_scopes = lambda: {UPLOAD, READONLY}
+        out.append(_ok("metadata asking for PUBLIC refuses",
+                       _exits(release.upload_private, "E97")))
+        out.append(_ok("...and performs ZERO external calls", fakeP.calls == 0))
+
+        _episode_dir(root, episode="E96", body=b"no privacy stated",
+                     meta={"title": "T", "made_for_kids": True})
+        fakeQ = FakeUploader(); yt.upload = fakeQ
+        release.upload_private("E96")
+        out.append(_ok("metadata omitting privacy sends the provider 'private'",
+                       fakeQ.privacies == ["private"]))
+
+        _episode_dir(root, episode="E95", body=b"explicit private",
+                     meta={"title": "T", "privacy": "private", "made_for_kids": True})
+        fakeR = FakeUploader(); yt.upload = fakeR
+        release.upload_private("E95")
+        out.append(_ok("the ordinary case sends the provider exactly 'private'",
+                       fakeR.privacies == ["private"]))
+
+        # ATTEMPTS ARE APPEND-ONLY. Three uploads of three different masters must leave
+        # three records, not the newest one wearing the others' place.
+        man95 = root / "out" / "E95" / "release" / "upload_manifest.json"
+        for n, body in enumerate([b"second master 95", b"third master 95"], start=2):
+            _episode_dir(root, episode="E95", body=body,
+                         meta={"title": "T", "privacy": "private", "made_for_kids": True})
+            yt.upload = FakeUploader()
+            release.upload_private("E95")
+        j = _read(man95)
+        out.append(_ok("three uploads leave three immutable attempts",
+                       [a["attempt_id"] for a in j["attempts"]] ==
+                       ["E95-001", "E95-002", "E95-003"]))
+        out.append(_ok("every attempt keeps the bytes it was made from",
+                       len({a["master_sha256"] for a in j["attempts"]}) == 3))
+        out.append(_ok("current_attempt_id points at the newest",
+                       j["current_attempt_id"] == "E95-003"))
+        out.append(_ok("every attempt records the privacy the provider was told",
+                       all(a["privacy_requested"] == "private" for a in j["attempts"])))
 
         # verify() with no recorded id must refuse LOCALLY. It built a query with
         # id=None and asked YouTube — an invalid deterministic state reaching a provider,
@@ -274,6 +325,67 @@ def _exits(fn, *a):
     return False
 
 
+def secret_properties():
+    """Credentials must not reach an artifact, a log line, or an exception message.
+
+    Not "the manifest looks clean" — the credentials are replaced with sentinels no real
+    value could resemble, and stdout, stderr, the written manifest and the text of any
+    raised exception are all searched for them. This repository is PUBLIC; a secret that
+    reaches a commit here is world-readable within seconds and cannot be un-published.
+    """
+    import os, shutil
+    out = []
+    root = Path(tempfile.mkdtemp())
+    cwd = os.getcwd()
+    real_probe, real_upload, real_scopes = release._probe, yt.upload, yt.granted_scopes
+    saved = {k: os.environ.get(k) for k in
+             ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN")}
+    sentinels = {"YOUTUBE_CLIENT_ID": "SENTINEL-CLIENT-ID-ZZZ1",
+                 "YOUTUBE_CLIENT_SECRET": "SENTINEL-CLIENT-SECRET-ZZZ2",
+                 "YOUTUBE_REFRESH_TOKEN": "SENTINEL-REFRESH-TOKEN-ZZZ3"}
+    try:
+        os.chdir(root)
+        os.environ.update(sentinels)
+        release._probe = lambda p: {"duration": 12.0, "video": {}, "audio": {}}
+        yt.granted_scopes = lambda: {UPLOAD, READONLY}
+        yt.upload = FakeUploader()
+        d = _episode_dir(root, episode="E94")
+
+        so, se, exc = io.StringIO(), io.StringIO(), ""
+        try:
+            with contextlib.redirect_stdout(so), contextlib.redirect_stderr(se):
+                release.prepare("E94")
+                release.upload_private("E94")
+                release.verify("E94")
+        except BaseException as e:                      # SystemExit included, deliberately
+            exc = f"{type(e).__name__}: {e}"
+
+        surfaces = {"stdout": so.getvalue(), "stderr": se.getvalue(), "exception": exc,
+                    "manifest": (d / "upload_manifest.json").read_text(encoding="utf-8")}
+        for name, text in surfaces.items():
+            leaked = [k for k, v in sentinels.items() if v in text]
+            out.append(_ok(f"no credential value reaches {name}", not leaked))
+
+        # And the inverse: prepare must still ASSERT the credentials are present, or
+        # "no secrets found" would be trivially satisfied by never reading them.
+        for k in sentinels:
+            os.environ.pop(k, None)
+        with contextlib.redirect_stdout(io.StringIO()):
+            m = release.prepare("E94")
+        out.append(_ok("absent credentials are reported as blockers, by NAME only",
+                       any("YOUTUBE_REFRESH_TOKEN" in b for b in m["blockers"])))
+    finally:
+        release._probe, yt.upload, yt.granted_scopes = real_probe, real_upload, real_scopes
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        os.chdir(cwd)
+        shutil.rmtree(root, ignore_errors=True)
+    return out
+
+
 def wiring_properties():
     """The seam that actually broke, end to end, without pretending to simulate consent.
 
@@ -310,7 +422,7 @@ def wiring_properties():
 def main():
     print("  C01 PUBLISHING AUTHORITY")
     results = (scope_properties() + env_properties() + duration_properties()
-               + mutation_properties() + wiring_properties())
+               + mutation_properties() + secret_properties() + wiring_properties())
     if not all(results):
         print(f"  {results.count(False)} FAILED")
         sys.exit(1)
