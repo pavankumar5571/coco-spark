@@ -1,0 +1,40 @@
+{
+  "kind": "GEMINI_SPEC_REPAIR_LIVE_CANARY_V1",
+  "at": "2026-08-20T20:26:48.043941Z",
+  "source_commit": "d3b70bfac4dc1becc80873891326c81497ac7aaa",
+  "model": "gemini-3.5-flash-lite",
+  "approved_max_inr": 9.0,
+  "calls": 3,
+  "actual_inr": 0.006362,
+  "provider_usage": [
+    {
+      "scenario": "generation",
+      "actual_inr": 0.0022352,
+      "prompt_tokens": 58,
+      "output_tokens": 49
+    },
+    {
+      "scenario": "shape-repair",
+      "actual_inr": 0.0020416,
+      "prompt_tokens": 100,
+      "output_tokens": 33
+    },
+    {
+      "scenario": "semantic-repair",
+      "actual_inr": 0.0020856,
+      "prompt_tokens": 109,
+      "output_tokens": 32
+    }
+  ],
+  "statuses": [
+    "VALID_ORIGINAL",
+    "VALID_MODEL_REPAIR",
+    "VALID_MODEL_REPAIR"
+  ],
+  "immutable_opportunity_ids": [
+    "yt-live-g03-unproven",
+    "yt-live-g03-unproven",
+    "yt-live-g03-unproven"
+  ],
+  "passed": true
+}

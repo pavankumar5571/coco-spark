@@ -1,5 +1,5 @@
 {
-  "spent_inr": 485.52164039999997,
+  "spent_inr": 485.5280027999999,
   "ops": [
     {
       "kind": "image",
@@ -429,6 +429,33 @@
       "state": "SPENT",
       "at": "2026-08-19 14:11:34",
       "episode": "cottage_night"
+    },
+    {
+      "kind": "llm",
+      "detail": "g05-live:generation",
+      "inr": 0.0022352,
+      "reserved": 4.5,
+      "state": "SPENT",
+      "at": "2026-08-20 13:26:41",
+      "episode": "generation"
+    },
+    {
+      "kind": "llm",
+      "detail": "g05-live:shape-repair",
+      "inr": 0.0020416,
+      "reserved": 4.5,
+      "state": "SPENT",
+      "at": "2026-08-20 13:26:43",
+      "episode": "shape-repair"
+    },
+    {
+      "kind": "llm",
+      "detail": "g05-live:semantic-repair",
+      "inr": 0.0020856,
+      "reserved": 4.5,
+      "state": "SPENT",
+      "at": "2026-08-20 13:26:47",
+      "episode": "semantic-repair"
     }
   ],
   "reconciliations": [
