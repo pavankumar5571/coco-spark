@@ -104,10 +104,12 @@ def _chunks(values, size=50):
 
 
 def search(*, query: str, region: str, language: str, transport=None,
-           retries: int = DEFAULT_RETRIES) -> dict:
+           retries: int = DEFAULT_RETRIES, max_pages: int | None = None) -> dict:
     _require(transport)
     if retries < 0:
         raise ValueError("retries cannot be negative")
+    if max_pages is not None and max_pages <= 0:
+        raise ValueError("max_pages must be positive")
     token = None
     seen_tokens = set()
     collected = []
@@ -146,8 +148,11 @@ def search(*, query: str, region: str, language: str, transport=None,
         page_index += 1
         if next_token is None:
             break
+        if max_pages is not None and page_index >= max_pages:
+            termination_reason = "page_limit_reached"
+            break
         token = next_token
-    complete = not failed_pages
+    complete = not failed_pages and termination_reason == "end_of_results"
     return {
         "query": query, "region": region.upper(), "language": language.casefold(),
         "video_ids": collected if complete else [],
@@ -155,6 +160,7 @@ def search(*, query: str, region: str, language: str, transport=None,
         "complete": complete, "failed_pages": failed_pages,
         "attempts": attempts, "retried_pages": sorted(set(retried_pages)),
         "termination_reason": termination_reason,
+        "page_limit": max_pages,
     }
 
 

@@ -24,13 +24,23 @@ t = adapter.FakeTransport(pages={None: [RuntimeError("x"), (["v1"], None)]})
 batch = adapter.search(query="q", region="US", language="en", transport=t)
 assert batch["complete"] is True and batch["video_ids"] == ["v1"]
 assert batch["attempts"] == 2 and batch["retried_pages"] == [0]
+successful_batch = batch
+
+# Page-size and page-count are separate bounds. A one-page canary never follows the token,
+# remains unusable for market proof and preserves only retry/inspection IDs.
+t = adapter.FakeTransport(pages={None: (["v1"], "a"), "a": (["v2"], None)})
+batch = adapter.search(query="q", region="US", language="en", transport=t,
+                       retries=0, max_pages=1)
+assert t.calls == 1 and batch["complete"] is False and batch["video_ids"] == []
+assert batch["retry_video_ids"] == ["v1"]
+assert batch["termination_reason"] == "page_limit_reached"
 
 # The accepted collector can ingest the adapter's request provenance without using server
 # echoes or manufacturing an owner relationship.
 c = Collector()
-for video_id in batch["video_ids"]:
-    c.record_discovery(video_id=video_id, query=batch["query"],
-                       region=batch["region"], language=batch["language"])
+for video_id in successful_batch["video_ids"]:
+    c.record_discovery(video_id=video_id, query=successful_batch["query"],
+                       region=successful_batch["region"], language=successful_batch["language"])
 assert c.discoveries("v1") == [{"video_id": "v1", "query": "q",
                                 "region": "US", "language": "en"}]
 

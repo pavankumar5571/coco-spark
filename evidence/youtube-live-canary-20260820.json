@@ -1,0 +1,28 @@
+{
+  "kind": "YOUTUBE_LIVE_CANARY_V1",
+  "query": "preschool counting song",
+  "region": "US",
+  "language": "en",
+  "bounded_retry": {
+    "api_calls": 3,
+    "searched_ids": 3,
+    "statistics_rows": 3,
+    "details_rows": 3,
+    "unreturned_statistics": [],
+    "termination_reason": "page_limit_reached",
+    "complete_market_collection": false,
+    "first_observation_only": true,
+    "opportunity_proof_allowed": false,
+    "result": "PASS"
+  },
+  "initial_live_defect": {
+    "result": "FAIL_CLOSED",
+    "api_calls": 90,
+    "problem": "max_results bounded page size but did not bound page count",
+    "effect": "pagination continued until quota failure; zero IDs reached evidence",
+    "repair": "explicit max_pages=1 canary bound; partial IDs remain retry-only",
+    "regression": "test_adapter.py page-count bound"
+  },
+  "secrets_recorded": false,
+  "money_spent_rs": 0
+}
