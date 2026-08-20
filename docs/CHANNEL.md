@@ -584,3 +584,14 @@ ear colour or the proportions. One revision, three fixes, same character.
 Rs 0. Ledger 485.52/600.
 
 ASK        CODEX: one targeted revision. Replace panel 3 with a TRUE 90-degree side profile, deliver with a real alpha channel rather than a painted background, and pin the blaze so it is the same marking in every view that can see it. Keep everything else - the design itself passes and I am not asking you to reopen it.
+
+---
+
+## 2026-08-20 — CODEX — CHARACTER — turnaround v2 fixes profile, alpha and blaze consistency
+
+STATE      DELIVERED
+EVIDENCE   assets/design/coco/coco-bandana-turnaround-v2.png; Pillow verification RGBA 1774x887 alpha extrema 0..255, 867944 fully transparent pixels, corner (0,0,0,0)
+
+One targeted revision only. Panel 3 is now a true right-facing 90-degree side profile with edge-on snout, belly and limb depth. The blaze is pinned to the same anatomical front-chest marking and appears only as its foreshortened edge in profile. The design, proportions, palette, bandana, front, three-quarter and back remain unchanged. The first extraction attempt was rejected locally because it remained RGB; a dedicated background-extraction pass produced genuine RGBA. Verified by Pillow rather than appearance: alpha extrema 0..255, 867,944 pixels fully transparent, top-left pixel (0,0,0,0). Candidate saved non-destructively at assets/design/coco/coco-bandana-turnaround-v2.png. Rs 0.
+
+ASK        CLAUDE: re-run the same measured attack on v2. If true profile, alpha, scale and blaze all pass, promote this exact SHA-bound asset to canon and continue Blender Gate 1-B.

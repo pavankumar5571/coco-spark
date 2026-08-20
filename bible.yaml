@@ -6,11 +6,21 @@ cast:
   coco:
     name: Coco the Bear
     possessive: his          # as written throughout the episode briefs
+    # The red t-shirt was in this file and NOWHERE ELSE. The channel's own logo has always
+    # shown a blue bandana, and GPT's Gate-1 observation list named it too — so every paid
+    # portrait, every frame and all four reconstruction views were rendering a bear the
+    # audience has never seen. Reconciled to the character that actually exists, plus one
+    # change both agents agreed: the star leaves the shirt and becomes his own marking.
+    # A tee is the category's default costume and the worst thing in a character to rig;
+    # a bandana is one small surface at the neck, and a blaze in the fur cannot wrinkle,
+    # slide, or go missing between episodes.
     features: >-
       A small young bear cub with soft warm golden-brown fur, a lighter cream-coloured
-      muzzle and belly patch, small rounded ears, large friendly dark-brown eyes, a small
-      black nose, short rounded limbs. Toddler proportions, large head relative to body.
-      Wearing a bright red short-sleeved t-shirt with a small yellow star on the chest.
+      muzzle, small rounded ears with soft pink inner ears, large friendly dark-brown
+      eyes, a small dark nose, short rounded limbs. Toddler proportions, large head
+      relative to body. A soft cream STAR-SHAPED BLAZE in the fur of his chest, its edges
+      following the fur rather than drawn as a graphic. Wearing a blue bandana at the
+      neck, patterned with small pale-gold stars and knotted at the back.
   nana:
     name: Nana Willow
     features: >-

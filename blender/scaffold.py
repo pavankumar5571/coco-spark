@@ -18,10 +18,10 @@ neck. A stylised bear has no neck to find. So the script places the four canonic
 as reference planes at a known common scale and stops — the geometry is modelled against
 them, which is the only honest source for a shape nobody has ever measured.
 
-SCALE. assets/tripo/coco/manifest.json records that every view was normalised so the
-CHARACTER's content height is 901px on a 1024px canvas. So one Blender unit is defined as
-the character's height, and each plane is sized 1024/901 to make its content span exactly
-that. The four views therefore agree with each other by construction rather than by eye.
+SCALE. assets/design/coco/manifest.json records the scaled content height of each view.
+The sheet was scaled by ONE factor from the front, so a view that is legitimately taller —
+the profile, whose ear stands proud of the crown — stays taller instead of being shrunk to
+agree. Normalising each view separately would have quietly cost the body 1.3% of its depth.
 """
 import json
 import math
@@ -32,7 +32,7 @@ from pathlib import Path
 import bpy
 
 ROOT = Path(bpy.path.abspath("//")) if bpy.data.filepath else Path.cwd()
-MANIFEST = ROOT / "assets" / "tripo" / "coco" / "manifest.json"
+MANIFEST = ROOT / "assets" / "design" / "coco" / "manifest.json"
 
 # Where each view's camera stood, in degrees around Z, and which way the plane faces.
 # THREE_QUARTER is excluded from the reference planes on purpose: message 253 of the
@@ -71,7 +71,9 @@ def reference_planes(manifest):
         img_path = ROOT / rec["path"]
         if not img_path.exists():
             raise SystemExit(f"  reference missing: {img_path}")
-        content = float(rec["scaled_to"])           # character height, in pixels
+        # Each view keeps its TRUE height; the sheet was scaled by one factor, so the
+        # profile's taller ear is real rather than an inconsistency to normalise away.
+        content = float(rec.get("scaled_content_h", rec.get("scaled_to")))
         size = canvas / content                     # so the CHARACTER spans 1.0 unit
 
         img = bpy.data.images.load(str(img_path))

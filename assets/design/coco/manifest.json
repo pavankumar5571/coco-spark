@@ -1,0 +1,34 @@
+{
+  "character": "coco",
+  "canvas": 1024,
+  "background": "transparent",
+  "source_sheet": "assets/design/coco/coco-bandana-turnaround-v2.png",
+  "source_sha256": "1d787d5ca6ae364bf1be05ba7c5de1ba079114ae9dfa7d76be56bdd6c2ba970d",
+  "scale_normalised_on": "ONE factor from the front view; views keep their true relative heights",
+  "views": {
+    "front": {
+      "path": "assets/design/coco/coco_front.png",
+      "source_content_h": 628,
+      "scaled_content_h": 901,
+      "sha256": "fd65f80789cd2f18"
+    },
+    "three_quarter": {
+      "path": "assets/design/coco/coco_three_quarter.png",
+      "source_content_h": 631,
+      "scaled_content_h": 905,
+      "sha256": "ced0d0db646d04e2"
+    },
+    "side": {
+      "path": "assets/design/coco/coco_side.png",
+      "source_content_h": 636,
+      "scaled_content_h": 912,
+      "sha256": "d1099e94efc43648"
+    },
+    "back": {
+      "path": "assets/design/coco/coco_back.png",
+      "source_content_h": 628,
+      "scaled_content_h": 901,
+      "sha256": "0f050a774221cfa3"
+    }
+  }
+}
