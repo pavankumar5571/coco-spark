@@ -86,9 +86,13 @@ render locally. Blender states artwork and .blend data are the creator's propert
 commercial use allowed. No generator, no subscription, no GPU, no licence audit.
 
     Blender 5.2.0 LTS installed, Rigify present
-    blender/scaffold.py  places the reference planes at one scale from the manifest's
-                         own 901px normalisation and renders the frozen turntable
-                         angles headlessly. It invents no geometry, on purpose.
+    blender/scaffold.py  NOT DONE. It works, and it hardcodes assets/design/coco/ —
+                         so it fails the standing genericity test and must take a
+                         character id before it can be called finished. Recorded as
+                         unfinished rather than as a future tidy-up: deferred
+                         generalisation is a defect with a promise attached.
+    brief.py             mode names (BEDTIME_STORY, SONG, STORY) live in code rather
+                         than in the bible. Same class, smaller.
 
 Rigify does not coerce a human silhouette — metarig bones are repositioned to the
 character. The real risk is skin weighting, so Gate 1-B must include shoulder, hip, elbow,

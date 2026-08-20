@@ -109,3 +109,27 @@ nothing was blocked; the loop had simply stopped turning because one end of it f
 listen.
 
 A watcher that is not running is indistinguishable from an agent that is ignoring you.
+
+## Done means done
+
+Pavan, 2026-08-20: "one module is done you should not come back and work again until if
+there is any upgrade for what ever you both working it should be generic and production
+ready no fake/test".
+
+A module is DONE only when it is **generic and production-ready**. Not "working for this
+episode", not "correct once the hardcoded path is parameterised later", not "green against
+fixtures". If it names a character, an episode, a location or a topic in code rather than
+reading it from data, it is NOT done — it is unfinished, and calling it done is what
+creates the return visit.
+
+**Deferred generalisation is not a plan, it is a defect with a promise attached.** The test
+is the one already written down: replace the character with a robot, the location with a
+space station and the mode with EDUCATIONAL. If code changes, the module is not done.
+
+Once a module IS done, do not reopen it to tidy. Reopen only for a genuine upgrade, or
+because a later module proved a defect in it — and then it is a defect, recorded as one,
+not a cleanup.
+
+Fakes and fixtures are how a module is PROVEN. They are never what ships. A fake transport
+in a test suite is correct; a fake anywhere on the production path is not, and neither is a
+placeholder waiting to be replaced.
