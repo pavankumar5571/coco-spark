@@ -1,0 +1,47 @@
+{
+  "source": "ChatGPT Image Aug 19, 2026, 06_12_44 PM.png",
+  "source_sha256": "b98dcaac87dc108116cddefe79313edc2f2c1a14b0044aad16f4b413f3618770",
+  "marker_scoring_excludes": [
+    "three_quarter"
+  ],
+  "views": {
+    "front": {
+      "path": "assets/gate1/turtle/front.png",
+      "sha256": "0f41db3bf14d1fcd86328ae70c79b2a9d3cd0acf514cf2286c4942211f8e2f10",
+      "source_columns": [
+        23,
+        357
+      ]
+    },
+    "three_quarter": {
+      "path": "assets/gate1/turtle/three_quarter.png",
+      "sha256": "dc6fbc37f05bba93436c0282859c5c64363dab5fd855fe7cdbbcd6970241b428",
+      "source_columns": [
+        431,
+        721
+      ]
+    },
+    "profile_right": {
+      "path": "assets/gate1/turtle/profile_right.png",
+      "sha256": "e3349a9d76d322e5b13bbf3fda05ee6ebc5c049d240e7749d9b841e8be0e499e",
+      "source_columns": [
+        809,
+        1055
+      ]
+    },
+    "back": {
+      "path": "assets/gate1/turtle/back.png",
+      "sha256": "35317fd8703195f7789ee337c56fd05c8828c386f8c72e3b9790e33b80b83335",
+      "source_columns": [
+        1144,
+        1490
+      ]
+    }
+  },
+  "expectation": {
+    "front": "PATCH VISIBLE on anatomical LEFT sleeve (viewer's right)",
+    "three_quarter": "AMBIGUOUS \u2014 geometric input only, excluded from marker scoring",
+    "profile_right": "PATCH ABSENT \u2014 left sleeve occluded. THE ANTI-SYMMETRY PROBE.",
+    "back": "PATCH VISIBLE on anatomical LEFT sleeve (viewer's left)"
+  }
+}
