@@ -1,0 +1,305 @@
+{
+  "kind": "PRODUCTION_BRIEF",
+  "episode": "E02",
+  "mode": "SONG",
+  "song": {
+    "clip_id": "eb63dca0-0e30-46d7-b060-de18654aef36",
+    "source_audio": "five-little-stars-eb63dca0.mp3",
+    "head_trim_s": 11.38,
+    "first_word_song_t": 2.5,
+    "runtime_s": 71.004
+  },
+  "timeline": {
+    "signature_s": 1.2,
+    "programme_s": 71.004,
+    "outro_s": 4.0,
+    "master_total_s": 76.204,
+    "song_origin_in_master_s": 1.2
+  },
+  "audio": {
+    "programme_lufs": null,
+    "programme_lufs_unset_reason": "programme loudness for SONG is UNSET. It must come from a listening test on a real mastered mix, not from config.PROGRAMME_LUFS (-14.0), which is a single global and cannot be right for every mode at once.",
+    "true_peak_db": -1.5,
+    "fade_s": 1.5
+  },
+  "beats": [
+    {
+      "index": 0,
+      "from_phrase": 0,
+      "lyric": "[Verse 1]",
+      "song_t": 2.5,
+      "master_t": 3.7,
+      "duration_s": 3.41,
+      "source": {
+        "kind": "STILL",
+        "id": 0
+      },
+      "move": "PUSH_IN",
+      "visual_change": "CAMERA_ONLY",
+      "state": "wide room at night, five stars in the round window, Coco awake in bed",
+      "stars": 5
+    },
+    {
+      "index": 1,
+      "from_phrase": 2,
+      "lyric": "Peeking through my window light.",
+      "song_t": 5.91,
+      "master_t": 7.11,
+      "duration_s": 3.43,
+      "source": {
+        "kind": "STILL",
+        "id": 1
+      },
+      "move": "DRIFT_RIGHT",
+      "visual_change": "CAMERA_ONLY",
+      "state": "the round window filling the frame, five stars bright",
+      "stars": 5
+    },
+    {
+      "index": 2,
+      "from_phrase": 3,
+      "lyric": "Coco counts them, one by one,",
+      "song_t": 9.34,
+      "master_t": 10.54,
+      "duration_s": 3.46,
+      "source": {
+        "kind": "STILL",
+        "id": 2
+      },
+      "move": "HOLD",
+      "visual_change": "NONE",
+      "state": "close on Coco looking up, counting",
+      "stars": null
+    },
+    {
+      "index": 3,
+      "from_phrase": 4,
+      "lyric": "Softly now the day is done.",
+      "song_t": 12.8,
+      "master_t": 14.0,
+      "duration_s": 6.47,
+      "source": {
+        "kind": "STILL",
+        "id": 2
+      },
+      "move": "PUSH_IN",
+      "visual_change": "CAMERA_ONLY",
+      "state": "the same close, tighter as the day ends",
+      "stars": null
+    },
+    {
+      "index": 4,
+      "from_phrase": 6,
+      "lyric": "Twinkle, twinkle, close your eyes,",
+      "song_t": 19.27,
+      "master_t": 20.47,
+      "duration_s": 3.39,
+      "source": {
+        "kind": "STILL",
+        "id": 1
+      },
+      "move": "PUSH_IN",
+      "visual_change": "CAMERA_ONLY",
+      "state": "back to the window for the chorus",
+      "stars": 5
+    },
+    {
+      "index": 5,
+      "from_phrase": 7,
+      "lyric": "Sleepy stars in sleepy skies.",
+      "song_t": 22.66,
+      "master_t": 23.86,
+      "duration_s": 3.35,
+      "source": {
+        "kind": "STILL",
+        "id": 3
+      },
+      "move": "DRIFT_LEFT",
+      "visual_change": "CAMERA_ONLY",
+      "state": "medium wide, the room warm and settling",
+      "stars": null
+    },
+    {
+      "index": 6,
+      "from_phrase": 8,
+      "lyric": "Count them with me, drift away,",
+      "song_t": 26.01,
+      "master_t": 27.21,
+      "duration_s": 2.98,
+      "source": {
+        "kind": "STILL",
+        "id": 3
+      },
+      "move": "PUSH_IN",
+      "visual_change": "CAMERA_ONLY",
+      "state": "the same room, drawing in",
+      "stars": null
+    },
+    {
+      "index": 7,
+      "from_phrase": 9,
+      "lyric": "Goodnight, goodnight, till a brand new day.",
+      "song_t": 28.99,
+      "master_t": 30.19,
+      "duration_s": 7.02,
+      "source": {
+        "kind": "STILL",
+        "id": 1
+      },
+      "move": "HOLD",
+      "visual_change": "NONE",
+      "state": "the window, four stars now",
+      "stars": 5
+    },
+    {
+      "index": 8,
+      "from_phrase": 11,
+      "lyric": "Four little stars, then three, then two,",
+      "song_t": 36.01,
+      "master_t": 37.21,
+      "duration_s": 1.18,
+      "source": {
+        "kind": "STILL",
+        "id": 1
+      },
+      "move": "PUSH_IN",
+      "visual_change": "CAMERA_ONLY",
+      "state": "closer as the count comes down",
+      "stars": 4
+    },
+    {
+      "index": 9,
+      "from_phrase": null,
+      "lyric": "(pinned to a time)",
+      "song_t": 37.19,
+      "master_t": 38.39,
+      "duration_s": 0.71,
+      "source": {
+        "kind": "STILL",
+        "id": 1
+      },
+      "move": "HOLD",
+      "visual_change": "NONE",
+      "state": "three stars, on the word 'three'",
+      "stars": 3
+    },
+    {
+      "index": 10,
+      "from_phrase": null,
+      "lyric": "(pinned to a time)",
+      "song_t": 37.9,
+      "master_t": 39.1,
+      "duration_s": 1.62,
+      "source": {
+        "kind": "STILL",
+        "id": 1
+      },
+      "move": "HOLD",
+      "visual_change": "NONE",
+      "state": "two stars, on the word 'two'",
+      "stars": 2
+    },
+    {
+      "index": 11,
+      "from_phrase": 12,
+      "lyric": "One last star is watching you.",
+      "song_t": 39.52,
+      "master_t": 40.72,
+      "duration_s": 3.41,
+      "source": {
+        "kind": "STILL",
+        "id": 1
+      },
+      "move": "HOLD",
+      "visual_change": "NONE",
+      "state": "one last star, alone in the window",
+      "stars": 1
+    },
+    {
+      "index": 12,
+      "from_phrase": 13,
+      "lyric": "Coco yawns and snuggles deep,",
+      "song_t": 42.93,
+      "master_t": 44.13,
+      "duration_s": 3.33,
+      "source": {
+        "kind": "GENERATIVE",
+        "id": 6
+      },
+      "move": "HOLD",
+      "visual_change": "CHARACTER_DEFORMATION",
+      "state": "Coco yawns and settles down onto the pillow",
+      "stars": null
+    },
+    {
+      "index": 13,
+      "from_phrase": 14,
+      "lyric": "Warm and cosy, off to sleep.",
+      "song_t": 46.26,
+      "master_t": 47.46,
+      "duration_s": 6.2,
+      "source": {
+        "kind": "TAIL_OF",
+        "beat": 10
+      },
+      "move": "HOLD",
+      "visual_change": "NONE",
+      "state": "asleep, held on the clip's own last frame",
+      "stars": null
+    },
+    {
+      "index": 14,
+      "from_phrase": 16,
+      "lyric": "Goodnight, goodnight, little bear,",
+      "song_t": 52.46,
+      "master_t": 53.66,
+      "duration_s": 6.77,
+      "source": {
+        "kind": "TAIL_OF",
+        "beat": 10
+      },
+      "move": "PULL_BACK",
+      "visual_change": "CAMERA_ONLY",
+      "state": "easing away from the sleeping bear",
+      "stars": null
+    },
+    {
+      "index": 15,
+      "from_phrase": 17,
+      "lyric": "Goodnight, goodnight, everywhere.",
+      "song_t": 59.23,
+      "master_t": 60.43,
+      "duration_s": 11.774,
+      "source": {
+        "kind": "STILL",
+        "id": 0
+      },
+      "move": "PULL_BACK",
+      "visual_change": "CAMERA_ONLY",
+      "state": "the whole room again, one star, the closing image",
+      "stars": 1
+    }
+  ],
+  "paid": {
+    "still_ids": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "generative_beats": [
+      12
+    ],
+    "free_reused_tails": [
+      13,
+      14
+    ],
+    "beat_count": 16
+  },
+  "ready": false,
+  "problems": [
+    "beat map is MIXED: 14 beats anchored to phrases and 2 pinned to absolute times. A retrim moves the first kind and not the second, so the two disagree the moment the song is re-cut. Anchor every beat to a phrase.",
+    "beats cover 68.504s of a 71.004s programme - 2.5s is unaccounted for",
+    "programme loudness for SONG is UNSET. It must come from a listening test on a real mastered mix, not from config.PROGRAMME_LUFS (-14.0), which is a single global and cannot be right for every mode at once."
+  ]
+}
