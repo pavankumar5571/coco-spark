@@ -62,7 +62,7 @@ def _post(url, data):
         return json.loads(r.read())
 
 
-def consent_loopback(port=0, host="127.0.0.1"):
+def consent_loopback(port=0, host="127.0.0.1", path=""):
     """Run the whole consent flow against a LOOPBACK redirect and store the token.
 
     The out-of-band redirect (urn:ietf:wg:oauth:2.0:oob) that this module used first is
@@ -96,7 +96,11 @@ def consent_loopback(port=0, host="127.0.0.1"):
     srv = http.server.HTTPServer((host if host != "localhost" else "127.0.0.1", port),
                                  Handler)
     port = srv.server_address[1]
-    redirect = f"http://{host}:{port}"
+    # The redirect must match what is REGISTERED on the client, character for character —
+    # including any PATH. A client created for another project may well carry one, and
+    # http://localhost:8080 and http://localhost:8080/oauth/youtube/callback are different
+    # URIs to Google. The handler answers on any path, so only this string has to be right.
+    redirect = f"http://{host}:{port}{path}"
     url = mint_consent_url(redirect)
 
     threading.Thread(target=srv.handle_request, daemon=True).start()
@@ -201,9 +205,11 @@ if __name__ == "__main__":
         # means in practice. For that case pin a port and register the matching URI.
         #   python3 youtube_upload.py consent 8080
         #   python3 youtube_upload.py consent 8080 localhost
+        #   python3 youtube_upload.py consent 8080 localhost /oauth/youtube/callback
         prt = int(sys.argv[2]) if len(sys.argv) > 2 else 0
         hst = sys.argv[3] if len(sys.argv) > 3 else "127.0.0.1"
-        consent_loopback(prt, hst)
+        pth = sys.argv[4] if len(sys.argv) > 4 else ""
+        consent_loopback(prt, hst, pth)
     elif len(sys.argv) > 1 and sys.argv[1] == "consent-url":
         print(mint_consent_url())
     elif len(sys.argv) > 2 and sys.argv[1] == "exchange":
