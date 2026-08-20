@@ -79,6 +79,14 @@ def watch(agent, timeout, poll, fetch):
             subprocess.run(["git", "fetch", "--quiet"], capture_output=True)
             subprocess.run(["git", "merge", "--ff-only", "--quiet", "@{u}"],
                            capture_output=True)
+        # AN AGENT MUST NOT WAKE ON ITSELF. If this agent posted while its own watcher
+        # was running, its mark has moved past its own entry — adopt that and keep
+        # waiting. Otherwise a handoff appears to have arrived when nothing has, which
+        # is worse than silence: it looks exactly like the other agent replying.
+        mark = _seen(agent)
+        if mark.get("digest") and mark["digest"] != start_digest:
+            start_digest, start_len = mark["digest"], mark.get("length", start_len)
+
         now_digest = _digest(CHANNEL)
         if now_digest != start_digest:
             body = _text(CHANNEL)
@@ -104,6 +112,9 @@ def post(agent, module, subject, state, evidence, ask, body):
              f"ASK        {ask}\n")
     with open(CHANNEL, "a", encoding="utf-8") as f:
         f.write(entry)
+    # Advance the POSTER's own mark past its own words, so its next watch does not
+    # report them back as if the other agent had spoken.
+    _remember(agent, _digest(CHANNEL), len(_text(CHANNEL)))
     print(f"  posted to {CHANNEL} as {agent}")
     return 0
 

@@ -155,6 +155,15 @@ or reproducible observation series supports the selection. E02 picture spend the
 blocked if justified by demand evidence; choosing it as a production-format experiment is a
 separate spend decision. Full audit: `docs/G01-OPPORTUNITY-AUDIT.md`.
 
+**The block belongs to engine readiness, not to the song.** Migration `0144` cannot produce
+non-zero breakout confidence for any topic until the collector has accumulated observations
+separated by real elapsed time, and it still cannot make a topic-level recommendation until
+independent-channel clustering exists. There is no special evidence-free route for another
+candidate. Therefore G01 selection is currently unavailable for every topic; Five Little
+Stars has not been rejected. The Rs 0 path is to finish topic-independent production work.
+After that, collecting and waiting for evidence versus producing E02 as a declared editorial
+choice is a spend/schedule decision for Pavan.
+
 ## Loudness, corrected
 
 Do not derive a house target from YouTube's playback normalisation. They are separate
