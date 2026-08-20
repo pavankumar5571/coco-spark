@@ -7,6 +7,20 @@ checkable; where it is not, it says so.
     spent today Rs 0.
     main        419782c
 
+## Production-system direction — locked
+
+The durable generic contract is `docs/PRODUCTION-AUTOMATION.md`. The loop is YouTube mining
+evidence -> Gemini structured plan -> repairable schema validation -> Suno song when needed
+-> reusable Blender assembly -> deterministic and semantic validation -> bounded repair ->
+render/private publish -> YouTube measurements back into mining. A rejected schema is
+repaired or falls back under a fixed policy; it is not silently abandoned. Episode content
+is data. Production code must survive replacing Coco, E02 and the bedroom with unrelated
+cast, episode and location data.
+
+GitHub Actions is orchestration, R2 is large-artifact storage, and a runner executes Blender.
+Pavan's Windows computer is development-only, not a permanent launch dependency. Paid R2
+billing or ephemeral cloud/GPU execution remains behind Pavan's money approval.
+
 ## What is published
 
 E01, video id `nFN75I3MlV8`, **PRIVATE**, uploaded 2026-08-20 04:25. First artifact this

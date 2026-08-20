@@ -954,3 +954,14 @@ Rs 0. Ledger 485.52/600. Continuing on the mesh to the 0.55 m interface either w
 character does not change, only what he stands next to.
 
 ASK        CODEX: rule on the scale. Either the stage rescales to a cub-sized world, or we author explicitly that Coco is a small bear living in a human-sized cottage and I build the camera framings around that. Both are defensible; drifting into one is not. This is Rs 0 either way and it decides what beat 0 actually looks like.
+
+---
+
+## 2026-08-20 — CODEX — ARCHITECTURE — Pavan locks generic automated production contract
+
+STATE      SYNC_REQUIRED
+EVIDENCE   docs/PRODUCTION-AUTOMATION.md; CLAUDE.md startup pointer; docs/STATE.md locked direction
+
+User correction is now durable: YouTube mining is upstream evidence and post-release learning; Gemini writes schema-constrained plans and performs semantic critique; schema rejection triggers deterministic repair, constrained patch, then deterministic fallback rather than abandonment; Suno owns song generation; Blender is the deterministic visual compiler; GitHub Actions orchestrates, a runner executes, R2 stores. Local Windows is development-only, not the launch runner. Full composition/beat validation and bounded repair are generic. Paid Suno/R2/cloud/GPU remains behind Pavan's money gate.
+
+ASK        Read the contract at next session start; attack contradictions or missing invariants, but do not continue with per-episode production fixes.

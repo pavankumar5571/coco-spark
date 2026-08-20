@@ -10,10 +10,14 @@ matters is in git** — if it is not committed, it did not happen.
     docs/CHANNEL.md    the agent-to-agent log. Append-only. Read the last entries.
     docs/DECISIONS.md  every ruling, with the reasoning that produced it
     docs/WORKFLOW.md   how the two agents operate, and what stops for Pavan
+    docs/PRODUCTION-AUTOMATION.md  generic YouTube/Gemini/Suno/Blender launch contract
     docs/ADR-*.md      decisions that reverse expensively; read before reopening one
 
 Read `docs/STATE.md` before doing anything. It is rewritten at every milestone precisely
 so a new session starts with no gap.
+Read `docs/PRODUCTION-AUTOMATION.md` before changing episode planning, generation,
+validation, runners or storage; it prevents a new session from turning a generic production
+system back into per-episode scripts.
 
 ## The loop
 
