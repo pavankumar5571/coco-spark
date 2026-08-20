@@ -118,8 +118,11 @@ def repair_spec(candidate, *, schema, semantic_validator=lambda _: [], provider=
                 "document": document, "manifest": manifest}
 
     changed = unfenced
+    deterministic_refusals = []
     for path, mapping in (aliases or {}).items():
         if any(path == root or path.startswith(root + "/") for root in immutable_paths):
+            deterministic_refusals.append({"code": "ALIAS_REFUSED_IMMUTABLE",
+                                           "path": path})
             continue
         try: current = _get(document, path)
         except (KeyError, IndexError, TypeError, ValueError): continue
@@ -127,16 +130,18 @@ def repair_spec(candidate, *, schema, semantic_validator=lambda _: [], provider=
             _set(document, path, mapping[current], must_exist=True); changed = True
     for path, value in (defaults or {}).items():
         if any(path == root or path.startswith(root + "/") for root in immutable_paths):
+            deterministic_refusals.append({"code": "DEFAULT_REFUSED_IMMUTABLE",
+                                           "path": path})
             continue
         try: _get(document, path)
         except (KeyError, IndexError, TypeError, ValueError):
             try: _set(document, path, value)
             except (KeyError, IndexError, TypeError, ValueError): continue
             changed = True
-    if changed:
+    if changed or deterministic_refusals:
         errors = validate_document(document, schema, semantic_validator)
         manifest.append({"stage": "DETERMINISTIC", "sha256": _hash(document),
-                         "errors": errors})
+                         "errors": errors, "refusals": deterministic_refusals})
         if not errors:
             return {"status": "VALID_DETERMINISTIC", "document": document,
                     "manifest": manifest}

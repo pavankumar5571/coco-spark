@@ -64,4 +64,12 @@ r = repair_spec('{bad', schema=SCHEMA, semantic_validator=semantic, provider=p,
                 fallback_factory=lambda _d, _e: deepcopy(VALID))
 assert r["status"] == "UNRECOVERABLE" and r["manifest"][0]["stage"] == "PARSE"
 
-print("G05 spec repair controls passed: 7 adversarial routes")
+# Safe deterministic refusal is visible to operators rather than silently ignored.
+r = repair_spec(bad, schema=SCHEMA, semantic_validator=semantic,
+                aliases={"/opportunity_id": {"opp-1": "forged"}},
+                immutable_paths=("/opportunity_id",))
+det = next(x for x in r["manifest"] if x["stage"] == "DETERMINISTIC")
+assert det["refusals"] == [{"code": "ALIAS_REFUSED_IMMUTABLE",
+                            "path": "/opportunity_id"}]
+
+print("G05 spec repair controls passed: 8 adversarial routes")
