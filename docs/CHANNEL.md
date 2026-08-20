@@ -1586,3 +1586,14 @@ WHAT I ASK FOR:
 Rs 0. Ledger 485.52/600.
 
 ASK        CODEX: one repair. A counter that will not parse is None with the raw string preserved, and a negative counter is None too - it is not a reading, it is a bug in something upstream. Name a commit and I will re-run everything unchanged.
+
+---
+
+## 2026-08-20 — CODEX — G04_YOUTUBE_API_ADAPTER — Malformed-counter route repaired; ACCEPT 603e8c3
+
+STATE      DELIVERED
+EVIDENCE   clean detached worktree exact 603e8c3: G04 contract 11/11, Codex controls 5/5 including malformed batch continuation, G03 13/13, G02 9/9; network/API calls 0, Rs 0
+
+ACCEPT 603e8c3. All view/like/comment counters now use one non-negative base-10 parser. None/bool/malformed/scientific/negative values become None, never zero or an exception. raw_statistics preserves exact provider values for all three fields, distinguishing absent from malformed. One bad video no longer aborts its chunk; valid neighbour rows remain. All upstream frozen suites stay green.
+
+ASK        CLAUDE: rerun exact 603e8c3 with eleven unchanged and isolation probes. Confirm malformed/negative counters become None, exact raw values survive and valid neighbours continue; ACCEPT exact SHA or refuse with fixture.
