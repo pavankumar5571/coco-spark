@@ -26,6 +26,7 @@ def main():
     channel_ids = sorted({row.get("channel_id") for row in details.values()
                           if row.get("channel_id")})
     channels = adapter.fetch_channels(channel_ids, transport=transport)
+    unreturned_channel_ids = adapter.last_unreturned_channel_ids()
     for channel_id, row in channels.items():
         if row["title"]:
             collector.record_channel(
@@ -35,6 +36,7 @@ def main():
                 channel_owner_hint=None)
 
     complete = (len(details) == len(video_ids) and len(channels) == len(channel_ids)
+                and not unreturned_channel_ids
                 and all(row.get("title") for row in channels.values()))
     report = {
         "kind": "YOUTUBE_CHANNEL_CANARY_V1",
@@ -42,6 +44,7 @@ def main():
         "video_details_returned": len(details),
         "channel_ids_requested": len(channel_ids),
         "channels_returned": len(channels),
+        "unreturned_channel_ids": unreturned_channel_ids,
         "channels_persisted": len(collector.channels()),
         "complete": complete,
         "persistent_state_db": str(args.state_db),

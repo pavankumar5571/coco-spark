@@ -71,13 +71,18 @@ t = adapter.FakeTransport(channels={
                "subscriberCount": "999"},
     "zero": {"title": "New", "hiddenSubscriberCount": False,
              "subscriberCount": "0"},
+    "unknown": {"title": "Unknown", "hiddenSubscriberCount": "true",
+                "subscriberCount": "5"},
 })
-channels = adapter.fetch_channels(["hidden", "zero", "missing"], transport=t)
+channels = adapter.fetch_channels(["hidden", "zero", "unknown", "missing"], transport=t)
 assert channels["hidden"]["subscriber_count"] is None
 assert channels["hidden"]["hidden_subscriber_count"] is True
 assert channels["zero"]["subscriber_count"] == 0
 assert channels["zero"]["hidden_subscriber_count"] is False
 assert channels["zero"]["channel_owner_hint"] is None
+assert channels["unknown"]["hidden_subscriber_count"] is True
+assert channels["unknown"]["subscriber_count"] is None
 assert "missing" not in channels
+assert adapter.last_unreturned_channel_ids() == ["missing"]
 
 print("adapter policy controls passed: loop / retries / provenance / malformed counters")

@@ -12,6 +12,7 @@ import re
 
 DEFAULT_RETRIES = 2  # three total attempts
 _last_unreturned: list[str] = []
+_last_unreturned_channels: list[str] = []
 
 
 class FakeTransport:
@@ -206,12 +207,18 @@ def fetch_details(ids, *, transport=None) -> dict[str, dict]:
 
 def fetch_channels(ids, *, transport=None) -> dict[str, dict]:
     """Translate stated channel metadata without inferring ownership or hidden counts."""
+    global _last_unreturned_channels
     _require(transport)
+    requested = list(dict.fromkeys(ids))
     returned = {}
-    for batch in _chunks(ids):
+    for batch in _chunks(requested):
         response = transport.channel_details(batch)
         for channel_id, raw in response.items():
-            hidden = raw.get("hiddenSubscriberCount") is True
+            flag = raw.get("hiddenSubscriberCount")
+            # The documented absent flag remains public. Any present non-boolean value is
+            # unknown and therefore fails closed: never disclose/use its count as public.
+            hidden = flag is True or (
+                "hiddenSubscriberCount" in raw and not isinstance(flag, bool))
             returned[channel_id] = {
                 "channel_id": channel_id,
                 "title": raw.get("title"),
@@ -223,4 +230,10 @@ def fetch_channels(ids, *, transport=None) -> dict[str, dict]:
                     "subscriberCount": raw.get("subscriberCount"),
                 },
             }
+    _last_unreturned_channels = [channel_id for channel_id in requested
+                                 if channel_id not in returned]
     return returned
+
+
+def last_unreturned_channel_ids() -> list[str]:
+    return list(_last_unreturned_channels)
