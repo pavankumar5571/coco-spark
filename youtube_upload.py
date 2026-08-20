@@ -57,7 +57,7 @@ def _load_env_file(path=".env"):
     p = Path(path)
     if not p.exists():
         return
-    for line in p.read_text().splitlines():
+    for line in p.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
@@ -74,10 +74,10 @@ def _write_env(key, value, path=".env"):
     That is the same defect as the rest of this file: an action reported, not observed.
     """
     p = Path(path)
-    lines = p.read_text().splitlines() if p.exists() else []
+    lines = p.read_text(encoding="utf-8").splitlines() if p.exists() else []
     kept = [l for l in lines if not l.strip().startswith(f"{key}=")]
     kept.append(f"{key}={value}")
-    p.write_text("\n".join(kept) + "\n")
+    p.write_text("\n".join(kept) + "\n", encoding="utf-8")
     try:
         os.chmod(p, 0o600)            # no-op on Windows; the file is git-ignored regardless
     except OSError:

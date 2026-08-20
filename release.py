@@ -55,7 +55,7 @@ def prepare(master, metadata_path):
     fails = []
     if not master.exists():
         fails.append(f"master missing: {master}")
-    meta = json.loads(meta_p.read_text()) if meta_p.exists() else {}
+    meta = json.loads(meta_p.read_text(encoding="utf-8")) if meta_p.exists() else {}
     if not meta.get("title"):
         fails.append("metadata has no title")
 
@@ -66,7 +66,7 @@ def prepare(master, metadata_path):
 
     audit_p = master.parent / "private_test_audit.json"
     if audit_p.exists():
-        if not json.loads(audit_p.read_text()).get("all_pass"):
+        if not json.loads(audit_p.read_text(encoding="utf-8")).get("all_pass"):
             fails.append("private_test_audit did not pass")
     else:
         fails.append("no private_test_audit.json")
@@ -85,7 +85,7 @@ def prepare(master, metadata_path):
         "ready": not fails, "blockers": fails,
     }
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)
-    MANIFEST.write_text(json.dumps(m, indent=2))
+    MANIFEST.write_text(json.dumps(m, indent=2), encoding="utf-8")
     return m
 
 
@@ -104,18 +104,18 @@ def upload_private(master, metadata_path):
         sys.exit("  NOT READY:\n    " + "\n    ".join(m["blockers"]))
 
     if MANIFEST.exists():
-        prev = json.loads(MANIFEST.read_text())
+        prev = json.loads(MANIFEST.read_text(encoding="utf-8"))
         if prev.get("youtube_video_id") and prev.get("master_sha256") == m["master_sha256"]:
             sys.exit(f"  ALREADY UPLOADED: {prev['youtube_video_id']} for these exact bytes. "
                      f"Refusing to create a duplicate.")
 
-    meta = json.loads(Path(metadata_path).read_text())
+    meta = json.loads(Path(metadata_path).read_text(encoding="utf-8"))
     print(f"  uploading {m['master_bytes']/1e6:.1f} MB as PRIVATE …")
     vid = yt.upload(master, meta, privacy="private")
 
     m["youtube_video_id"] = vid
     m["uploaded_at"] = time.strftime("%F %T")
-    MANIFEST.write_text(json.dumps(m, indent=2))
+    MANIFEST.write_text(json.dumps(m, indent=2), encoding="utf-8")
     print(f"  video id {vid}")
     return vid
 
@@ -134,7 +134,7 @@ def verify(video_id=None):
     # actual diagnosis: this token cannot observe, so it cannot verify.
     if yt.scope_preflight(yt.granted_scopes(), ["verify"]):
         sys.exit("  cannot verify with this credential — re-run consent.")
-    m = json.loads(MANIFEST.read_text())
+    m = json.loads(MANIFEST.read_text(encoding="utf-8"))
     vid = video_id or m.get("youtube_video_id")
     q = urllib.parse.urlencode({"part": "status,contentDetails,snippet,processingDetails",
                                 "id": vid})
@@ -162,7 +162,7 @@ def verify(video_id=None):
     m["duration_delta_s"] = _iso8601_s(observed["duration"]) - m.get("technical", {}).get("duration", 0)
     m["matches_intent"] = (observed["privacy"] == "private"
                            and observed["self_declared_made_for_kids"] is True)
-    MANIFEST.write_text(json.dumps(m, indent=2))
+    MANIFEST.write_text(json.dumps(m, indent=2), encoding="utf-8")
     return m
 
 
