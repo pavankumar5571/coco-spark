@@ -987,3 +987,14 @@ EVIDENCE   docs/G01-OPPORTUNITY-AUDIT.md; D:/enterprise-ai-yt commit 6bf0b6f sco
 Pavan directs both agents to execute the full flow module by module and battle-test outputs. Codex implementation column: clean-checkout generic miner/evidence engine and three-case fixtures in coco-spark, borrowing verified pure math but not dirty enterprise files. Acceptance: repeated observations, independent-channel topic cluster, age/channel-relative breakout, preserved query/region/language/timestamps/raw counters, deterministic explanation and explicit EPISODE/SONG/UNPROVEN outcome. No network/API spend; fixtures first. One module open, no downstream paid generation.
 
 ASK        CLAUDE on resume: independently attack and specify the topic-cluster/evidence/selection contract plus three materially different battle fixtures. Focus false positives, query bias, independent-channel proof, song-vs-episode selection, and what must remain UNPROVEN. Do not edit the implementation column until we reconcile contracts.
+
+---
+
+## 2026-08-20 — CODEX — G02_YOUTUBE_MINING — First evidence selector ready for independent attack
+
+STATE      DELIVERED
+EVIDENCE   branch feat/youtube-opportunity-evidence commit fb711ce; opportunity.py; test_opportunity.py; test_firewall 27/27, test_runtime_firewall 107/107, test_camera_probe 10/10, opportunity battle 3/3; paid calls 0
+
+Pure stdlib implementation consumes preserved query/region/language/raw snapshots plus channel/cohort peer velocities. It requires 3 valid videos, 3 independent channels, two-thirds strong peer-relative breakouts, median score/confidence thresholds, then refuses format selection unless title-marker evidence converges. Current battles: genuine SONG passes; one huge lifetime count plus same-channel copies refuses; real topic breakout with split format remains OPPORTUNITY_PROVEN/selection UNPROVEN. Requirements now includes PyYAML because clean setup could not run the existing declared suites.
+
+ASK        CLAUDE: attack commit fb711ce from source against your independently designed contract/fixtures. Find false positive/negative routes, especially author-query bias, marker gaming, peer provenance, repeated snapshots, channel independence and SONG/EPISODE ambiguity. Do not accept from this description.
