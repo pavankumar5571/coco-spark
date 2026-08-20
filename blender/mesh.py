@@ -121,7 +121,12 @@ def components(measurement):
                              "cy": band_depth_centre,
                              "rx": rx, "ry": ry, "fraction": frac, "x0": x0, "x1": x1})
 
-        claimed, next_live = [None] * len(sections), []
+        claimed = [None] * len(sections)
+        # Chains closed by a merge at THIS height. They are already in `finished`, and the
+        # unclaimed pass below must not add them a second time - doing exactly that put
+        # 1,676 duplicate-coordinate vertices of 5,342 into the first build, because every
+        # merged part was lofted twice at identical coordinates.
+        retired = []
         for index, section in enumerate(sections):
             overlapping = [c for c in live
                            if not (section["x1"] < c[-1]["x0"] or section["x0"] > c[-1]["x1"])]
@@ -133,21 +138,22 @@ def components(measurement):
                 merges += 1
                 for chain in overlapping:
                     finished.append(chain)
+                    retired.append(chain)
                 claimed[index] = [section]
             else:
                 claimed[index] = [section]
         for chain in live:
+            if any(chain is r for r in retired):
+                continue                     # already closed by the merge above
             taken = [c for c in claimed if c is chain]
             if not taken:
                 finished.append(chain)       # this part ended at this height
             elif len(taken) > 1:
                 splits += 1
-        seen = []
+        live = []
         for chain in claimed:
-            if chain is not None and not any(chain is s for s in seen):
-                seen.append(chain)
-        next_live = seen
-        live = next_live
+            if chain is not None and not any(chain is s for s in live):
+                live.append(chain)
     finished.extend(live)
 
     usable = [chain for chain in finished if len(chain) >= 3]
@@ -202,6 +208,40 @@ def build(chains, name):
     bm.free()
     mesh.update()
     return obj, len(verts), len(faces)
+
+
+def topology_facts(obj):
+    """Measure what the mesh IS, rather than describing what it was meant to be.
+
+    A base mesh that will be sculpted may legitimately be several intersecting closed
+    tubes. What is not legitimate is calling that rig-ready, so the numbers go in the
+    report and the next stage can refuse them.
+    """
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    non_manifold = sum(1 for edge in bm.edges if not edge.is_manifold)
+    loose = sum(1 for vert in bm.verts if not vert.link_faces)
+    shells, seen = 0, set()
+    for face in bm.faces:
+        if face.index in seen:
+            continue
+        shells += 1
+        stack = [face]
+        while stack:
+            current = stack.pop()
+            if current.index in seen:
+                continue
+            seen.add(current.index)
+            for edge in current.edges:
+                stack.extend(f for f in edge.link_faces if f.index not in seen)
+    bm.free()
+    return {"non_manifold_edges": non_manifold, "loose_vertices": loose,
+            "separate_shells": shells,
+            "rig_ready": False,
+            "why_not_rig_ready": "separate closed tubes that intersect at joins are a "
+                                 "sculpt input, not a deformable surface. Rigify must not "
+                                 "be handed this topology; it is handed what a person "
+                                 "sculpts from it."}
 
 
 def light_for_form(height_m):
@@ -261,6 +301,9 @@ def main():
 
     scaffold.clear()
     chains, stats = components(measurement)
+    side_multi_run = [b["height_fraction"]
+                      for b in measurement["views"]["side"]["bands"]
+                      if b.get("run_count", 1) > 1]
     if not chains:
         raise SystemExit("  no component survived; nothing to loft")
     obj, n_verts, n_faces = build(chains, f"{character}_base")
@@ -290,17 +333,26 @@ def main():
         "faces": n_faces,
         "z_range_m": [round(min(all_z), 4), round(max(all_z), 4)],
         "source_measurement": f"assets/design/{character}/measurement.json",
-        "topology": stats,
         "what_this_is_not": [
             "not character art: no face, no costume, no fingers, no sculpted detail",
             "each drawn part is a tube of ellipses, so a part is the right size and "
             "the wrong shape in cross-section",
             "parts that meet are built as separate overlapping tubes, not joined",
         ],
-        "the_one_assumption": "a turnaround gives depth per BAND, not per part. The "
-                              "widest run in a band takes the measured depth; a narrower "
-                              "run is built circular in section, because a limb or an ear "
-                              "is roughly as deep as it is wide.",
+        "the_one_assumption": "a narrower run is built circular in section, because a limb "
+                              "or an ear is roughly as deep as it is wide. This is "
+                              "HYPOTHESIS GEOMETRY, not measured geometry, and it is the "
+                              "only invented rule in this file.",
+        "unused_evidence": {
+            "side_multi_run_bands": side_multi_run,
+            "note": "the side view resolves separate parts at these heights and this "
+                    "builder uses none of them - it takes only the side band's outer "
+                    "width and centre. Pairing a front part to a side part across two "
+                    "views is ambiguous and no rule for it is claimed here. Saying "
+                    "'a turnaround gives depth per band' would overstate the case: it "
+                    "gives more, and we are not yet using it.",
+        },
+        "topology": {**stats, **topology_facts(obj)},
         "renders": rendered,
         "blend": blend.name,
     }

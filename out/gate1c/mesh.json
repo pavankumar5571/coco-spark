@@ -3,26 +3,41 @@
   "character": "coco",
   "standing_height_m": 0.55,
   "segments_per_section": 32,
-  "vertices": 5342,
-  "faces": 5792,
+  "vertices": 3666,
+  "faces": 3936,
   "z_range_m": [
     0.0,
     0.55
   ],
   "source_measurement": "assets/design/coco/measurement.json",
-  "topology": {
-    "components": 15,
-    "dropped_short_components": 8,
-    "splits": 0,
-    "merges": 4,
-    "circular_sections_assumed": 38
-  },
   "what_this_is_not": [
     "not character art: no face, no costume, no fingers, no sculpted detail",
     "each drawn part is a tube of ellipses, so a part is the right size and the wrong shape in cross-section",
     "parts that meet are built as separate overlapping tubes, not joined"
   ],
-  "the_one_assumption": "a turnaround gives depth per BAND, not per part. The widest run in a band takes the measured depth; a narrower run is built circular in section, because a limb or an ear is roughly as deep as it is wide.",
+  "the_one_assumption": "a narrower run is built circular in section, because a limb or an ear is roughly as deep as it is wide. This is HYPOTHESIS GEOMETRY, not measured geometry, and it is the only invented rule in this file.",
+  "unused_evidence": {
+    "side_multi_run_bands": [
+      0.45,
+      0.4625,
+      0.475,
+      0.5625,
+      0.6
+    ],
+    "note": "the side view resolves separate parts at these heights and this builder uses none of them - it takes only the side band's outer width and centre. Pairing a front part to a side part across two views is ambiguous and no rule for it is claimed here. Saying 'a turnaround gives depth per band' would overstate the case: it gives more, and we are not yet using it."
+  },
+  "topology": {
+    "components": 9,
+    "dropped_short_components": 5,
+    "splits": 0,
+    "merges": 4,
+    "circular_sections_assumed": 38,
+    "non_manifold_edges": 0,
+    "loose_vertices": 0,
+    "separate_shells": 9,
+    "rig_ready": false,
+    "why_not_rig_ready": "separate closed tubes that intersect at joins are a sculpt input, not a deformable surface. Rigify must not be handed this topology; it is handed what a person sculpts from it."
+  },
   "renders": [
     "base_front.png",
     "base_right.png",
