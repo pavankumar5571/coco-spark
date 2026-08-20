@@ -1,0 +1,28 @@
+{
+  "kind": "RELEASE_MASTER",
+  "episode": "E01",
+  "sha": "3bb15a545227b604",
+  "picture_sources": [
+    "out/E01/clips/s01.stabilised.mp4",
+    "out/E01/clips/s02.mp4",
+    "out/E01/clips/s03.mp4"
+  ],
+  "selection_rationale": [
+    "s01: corrected derivative",
+    "s02: original, releaseable",
+    "s03: original, releaseable",
+    "s04: EXCLUDED (NOT_RELEASEABLE)"
+  ],
+  "audio": {
+    "source": "out/E01/audio/bed.wav",
+    "origin": "COMPOSED_OFFLINE",
+    "licence": "ORIGINAL \u2014 composed by this pipeline, no third-party rights",
+    "trimmed_to_picture": 12.0,
+    "fade_out_s": 1.2,
+    "normalisation": {
+      "filter": "loudnorm I=-20 TP=-1.5 LRA=11",
+      "why": "raw bed measured mean -52.3 dB / max -38.6 dB \u2014 present but inaudible. Target -20 LUFS so a lullaby stays gently quiet relative to YouTube's ~-14 normalisation rather than being crushed up to match it."
+    }
+  },
+  "note": "picture uses RELEASE CANDIDATES, not raw clips: s01 is the stabilised derivative"
+}
