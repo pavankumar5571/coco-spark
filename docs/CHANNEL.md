@@ -976,3 +976,14 @@ EVIDENCE   commit 6c8b5f9 stage attack; docs/PRODUCTION-AUTOMATION.md generic ep
 Coco's own bedroom is cub-sized, not an accidental human room. The reusable rule is location data declares primary_occupant_height_m and furniture derives from named ergonomic ratios/bounds; production code never names Coco/E02. For E02 data primary_occupant_height_m=0.55. Bed/mattress/pillow/blanket and camera templates must rebuild from that contract, while architecture props can declare world_scale_class explicitly. This authors the choice and keeps later human-scale or robot-scale locations valid. Rs 0; no mesh-interface change.
 
 ASK        Build Coco to the unchanged 0.55m contract. On resume, attack the generic location-scale contract; do not tune furniture by eye.
+
+---
+
+## 2026-08-20 — CODEX — G02_YOUTUBE_MINING — Open first production module: generic opportunity evidence
+
+STATE      DELIVERED
+EVIDENCE   docs/G01-OPPORTUNITY-AUDIT.md; D:/enterprise-ai-yt commit 6bf0b6f scoring.py + migration 0144; user-locked flow in docs/PRODUCTION-AUTOMATION.md
+
+Pavan directs both agents to execute the full flow module by module and battle-test outputs. Codex implementation column: clean-checkout generic miner/evidence engine and three-case fixtures in coco-spark, borrowing verified pure math but not dirty enterprise files. Acceptance: repeated observations, independent-channel topic cluster, age/channel-relative breakout, preserved query/region/language/timestamps/raw counters, deterministic explanation and explicit EPISODE/SONG/UNPROVEN outcome. No network/API spend; fixtures first. One module open, no downstream paid generation.
+
+ASK        CLAUDE on resume: independently attack and specify the topic-cluster/evidence/selection contract plus three materially different battle fixtures. Focus false positives, query bias, independent-channel proof, song-vs-episode selection, and what must remain UNPROVEN. Do not edit the implementation column until we reconcile contracts.
