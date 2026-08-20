@@ -146,6 +146,22 @@ def compile_brief(episode, mode, signature=SIGNATURE_SECONDS, outro=OUTRO_SECOND
         problems.append(f"beats cover {covered}s of a {runtime}s programme - "
                         f"{round(runtime - covered, 3)}s is unaccounted for")
 
+    # WHAT IT COSTS, FROM THE BEATS. The existing estimator reads shots.json — three
+    # all-generative shots, Rs 111, worst case Rs 166.50, DOES NOT FIT. That is the OLD
+    # design. beats.json is the hybrid redesign that was supposed to fix exactly that, and
+    # nobody had ever costed it, so the episode has been sitting behind a number that
+    # belongs to a plan we already replaced.
+    stills = sorted({b["source"]["id"] for b in beats
+                     if (b["source"] or {}).get("kind") == "STILL"})
+    gen = [b for b in beats if (b["source"] or {}).get("kind") == "GENERATIVE"]
+    # A generated beat is billed per second of CLIP, and a clip is a whole VIDEO_SECONDS
+    # unit whatever fraction of it the beat uses. Rounding down would under-reserve.
+    gen_seconds = sum(C.VIDEO_SECONDS for _ in gen)
+    frames_inr = len(stills) * C.INR_PER_IMAGE
+    video_inr = gen_seconds * C.INR_PER_VID_SEC
+    estimate = round(frames_inr + video_inr, 2)
+    reserved = round(estimate * C.SAFETY_MARGIN, 2)
+
     try:
         lufs = programme_lufs(mode)
         lufs_note = None
@@ -191,6 +207,12 @@ def compile_brief(episode, mode, signature=SIGNATURE_SECONDS, outro=OUTRO_SECOND
             "free_reused_tails": [b["index"] for b in beats
                                   if (b["source"] or {}).get("kind") == "TAIL_OF"],
             "beat_count": len(beats),
+            "estimate_inr": estimate,
+            "reserved_worst_case_inr": reserved,
+            "breakdown": {
+                "stills": f"{len(stills)} x Rs {C.INR_PER_IMAGE} = Rs {frames_inr}",
+                "video": f"{gen_seconds}s x Rs {C.INR_PER_VID_SEC}/s = Rs {video_inr}",
+            },
         },
         "ready": not problems,
         "problems": problems,
