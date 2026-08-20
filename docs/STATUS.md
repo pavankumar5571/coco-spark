@@ -35,9 +35,18 @@ tests were green. Done means battle tested. Everything below is graded against t
                              as the defects we thought to encode, and six of them were
                              written after the bug bit us.
 
-    audio                    ZERO. Never once run through the pipeline or YouTube.
+    audio                    LOW, not zero — I got this WRONG in the first draft.
+                             An ORIGINAL 15s audio bed exists for E01, composed offline,
+                             Rs 0, licence ORIGINAL, with provenance and a SHA. Suno
+                             produced E02's song with real word timings. What has NEVER
+                             happened is muxing a master and putting it through YouTube.
 
-    publishing               ZERO. Never uploaded anything, anywhere, ever.
+    publishing               LOW, not zero — also WRONG in the first draft. A release
+                             package exists: metadata.json with title, description, tags,
+                             made_for_kids=true, privacy_at_upload=unlisted, and an
+                             explicit REVIEW decision on synthetic-content disclosure left
+                             to Pavan rather than assumed by a script. Plus CHECKLIST.md
+                             and a thumbnail. What is zero is the UPLOAD itself.
 
 ## DONE, and I mean actually load-bearing
 
@@ -59,10 +68,11 @@ tests were green. Done means battle tested. Everything below is graded against t
 
 ## PENDING — ordered by what actually blocks a published channel
 
-    1  AUDIO PATH          never run. E01 is silent. E02's song exists as a file but has
-                           never been muxed, never been through YouTube transcode.
-    2  PUBLISHING PATH     never run. No upload, no metadata, no thumbnail, no
-                           Made-for-Kids flag, no transcode observed.
+    1  AUDIO MASTER        bed and song EXIST; muxing into a release master and
+                           surviving YouTube transcode has never happened.
+    2  UPLOAD              metadata, thumbnail, checklist and Made-for-Kids flag all
+                           exist. The upload itself has never happened, so transcode,
+                           playback and post-processing audio are entirely unobserved.
     3  E02 PICTURES        4-7 stills + 1 generative beat. ~Rs 52-67 to finish a full
                            song episode.
     4  E02 ASSEMBLY        cut against real word timings; the beat map exists, the
@@ -76,6 +86,13 @@ tests were green. Done means battle tested. Everything below is graded against t
     8  STORY MODE          zero. Entirely unexercised.
     9  THUMBNAIL/METADATA  no tooling at all
    10  SECOND EPISODE      the repeatability claim is untested by definition
+   11  CLOUDFLARE R2       assessed and DEFERRED in c18e32d, not forgotten but omitted
+                           from my first draft — Pavan caught it. Applies to
+                           enterprise-ai-yt and the dead prev/ system, NOT to mini, which
+                           has no GCP at all. Two gates before scheduling it: measure what
+                           GCS actually costs per month, and inventory every GCS semantic
+                           those workflows rely on. S3-compatible PUT/GET is not
+                           behaviour-compatible storage.
 
 ## WHAT "BATTLE TESTED" WOULD REQUIRE, and does not exist yet
 
@@ -98,3 +115,20 @@ almost nonexistent.
 The single highest-value action is not another capability. It is pushing one artifact all
 the way through audio, upload and metadata — because those are the only two stages with
 ZERO evidence, and they sit between us and every episode we will ever make.
+
+
+## CORRECTIONS TO MY OWN FIRST DRAFT
+
+Written after exchanging with GPT and re-checking the repo. All three errors were mine,
+and GPT's list was more accurate than mine on two of them.
+
+    audio        I wrote ZERO. False. An original composed bed exists for E01 with
+                 provenance, and Suno produced E02's song with word-level timings.
+    publishing   I wrote ZERO, "no metadata, no thumbnail". False. A full release package
+                 exists including the synthetic-disclosure decision.
+    R2           omitted entirely. Pavan caught it.
+
+Root cause worth recording: I wrote the assessment from the `plates` branch and from
+memory of this session, rather than auditing the full history across branches. The work I
+declared nonexistent was committed earlier today by a parallel session. An inventory built
+from recall is not an inventory.
