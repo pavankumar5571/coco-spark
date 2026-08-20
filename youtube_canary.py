@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 import json
 from pathlib import Path
 
@@ -11,6 +12,17 @@ from live_transport import LiveTransport
 from opportunity import select_opportunity
 
 
+def evidence_snapshots(snapshots):
+    """Preserve real elapsed hours; never turn sequence position into elapsed time."""
+    if not snapshots:
+        return []
+    start = datetime.fromisoformat(snapshots[0]["observed_at"].replace("Z", "+00:00"))
+    return [{"observed_hour": (
+                datetime.fromisoformat(snap["observed_at"].replace("Z", "+00:00")) - start
+             ).total_seconds() / 3600,
+             "views": snap["views"]} for snap in snapshots]
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--query", default="preschool counting song")
@@ -18,20 +30,35 @@ def main():
     p.add_argument("--language", default="en")
     p.add_argument("--max-results", type=int, default=3)
     p.add_argument("--state-db", type=Path, required=True)
+    p.add_argument("--refresh-existing", action="store_true",
+                   help="skip search and re-observe only IDs already persisted in state-db")
     args = p.parse_args()
+    collector = Collector(store_path=args.state_db)
     transport = LiveTransport(max_results=args.max_results)
-    batch = adapter.search(query=args.query, region=args.region, language=args.language,
-                           transport=transport, retries=0, max_pages=1)
-    # A one-page canary is intentionally not a complete market collection. Inspect the
-    # preserved retry IDs while keeping the production opportunity handoff empty.
-    ids = batch["video_ids"] or batch["retry_video_ids"]
+    if args.refresh_existing:
+        ids = collector.observed_video_ids()
+        if not ids:
+            collector.close()
+            raise SystemExit("state DB contains no observation IDs to refresh")
+        first_discovery = collector.discoveries(ids[0])
+        provenance = first_discovery[0] if first_discovery else {
+            "query": args.query, "region": args.region.upper(),
+            "language": args.language.casefold()}
+        batch = {**provenance, "complete": True,
+                 "termination_reason": "existing_ids_only"}
+    else:
+        batch = adapter.search(query=args.query, region=args.region, language=args.language,
+                               transport=transport, retries=0, max_pages=1)
+        # A one-page canary is intentionally not a complete market collection. Inspect the
+        # preserved retry IDs while keeping the production opportunity handoff empty.
+        ids = batch["video_ids"] or batch["retry_video_ids"]
     stats = adapter.fetch_statistics(ids, transport=transport)
     details = adapter.fetch_details(ids, transport=transport)
-    collector = Collector(store_path=args.state_db)
     evidence_videos = []
     for video_id in ids:
-        collector.record_discovery(video_id=video_id, query=batch["query"],
-                                   region=batch["region"], language=batch["language"])
+        if not args.refresh_existing:
+            collector.record_discovery(video_id=video_id, query=batch["query"],
+                                       region=batch["region"], language=batch["language"])
         row = stats.get(video_id)
         if row and row["views"] is not None:
             collector.record_observation(
@@ -44,8 +71,7 @@ def main():
             "title": detail.get("title") or "", "query": batch["query"],
             "region": batch["region"], "language": batch["language"],
             "channel_owner_hint": None,
-            "snapshots": [{"observed_hour": index, "views": snap["views"]}
-                          for index, snap in enumerate(snapshots)],
+            "snapshots": evidence_snapshots(snapshots),
             "channel_peer_velocities": [], "cohort_peer_velocities": [],
         })
     evidence = select_opportunity({
@@ -64,7 +90,8 @@ def main():
         "evidence_status": evidence["status"],
         "evidence_matched_videos": evidence["metrics"]["matched_videos"],
         "termination_reason": batch["termination_reason"],
-        "first_observation_only": True, "opportunity_proof_allowed": False,
+        "first_observation_only": all(len(collector.snapshots(i)) < 2 for i in ids),
+        "opportunity_proof_allowed": all(len(collector.snapshots(i)) >= 2 for i in ids),
         "persistent_state_db": str(args.state_db),
         # Sanitized transport diagnostics contain endpoint, public query/id prefix and
         # HTTP status only. They never contain the API key or request URL.
@@ -72,10 +99,12 @@ def main():
     }
     print(json.dumps(report, indent=2, sort_keys=True))
     collector.close()
-    bounded_partial = batch["termination_reason"] == "page_limit_reached"
+    bounded_partial = batch["termination_reason"] in {
+        "page_limit_reached", "existing_ids_only"}
     metadata_complete = all(x.get("title") and x.get("channel_id") for x in details.values())
     if (not (batch["complete"] or bounded_partial) or not ids or not stats or not details
-            or not metadata_complete or evidence["status"] != "OPPORTUNITY_UNPROVEN"):
+            or not metadata_complete
+            or evidence["status"] not in {"OPPORTUNITY_UNPROVEN", "OPPORTUNITY_PROVEN"}):
         raise SystemExit(1)
 
 
