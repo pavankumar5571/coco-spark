@@ -7,7 +7,10 @@ deriving rates, ownership, demand, or other facts the API did not state.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
 import re
+from urllib.parse import urlencode
+from urllib.request import urlopen
 
 
 DEFAULT_RETRIES = 2  # three total attempts
@@ -45,6 +48,48 @@ class FakeTransport:
         self.calls += 1
         return {video_id: self.details[video_id] for video_id in ids
                 if video_id in self.details}
+
+
+class YouTubeTransport:
+    """Explicit live transport. Constructing it requires a key; adapter functions never do."""
+    def __init__(self, api_key: str, *, base_url="https://www.googleapis.com/youtube/v3",
+                 max_results: int = 5, opener=urlopen):
+        if not api_key:
+            raise ValueError("YouTube API key is required")
+        self.api_key = api_key
+        self.base_url = base_url.rstrip("/")
+        self.max_results = max(1, min(50, int(max_results)))
+        self.opener = opener
+        self.calls = 0
+
+    def _get(self, resource, **params):
+        self.calls += 1
+        url = f"{self.base_url}/{resource}?{urlencode({**params, 'key': self.api_key})}"
+        with self.opener(url, timeout=30) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    def search_page(self, token, **request):
+        params = {"part": "snippet", "type": "video", "q": request["query"],
+                  "regionCode": request["region"],
+                  "relevanceLanguage": request["language"],
+                  "safeSearch": "strict", "order": "date",
+                  "maxResults": self.max_results}
+        if token:
+            params["pageToken"] = token
+        body = self._get("search", **params)
+        ids = [item.get("id", {}).get("videoId") for item in body.get("items", [])]
+        return [video_id for video_id in ids if video_id], body.get("nextPageToken")
+
+    def statistics(self, ids):
+        body = self._get("videos", part="statistics", id=",".join(ids))
+        return {item["id"]: item.get("statistics", {}) for item in body.get("items", [])}
+
+    def video_details(self, ids):
+        body = self._get("videos", part="contentDetails,snippet", id=",".join(ids))
+        return {item["id"]: {
+            "duration": item.get("contentDetails", {}).get("duration"),
+            "publishedAt": item.get("snippet", {}).get("publishedAt"),
+        } for item in body.get("items", [])}
 
 
 def _require(transport):
