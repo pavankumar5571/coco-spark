@@ -1,39 +1,88 @@
-{
-  "kind": "UPLOAD_MANIFEST",
-  "purpose": "PRIVATE_PUBLISH_PATH_TEST",
-  "prepared_at": "2026-08-20 04:25:00",
-  "master": "out/E01/release/E01_master.mp4",
-  "master_sha256": "a7bbe083da96d780e8e2357f137ad2c6fefc93d7012ceee88cd75f76802134e4",
-  "master_bytes": 3809959,
-  "technical": {
-    "duration": 12.0,
-    "video": {
-      "codec_name": "h264",
-      "width": 1280,
-      "height": 720
-    },
-    "audio": {
-      "codec_name": "aac",
-      "channels": 2,
-      "sample_rate": "48000"
-    }
-  },
-  "intended": {
-    "title": "Coco's Starlight Bedtime",
-    "privacy": "private",
-    "made_for_kids": true,
-    "tags": [
-      "coco spark",
-      "bedtime",
-      "preschool",
-      "calm",
-      "sleep",
-      "story time"
-    ]
-  },
-  "contains_no_secrets": true,
-  "ready": true,
-  "blockers": [],
-  "youtube_video_id": "nFN75I3MlV8",
-  "uploaded_at": "2026-08-20 04:25:02"
+﻿{
+    "kind":  "UPLOAD_MANIFEST",
+    "purpose":  "PRIVATE_PUBLISH_PATH_TEST",
+    "prepared_at":  "2026-08-20 04:25:00",
+    "master":  "out/E01/release/E01_master.mp4",
+    "master_sha256":  "a7bbe083da96d780e8e2357f137ad2c6fefc93d7012ceee88cd75f76802134e4",
+    "master_bytes":  3809959,
+    "technical":  {
+                      "duration":  12.0,
+                      "video":  {
+                                    "codec_name":  "h264",
+                                    "width":  1280,
+                                    "height":  720
+                                },
+                      "audio":  {
+                                    "codec_name":  "aac",
+                                    "channels":  2,
+                                    "sample_rate":  "48000"
+                                }
+                  },
+    "intended":  {
+                     "title":  "Coco\u0027s Starlight Bedtime",
+                     "privacy":  "private",
+                     "made_for_kids":  true,
+                     "tags":  [
+                                  "coco spark",
+                                  "bedtime",
+                                  "preschool",
+                                  "calm",
+                                  "sleep",
+                                  "story time"
+                              ]
+                 },
+    "contains_no_secrets":  true,
+    "ready":  true,
+    "blockers":  [
+
+                 ],
+    "youtube_video_id":  "nFN75I3MlV8",
+    "uploaded_at":  "2026-08-20 04:25:02",
+    "observed":  {
+                     "privacy":  "private",
+                     "made_for_kids":  true,
+                     "self_declared_made_for_kids":  true,
+                     "upload_status":  "processed",
+                     "processing":  "succeeded",
+                     "duration":  "PT13S",
+                     "title":  "Coco\u0027s Starlight Bedtime"
+                 },
+    "verified_at":  "2026-08-20 05:49:08",
+    "duration_delta_s":  1.0,
+    "verified_by":  "powershell readback (no local python) - re-run release.py verify in the Codespace",
+    "matches_intent":  true,
+    "human_inspection":  {
+                             "at":  "2026-08-20 05:54:11",
+                             "by":  "Pavan",
+                             "plays_start_to_finish":  true,
+                             "audio_audible_at_normal_volume":  true,
+                             "av_sync_ok":  "NOT DETERMINABLE",
+                             "av_sync_note":  "master audio is a test tone, not song or dialogue - there is no onset to align a picture against, so this artifact cannot answer the question. E02 is the first artifact that can.",
+                             "resolution_offered":  "NOT RECORDED",
+                             "crop_or_aspect_defect":  false,
+                             "shows_private_and_made_for_kids":  true
+                         },
+    "status":  "TEST_ARTICLE",
+    "frozen":  true,
+    "frozen_at":  "2026-08-20 05:54:11",
+    "frozen_terms":  "no s04, no particle repair, no branding, no public release. Its job is done.",
+    "verification_attempts":  [
+                                  {
+                                      "at":  "2026-08-20 04:25",
+                                      "result":  "403 insufficientPermissions",
+                                      "granted_scopes":  [
+                                                             "https://www.googleapis.com/auth/youtube.upload"
+                                                         ],
+                                      "note":  "token could push bytes and read nothing back; verify was unbuildable with it"
+                                  },
+                                  {
+                                      "at":  "2026-08-20 05:30",
+                                      "result":  "403 insufficientPermissions",
+                                      "credential":  "enterprise-ai-yt AIS_YOUTUBE_REFRESH_TOKEN",
+                                      "granted_scopes":  [
+                                                             "https://www.googleapis.com/auth/youtube.upload"
+                                                         ],
+                                      "note":  "independent system, same defect - cross-check, not a retry"
+                                  }
+                              ]
 }

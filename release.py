@@ -24,6 +24,18 @@ def _sha256(p):
     return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 
 
+def _iso8601_s(d):
+    """PT1H2M3S -> seconds. YouTube states duration in ISO 8601, whole seconds only."""
+    import re
+    if not d:
+        return 0.0
+    m = re.fullmatch(r"P(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", d)
+    if not m:
+        return 0.0
+    dd, h, mi, s = (int(x or 0) for x in m.groups())
+    return float(dd * 86400 + h * 3600 + mi * 60 + s)
+
+
 def _probe(p):
     out = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
         "stream=codec_type,codec_name,width,height,channels,sample_rate:format=duration",
@@ -116,6 +128,12 @@ def verify(video_id=None):
     """
     import youtube_upload as yt
     import urllib.request, urllib.parse
+    # Say WHY before failing. The first run of this returned a bare 403 because the
+    # credential carried youtube.upload only — a fact knowable for free, before any
+    # request, from the token itself. Asking first turns an opaque HTTP error into the
+    # actual diagnosis: this token cannot observe, so it cannot verify.
+    if yt.scope_preflight(yt.granted_scopes(), ["verify"]):
+        sys.exit("  cannot verify with this credential — re-run consent.")
     m = json.loads(MANIFEST.read_text())
     vid = video_id or m.get("youtube_video_id")
     q = urllib.parse.urlencode({"part": "status,contentDetails,snippet,processingDetails",
@@ -138,6 +156,10 @@ def verify(video_id=None):
     }
     m["observed"] = observed
     m["verified_at"] = time.strftime("%F %T")
+    # YouTube reports its OWN duration, and it is not ours: a 12.000s master comes back
+    # as PT13S. Recording the delta rather than assuming agreement — the whole point of
+    # reading the result is that it may differ from what we sent, in ways nobody predicted.
+    m["duration_delta_s"] = _iso8601_s(observed["duration"]) - m.get("technical", {}).get("duration", 0)
     m["matches_intent"] = (observed["privacy"] == "private"
                            and observed["self_declared_made_for_kids"] is True)
     MANIFEST.write_text(json.dumps(m, indent=2))

@@ -30,10 +30,18 @@ from pathlib import Path
 #
 # readonly is added for exactly that: reading back privacy, madeForKids, processingStatus
 # and duration. It grants no additional ability to change anything.
-SCOPE = " ".join([
-    "https://www.googleapis.com/auth/youtube.upload",
-    "https://www.googleapis.com/auth/youtube.readonly",
-])
+#
+# Scope is declared PER OPERATION rather than as one blob, because the defect this
+# replaces was choosing scope for what we intended to DO and never for what we intended
+# to PROVE. It is not a one-off slip: enterprise-ai-yt, built months earlier and entirely
+# separately, mints an upload-only token too. Neither system could read back what YouTube
+# did with the bytes, and neither noticed until the check ran and returned 403.
+OPERATION_SCOPES = {
+    "upload": "https://www.googleapis.com/auth/youtube.upload",
+    "verify": "https://www.googleapis.com/auth/youtube.readonly",
+}
+# The requested set is DERIVED from the declarations, so the two cannot drift apart.
+SCOPE = " ".join(sorted(set(OPERATION_SCOPES.values())))
 AUTH = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN = "https://oauth2.googleapis.com/token"
 UPLOAD = "https://www.googleapis.com/upload/youtube/v3/videos"
@@ -55,6 +63,25 @@ def _load_env_file(path=".env"):
             continue
         k, _, v = line.partition("=")
         os.environ.setdefault(k.strip(), v.strip())
+
+
+def _write_env(key, value, path=".env"):
+    """REPLACE the key, never append a second copy.
+
+    _load_env_file uses setdefault, so the FIRST line for a key wins. Appending a
+    re-consented token would therefore leave the stale one in force while the flow
+    printed success — the credential would be replaced everywhere except in effect.
+    That is the same defect as the rest of this file: an action reported, not observed.
+    """
+    p = Path(path)
+    lines = p.read_text().splitlines() if p.exists() else []
+    kept = [l for l in lines if not l.strip().startswith(f"{key}=")]
+    kept.append(f"{key}={value}")
+    p.write_text("\n".join(kept) + "\n")
+    try:
+        os.chmod(p, 0o600)            # no-op on Windows; the file is git-ignored regardless
+    except OSError:
+        pass
 
 
 def _env(name, required=True):
@@ -134,15 +161,17 @@ def consent_loopback(port=0, host="127.0.0.1", path=""):
     if "code" not in got:
         sys.exit("  timed out waiting for approval")
 
-    rt = exchange_code(got["code"], redirect)
+    rt, granted = exchange_code(got["code"], redirect)
     if not rt:
         sys.exit("  no refresh_token returned — Google only sends one on FIRST consent. "
                  "Revoke this app at myaccount.google.com/permissions and retry.")
-    envf = Path(".env")
-    with open(envf, "a") as f:
-        f.write(f"\nYOUTUBE_REFRESH_TOKEN={rt}\n")
-    os.chmod(envf, 0o600)
-    print(f"  refresh token written to {envf} (0600, git-ignored). Not printed.")
+    # PREFLIGHT BEFORE STORING. A credential proven inadequate is not written to disk:
+    # installing it is how a system ends up making claims it cannot substantiate. The
+    # human simply approves again, leaving every box ticked.
+    if scope_preflight(granted):
+        sys.exit("  NOT STORED. Re-run consent and approve every requested permission.")
+    _write_env("YOUTUBE_REFRESH_TOKEN", rt)
+    print("  refresh token written to .env (0600, git-ignored). Not printed.")
 
 
 def mint_consent_url(redirect=OOB):
@@ -163,7 +192,49 @@ def exchange_code(code, redirect=OOB):
                       "client_secret": _env("YOUTUBE_CLIENT_SECRET"),
                       "code": code, "grant_type": "authorization_code",
                       "redirect_uri": redirect})
-    return t.get("refresh_token")
+    # The scope set comes back WITH the token. It is the only authoritative statement of
+    # what the human actually approved — the consent screen lets scopes be unticked, so
+    # what we asked for and what we hold are different questions.
+    return t.get("refresh_token"), set(t.get("scope", "").split())
+
+
+def granted_scopes():
+    """Read back what an EXISTING credential actually carries, from Google.
+
+    Not from .env, not from this file's SCOPE constant: both are claims about a past
+    intention. A refresh returns the scopes the token really holds, costs nothing and
+    changes nothing. This is how the enterprise-ai-yt token was caught.
+    """
+    t = _post(TOKEN, {"client_id": _env("YOUTUBE_CLIENT_ID"),
+                      "client_secret": _env("YOUTUBE_CLIENT_SECRET"),
+                      "refresh_token": _env("YOUTUBE_REFRESH_TOKEN"),
+                      "grant_type": "refresh_token"})
+    return set(t.get("scope", "").split())
+
+
+def scope_preflight(granted, operations=None):
+    """Assert the credential can perform every operation we will later CLAIM to perform.
+
+    Run at ACQUISITION time, not at use time. A token that cannot satisfy a declared
+    operation is a defect in the credential, and the moment it is minted is the last
+    moment at which fixing it is free. After that it produces assertions nothing can
+    check — which is precisely what "uploaded successfully" meant here until yesterday.
+
+    Returns the list of (operation, missing_scope) pairs. Empty means the credential can
+    back every claim the release path makes with it.
+    """
+    ops = operations or sorted(OPERATION_SCOPES)
+    missing = []
+    print("  SCOPE PREFLIGHT")
+    for op in ops:
+        need = OPERATION_SCOPES[op]
+        held = need in granted
+        print(f"    {op:<8} {need.rsplit('/', 1)[-1]:<18} {'GRANTED' if held else 'MISSING'}")
+        if not held:
+            missing.append((op, need))
+    for op, need in missing:
+        print(f"  ERROR: '{op}' requires {need} — not granted.")
+    return missing
 
 
 def access_token():
@@ -222,18 +293,22 @@ if __name__ == "__main__":
         consent_loopback(prt, hst, pth)
     elif len(sys.argv) > 1 and sys.argv[1] == "consent-url":
         print(mint_consent_url())
+    elif len(sys.argv) > 1 and sys.argv[1] == "scopes":
+        # Audit a credential that already exists. Free, read-only, changes nothing —
+        # and the only way to answer "can this token prove what we use it to assert?"
+        # without waiting for the assertion to fail in production.
+        sys.exit(1 if scope_preflight(granted_scopes()) else 0)
     elif len(sys.argv) > 2 and sys.argv[1] == "exchange":
         # NEVER printed. It was, in the first version, and that is a secret in stdout,
         # in scrollback and in any log capturing this process. Written straight to a
         # git-ignored .env at 0600 instead, so it exists exactly where it is needed and
         # nowhere else.
-        rt = exchange_code(sys.argv[2])
+        rt, granted = exchange_code(sys.argv[2])
         if not rt:
             sys.exit("  no refresh_token returned — was prompt=consent used?")
-        envf = Path(".env")
-        with open(envf, "a") as f:
-            f.write(f"\nYOUTUBE_REFRESH_TOKEN={rt}\n")
-        os.chmod(envf, 0o600)
-        print(f"  refresh token written to {envf} (0600, git-ignored). Not printed.")
+        if scope_preflight(granted):
+            sys.exit("  NOT STORED. Re-run consent and approve every requested permission.")
+        _write_env("YOUTUBE_REFRESH_TOKEN", rt)
+        print("  refresh token written to .env (0600, git-ignored). Not printed.")
     else:
         print(__doc__)
