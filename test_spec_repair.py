@@ -1,6 +1,10 @@
 """G05 adversarial controls; no provider/network can exist behind FakeProvider."""
 from copy import deepcopy
 from spec_repair import repair_spec
+import gemini_spec_canary as live_canary
+
+assert (live_canary.BASE_RESERVATION_INR * live_canary.SAFETY_MARGIN *
+        live_canary.MAX_CALLS) <= live_canary.APPROVED_MAX_INR
 
 SCHEMA = {"type": "object", "properties": {
     "opportunity_id": {"type": "string"},

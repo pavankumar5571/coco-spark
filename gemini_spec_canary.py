@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -26,6 +27,8 @@ PATCH_SCHEMA = {"type": "array", "items": {"type": "object", "properties": {
 
 APPROVED_MAX_INR = 9.0
 MAX_CALLS = 3
+SAFETY_MARGIN = getattr(C, "SAFETY_MARGIN", 1.0)
+BASE_RESERVATION_INR = APPROVED_MAX_INR / (MAX_CALLS * SAFETY_MARGIN)
 
 
 def semantic(document):
@@ -38,12 +41,17 @@ class LiveGemini:
         self.client = make.client()
         self.calls = 0
         self.actual_inr = 0.0
+        self.authorised_reservations_inr = 0.0
         self.records = []
 
     def _call(self, *, scenario, prompt, response_schema):
         if self.calls >= MAX_CALLS:
             raise RuntimeError("G05 live call ceiling reached")
-        reservation = make.reserve("llm", f"g05-live:{scenario}", C.PLANNER_MAX_INR)
+        next_reservation = BASE_RESERVATION_INR * SAFETY_MARGIN
+        if self.authorised_reservations_inr + next_reservation > APPROVED_MAX_INR:
+            raise RuntimeError("G05 cumulative reservation ceiling reached before provider call")
+        reservation = make.reserve("llm", f"g05-live:{scenario}", BASE_RESERVATION_INR)
+        self.authorised_reservations_inr += next_reservation
         try:
             _, types, _ = make._sdk()
             response = self.client.models.generate_content(
@@ -113,6 +121,9 @@ def main():
         immutable_paths=("/opportunity_id",), max_model_attempts=1)
 
     results = [generated_result, shape_result, semantic_result]
+    accepted_hashes = [hashlib.sha256(json.dumps(
+        result["document"], sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        if result["document"] is not None else None for result in results]
     passed = (live.calls == 3 and live.actual_inr <= APPROVED_MAX_INR and
               all(result["status"].startswith("VALID") for result in results) and
               all(result["document"]["opportunity_id"] == "yt-live-g03-unproven"
@@ -123,11 +134,15 @@ def main():
         "source_commit": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True).strip(),
         "model": C.PLANNER_MODEL, "approved_max_inr": APPROVED_MAX_INR,
+        "authorised_reservations_inr": live.authorised_reservations_inr,
+        "base_reservation_per_call_inr": BASE_RESERVATION_INR,
         "calls": live.calls, "actual_inr": round(live.actual_inr, 6),
         "provider_usage": live.records,
         "statuses": [result["status"] for result in results],
         "immutable_opportunity_ids": [result["document"]["opportunity_id"]
                                       if result["document"] else None for result in results],
+        "accepted_document_sha256": accepted_hashes,
+        "repair_manifests": [result["manifest"] for result in results],
         "passed": passed,
     }
     destination = Path("evidence/gemini-spec-repair-live-canary.json")
