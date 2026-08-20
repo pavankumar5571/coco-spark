@@ -3,8 +3,8 @@ from copy import deepcopy
 from spec_repair import repair_spec
 import gemini_spec_canary as live_canary
 
-assert (live_canary.BASE_RESERVATION_INR * live_canary.SAFETY_MARGIN *
-        live_canary.MAX_CALLS) <= live_canary.APPROVED_MAX_INR
+assert (live_canary.base_reservation(9, 3) * live_canary.SAFETY_MARGIN * 3) <= 9
+assert live_canary.usage_cost(None, 3.0) == (3.0, "RESERVED_UNMEASURED")
 
 SCHEMA = {"type": "object", "properties": {
     "opportunity_id": {"type": "string"},
