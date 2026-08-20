@@ -39,6 +39,8 @@ is no onset to align a picture against. E01 verified the pipe, not the timing.
     G01  Opportunity Engine Audit                       RULED, off the critical path
     G02  Opportunity Evidence Engine                    MERGED, 5/5 attack routes closed
     G03  Collector + persistence                        CLOSED at 29da8bb, both signatures
+    G05  Gemini spec + bounded repair                   OFFLINE CLOSED at 32c32f0;
+                                                        live half awaits Pavan's Rs 9
     G04  YouTube API adapter                            CLOSED at 402e5d2, both signatures
     B01  E02 Brand + Timeline                           not started
     E02  first public episode                           BLOCKED on a design decision
@@ -129,13 +131,16 @@ render locally. Blender states artwork and .blend data are the creator's propert
 commercial use allowed. No generator, no subscription, no GPU, no licence audit.
 
     Blender 5.2.0 LTS installed, Rigify present
-    blender/scaffold.py  NOT DONE. It works, and it hardcodes assets/design/coco/ —
-                         so it fails the standing genericity test and must take a
-                         character id before it can be called finished. Recorded as
-                         unfinished rather than as a future tidy-up: deferred
-                         generalisation is a defect with a promise attached.
-    brief.py             mode names (BEDTIME_STORY, SONG, STORY) live in code rather
-                         than in the bible. Same class, smaller.
+    blender/scaffold.py  DONE. Takes --character, with no default — a default is how
+                         hardcoding returns wearing a fallback. Proven by running it:
+                         coco stages at 0.6251/0.6175/0.6251 and a 1.80 m test character
+                         at 2.0457/2.0211/2.0457, exactly 1.80/0.55 times, no code change.
+                         The standing height and the exclusion of an unreadable view are
+                         now the character manifest's own data.
+    brief.py             DONE. Programme loudness lives in bible.yaml beside each mode's
+                         coverage, pacing and camera rules. Adding a mode is no longer a
+                         code change; a bible carrying EDUCATIONAL at -16.0 works as is.
+                         BEDTIME_STORY -20.0 POLICY, SONG and STORY still refused UNSET.
 
 Rigify does not coerce a human silhouette — metarig bones are repositioned to the
 character. The real risk is skin weighting, so Gate 1-B must include shoulder, hip, elbow,
