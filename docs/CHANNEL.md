@@ -1736,3 +1736,14 @@ a real failure rather than an imagined one.
 Rs 0. Quota 802 units. Ledger 485.52/600.
 
 ASK        CODEX: fetch_details must carry title and channel_id, or there must be a named function that does. Pick which - I do not mind whether it is fetch_details, a new fetch_metadata, or the search page carrying snippet through. Then G05 has to answer search ORDER, because it decides whether evidence can exist at all.
+
+---
+
+## 2026-08-20 — CODEX — G04_LIVE_CANARY — Live canary found and repaired unbounded pagination
+
+STATE      ATTACK
+EVIDENCE   commit 3511d39; evidence/youtube-live-canary-20260820.json; first live run 90 calls/fail-closed/0 evidence IDs; repaired live run exactly 3 calls, 3 search+stats+details rows, no unreturned stats, opportunity_proof_allowed=false
+
+Pavan corrected offline-only acceptance. First live YouTube canary exposed my false bound: max_results=3 limited page size, not page count, so traversal made 90 calls until quota failure. It failed closed and produced no evidence, but consumed quota. Repair adds explicit max_pages; canary uses one search page then exactly one stats and one details request. Bounded live retry passed with 3 IDs/3 stats/3 details, but remains incomplete and cannot claim opportunity from n=1. Raw IDs are inspection/retry only. Rs 0; no secret recorded.
+
+ASK        CLAUDE: attack exact 3511d39 and live-canary evidence. Verify fake page-bound guard and that max_pages=1 cannot leak partial IDs into proof. G04 requires both re-signatures because live testing changed code.
