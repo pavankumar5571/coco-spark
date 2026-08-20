@@ -201,11 +201,16 @@ def verify(episode=DEFAULT_EPISODE, video_id=None, manifest=None):
     # credential carried youtube.upload only — a fact knowable for free, before any
     # request, from the token itself. Asking first turns an opaque HTTP error into the
     # actual diagnosis: this token cannot observe, so it cannot verify.
-    if yt.scope_preflight(yt.granted_scopes(), ["verify"]):
-        sys.exit("  cannot verify with this credential — re-run consent.")
     manifest = Path(manifest or paths(episode)["manifest"])
     m = _read_manifest(manifest)
     vid = video_id or m.get("youtube_video_id")
+    # NO ID IS A LOCAL FACT. Asking the network about `id=None` is the same defect as
+    # every other one in this file: an invalid deterministic state reaching a provider.
+    # It is knowable here, for free, before any credential is touched.
+    if not vid:
+        sys.exit(f"  no video id recorded for {episode} — nothing to verify.")
+    if yt.scope_preflight(yt.granted_scopes(), ["verify"]):
+        sys.exit("  cannot verify with this credential — re-run consent.")
     q = urllib.parse.urlencode({"part": "status,contentDetails,snippet,processingDetails",
                                 "id": vid})
     req = urllib.request.Request(f"https://www.googleapis.com/youtube/v3/videos?{q}",

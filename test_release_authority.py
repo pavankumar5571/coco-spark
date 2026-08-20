@@ -223,6 +223,20 @@ def mutation_properties():
                        _exits(release.upload_private, "E99")))
         out.append(_ok("...and performs ZERO external calls", fake4.calls == 0))
 
+        # verify() with no recorded id must refuse LOCALLY. It built a query with
+        # id=None and asked YouTube — an invalid deterministic state reaching a provider,
+        # the same class as everything else here. Counted, not read from the message.
+        reads = {"n": 0}
+        def _counted_scopes():
+            reads["n"] += 1
+            return {UPLOAD, READONLY}
+        yt.granted_scopes = _counted_scopes
+        _episode_dir(root, episode="E98")
+        out.append(_ok("verify with no recorded id refuses locally",
+                       _exits(release.verify, "E98")))
+        out.append(_ok("...and performs ZERO network reads", reads["n"] == 0))
+        yt.granted_scopes = lambda: {READONLY}
+
         fake5 = FakeUploader(); yt.upload = fake5
         def _revoked():
             raise RuntimeError("invalid_grant: token revoked")
