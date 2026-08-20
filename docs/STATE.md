@@ -69,6 +69,21 @@ Still to attack before G03 closes: two of the three deltas are zero, and a zero 
 what a cached response looks like. FmPPe5ADuZ8 moved in the same batch, so the response
 was not wholesale stale - but that is an argument, not a proof.
 
+The cache attack subsequently used a second request with the three IDs in reverse order,
+creating a distinct request key. It returned the same mixed values: 340, 2, and 16. Along
+with the changed video in the valid batch, this rules out a wholesale response replay.
+YouTube may still delay an individual public counter; no client of the Data API can prove
+the provider's internal event stream. G03's measured fact is therefore stated narrowly:
+these were the counters YouTube returned at each observation instant, including real
+numeric zero deltas rather than missing values.
+
+The committed SQLite artifact contains nine raw rows, not six: after Claude's valid
+19:51:58Z refresh, Codex's overlapping heartbeat made a second refresh at 19:52:50Z.
+Those last three rows are explicitly `below_minimum_interval=true`, remain available for
+audit, and are excluded by `snapshots()` and from opportunity evidence. Thus the artifact
+contains six eligible rows across two valid instants and three audit-only rows at a third
+instant. The extra run cost two quota units and did not alter the verdict.
+
 
 **THE CHARACTER.** The channel's public logo and the production bible are two different
 bears. `bible.yaml` says *bright red short-sleeved t-shirt with a small yellow star*; the
