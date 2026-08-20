@@ -1,7 +1,7 @@
 {
   "kind": "RELEASE_MASTER",
   "episode": "E01",
-  "sha": "3bb15a545227b604",
+  "sha": "a7bbe083da96d780",
   "picture_sources": [
     "out/E01/clips/s01.stabilised.mp4",
     "out/E01/clips/s02.mp4",
@@ -21,8 +21,13 @@
     "fade_out_s": 1.2,
     "normalisation": {
       "filter": "loudnorm I=-20 TP=-1.5 LRA=11",
-      "why": "raw bed measured mean -52.3 dB / max -38.6 dB \u2014 present but inaudible. Target -20 LUFS so a lullaby stays gently quiet relative to YouTube's ~-14 normalisation rather than being crushed up to match it."
-    }
+      "programme_target_lufs": -20,
+      "policy": "BEDTIME_STORY programme target. SONG and STORY targets are TBD from listening tests, not inherited from this one.",
+      "why": "the raw bed measured mean -52.3 dB / max -38.6 dB \u2014 present but inaudible. -20 LUFS is Coco Spark's deliberate bedtime target. NOT justified by what YouTube does to loud material: platform normalisation is not a reason for an artistic choice, and inheriting it into channel policy would be borrowing a decision from someone else's product."
+    },
+    "delivery_rate_hz": 48000,
+    "rate_note": "loudnorm upsamples internally and left the mux at 96kHz, which is non-standard for delivery. Pinned back to 48kHz explicitly rather than shipping whatever the filter graph happened to leave behind."
   },
-  "note": "picture uses RELEASE CANDIDATES, not raw clips: s01 is the stabilised derivative"
+  "note": "picture uses RELEASE CANDIDATES, not raw clips: s01 is the stabilised derivative",
+  "sha256": "a7bbe083da96d780e8e2357f137ad2c6fefc93d7012ceee88cd75f76802134e4"
 }

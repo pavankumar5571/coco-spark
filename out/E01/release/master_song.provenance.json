@@ -13,5 +13,10 @@
     "fade_out_s": 2.66,
     "normalisation": "loudnorm I=-20 TP=-1.5 LRA=11"
   },
-  "CONFLICT": "this track is E02's SPINE. E02's entire 16-beat map is built on ITS word timings. Using it on E01 means two episodes share one song."
+  "CONFLICT": "this track is E02's SPINE. E02's entire 16-beat map is built on ITS word timings. Using it on E01 means two episodes share one song.",
+  "release_eligibility": "NOT_RELEASE_ELIGIBLE",
+  "reason": "AUDIO_VISUAL_SEMANTIC_MISMATCH",
+  "detail": "the lyric claims 'Coco counts them, one by one' and the picture shows no counting. That is the same class of defect as the world-form failures we reject visually \u2014 audio and picture disagreeing about what happened.",
+  "second_reason": "this track is E02's TIMING AUTHORITY. Reusing a truncated fragment in E01 weakens both episodes and buys no publishing-path information.",
+  "kept_because": "an experiment worth keeping; deleting it would erase what it taught"
 }

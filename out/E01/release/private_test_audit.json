@@ -1,0 +1,41 @@
+{
+  "kind": "PRIVATE_TEST_AUDIT",
+  "scope": "private upload-path test ONLY, not public release",
+  "note": "GPT's minimum set. The full audio signal-integrity firewall is REQUIRED before anything becomes public, and deliberately NOT built first \u2014 that would put infrastructure in front of a free experiment whose whole purpose is to find out whether the last mile works.",
+  "master_sha256": "3bb15a545227b604fe71f9110c9ded04ace3531eae051984d23e16349b6beadf",
+  "checks": {
+    "AUDIBLE_AUDIO": {
+      "pass": true,
+      "detail": "mean -23.6 dB, peak -10.5 dB"
+    },
+    "NO_CLIPPING": {
+      "pass": true,
+      "detail": "true peak proxy -10.5 dB"
+    },
+    "AUDIO_SPANS_PICTURE": {
+      "pass": true,
+      "detail": "audio 12.000000 vs container 12.00s"
+    },
+    "EXPECTED_DURATION": {
+      "pass": true,
+      "detail": "12.00s"
+    },
+    "STABILISED_S01_USED": {
+      "pass": true,
+      "detail": "['out/E01/clips/s01.stabilised.mp4', 'out/E01/clips/s02.mp4', 'out/E01/clips/s03.mp4']"
+    },
+    "REJECTED_S04_ABSENT": {
+      "pass": true,
+      "detail": "s04 not in picture sources"
+    },
+    "PICTURE_SPEC": {
+      "pass": true,
+      "detail": "1280x720 h264 24/1"
+    },
+    "AUDIO_SPEC": {
+      "pass": true,
+      "detail": "aac 2ch 96000Hz"
+    }
+  },
+  "all_pass": true
+}
