@@ -66,6 +66,9 @@ def main():
         "termination_reason": batch["termination_reason"],
         "first_observation_only": True, "opportunity_proof_allowed": False,
         "persistent_state_db": str(args.state_db),
+        # Sanitized transport diagnostics contain endpoint, public query/id prefix and
+        # HTTP status only. They never contain the API key or request URL.
+        "transport": transport.report(),
     }
     print(json.dumps(report, indent=2, sort_keys=True))
     collector.close()
