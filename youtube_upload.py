@@ -62,6 +62,74 @@ def _post(url, data):
         return json.loads(r.read())
 
 
+def consent_loopback(port=0):
+    """Run the whole consent flow against a LOOPBACK redirect and store the token.
+
+    The out-of-band redirect (urn:ietf:wg:oauth:2.0:oob) that this module used first is
+    DEPRECATED by Google and now returns redirect_uri_mismatch. Desktop OAuth clients are
+    expected to redirect to http://127.0.0.1:<port>, and Google accepts ANY port on the
+    loopback address for a Desktop client — which is why nothing has to be pre-registered.
+
+    Doing it this way also removes the copy-paste step: the browser hands the code straight
+    back to a server running for a few seconds on this machine, so the code never passes
+    through a clipboard, a terminal or a chat window.
+    """
+    import http.server, socket, threading, webbrowser
+
+    got = {}
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            got.update({k: v[0] for k, v in q.items()})
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            ok = "code" in got
+            self.wfile.write(
+                (f"<h2 style='font-family:system-ui'>{'Approved — you can close this tab.' if ok else 'No code returned.'}</h2>"
+                 f"<p style='font-family:system-ui;color:#666'>Coco Spark TV</p>").encode())
+
+        def log_message(self, *a):
+            pass                      # never log the query string; it carries the code
+
+    srv = http.server.HTTPServer(("127.0.0.1", port), Handler)
+    port = srv.server_address[1]
+    redirect = f"http://127.0.0.1:{port}"
+    url = mint_consent_url(redirect)
+
+    threading.Thread(target=srv.handle_request, daemon=True).start()
+    print(f"  listening on {redirect}")
+    print(f"  opening your browser — approve with the account that owns the channel\n")
+    print(f"  if it does not open, paste this:\n\n{url}\n")
+    try:
+        webbrowser.open(url)
+    except Exception:
+        pass
+
+    import time as _t
+    for _ in range(300):
+        if got:
+            break
+        _t.sleep(1)
+    srv.server_close()
+
+    if "error" in got:
+        sys.exit(f"  consent failed: {got['error']}")
+    if "code" not in got:
+        sys.exit("  timed out waiting for approval")
+
+    rt = exchange_code(got["code"], redirect)
+    if not rt:
+        sys.exit("  no refresh_token returned — Google only sends one on FIRST consent. "
+                 "Revoke this app at myaccount.google.com/permissions and retry.")
+    envf = Path(".env")
+    with open(envf, "a") as f:
+        f.write(f"\nYOUTUBE_REFRESH_TOKEN={rt}\n")
+    os.chmod(envf, 0o600)
+    print(f"  refresh token written to {envf} (0600, git-ignored). Not printed.")
+
+
 def mint_consent_url(redirect=OOB):
     """Step 1. Prints a URL. A HUMAN opens it and approves — this is the step no
     automation may perform, because the grant is the channel owner's to give."""
@@ -125,7 +193,9 @@ def upload(video_path, metadata, privacy="private"):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "consent-url":
+    if len(sys.argv) > 1 and sys.argv[1] == "consent":
+        consent_loopback()
+    elif len(sys.argv) > 1 and sys.argv[1] == "consent-url":
         print(mint_consent_url())
     elif len(sys.argv) > 2 and sys.argv[1] == "exchange":
         # NEVER printed. It was, in the first version, and that is a secret in stdout,
