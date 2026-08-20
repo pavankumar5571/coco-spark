@@ -28,3 +28,14 @@ out/*/concat.txt
 !out/*/baseline/*.qc.json
 !out/location_plates/*/*.provenance.json
 !out/location_plates/*/*.qc.json
+
+# SECRETS. This repository is PUBLIC. A key that reaches a commit here is world-readable
+# within seconds, and rotating it afterwards does not un-publish it.
+.env
+.env.*
+*.env
+env
+credentials/
+*client_secret*
+*refresh_token*
+token.json
