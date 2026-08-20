@@ -49,27 +49,27 @@
     "character_origin": [
       0.0,
       0.18,
-      1.04
+      0.0
     ],
-    "foot_plane": [
+    "bed_surface": [
       0.0,
       0.18,
       1.04
     ],
     "sleep_head": [
       0.0,
-      1.1,
-      1.26
+      0.32,
+      1.16
     ],
     "sleep_hips": [
       0.0,
-      0.26,
-      1.31
+      0.12,
+      1.14
     ],
     "sleep_feet": [
       0.0,
-      -0.55,
-      1.2
+      -0.02,
+      1.09
     ],
     "window_focus": [
       0.0,
@@ -80,6 +80,32 @@
   "contract": {
     "one_blender_unit_m": 1.0,
     "ground_z": 0.0,
-    "character_height_pending_mesh_handoff": true
+    "bed_surface_z": 1.04,
+    "character_standing_height_m": 0.55,
+    "character_origin_local": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "character_foot_plane_local_z": 0.0,
+    "character_facing": "+Y",
+    "sleep_pose_side": "right",
+    "sleep_pose_local": {
+      "head_centre": [
+        0.0,
+        0.14,
+        0.12
+      ],
+      "hips_centre": [
+        0.0,
+        -0.06,
+        0.1
+      ],
+      "feet_contact": [
+        0.0,
+        -0.2,
+        0.05
+      ]
+    }
   }
 }

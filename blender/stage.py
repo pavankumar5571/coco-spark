@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 import bpy
+from mathutils import Vector
 
 ROOT = Path.cwd()
 FPS = 24
@@ -171,12 +172,13 @@ def build_stage():
     stars = [star_mesh(f"star_{i + 1}", pos, 0.12, 0.035, gold)
              for i, pos in enumerate(star_positions)]
 
+    bed_origin = Vector((0.0, 0.18, 1.04))
     anchors = {
-        "character_origin": empty("ANCHOR_character_origin", (0, 0.18, 1.04)),
-        "foot_plane": empty("ANCHOR_foot_plane", (0, 0.18, 1.04)),
-        "sleep_head": empty("ANCHOR_sleep_head", (0, 1.10, 1.26)),
-        "sleep_hips": empty("ANCHOR_sleep_hips", (0, 0.26, 1.31)),
-        "sleep_feet": empty("ANCHOR_sleep_feet", (0, -0.55, 1.20)),
+        "character_origin": empty("ANCHOR_character_origin", (0, 0.18, 0.0)),
+        "bed_surface": empty("ANCHOR_bed_surface", bed_origin),
+        "sleep_head": empty("ANCHOR_sleep_head", bed_origin + Vector((0.0, 0.14, 0.12))),
+        "sleep_hips": empty("ANCHOR_sleep_hips", bed_origin + Vector((0.0, -0.06, 0.10))),
+        "sleep_feet": empty("ANCHOR_sleep_feet", bed_origin + Vector((0.0, -0.20, 0.05))),
         "window_focus": empty("ANCHOR_window_focus", (0, 2.42, 2.72)),
     }
 
@@ -245,8 +247,21 @@ def main():
         "stars": [{"name": s.name, "independently_addressable": True} for s in stars],
         "deformation_controls": {"pillow": "HEAD_CONTACT", "blanket": "SLEEP_DRAPE"},
         "anchors": {name: [round(v, 4) for v in obj.location] for name, obj in anchors.items()},
-        "contract": {"one_blender_unit_m": 1.0, "ground_z": 0.0,
-                     "character_height_pending_mesh_handoff": True},
+        "contract": {
+            "one_blender_unit_m": 1.0,
+            "ground_z": 0.0,
+            "bed_surface_z": 1.04,
+            "character_standing_height_m": 0.55,
+            "character_origin_local": [0.0, 0.0, 0.0],
+            "character_foot_plane_local_z": 0.0,
+            "character_facing": "+Y",
+            "sleep_pose_side": "right",
+            "sleep_pose_local": {
+                "head_centre": [0.0, 0.14, 0.12],
+                "hips_centre": [0.0, -0.06, 0.10],
+                "feet_contact": [0.0, -0.20, 0.05],
+            },
+        },
     }
     (out / "stage_manifest.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     if missing:
