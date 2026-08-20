@@ -38,7 +38,7 @@ is no onset to align a picture against. E01 verified the pipe, not the timing.
     C01  Reproducible Launch Env + Private Publishing   MERGED at 3832091
     G01  Opportunity Engine Audit                       RULED, off the critical path
     G02  Opportunity Evidence Engine                    MERGED, 5/5 attack routes closed
-    G03  Collector + persistence                        OPEN - live pair proven, awaiting attack
+    G03  Collector + persistence                        CLOSED at 29da8bb, both signatures
     G04  YouTube API adapter                            CLOSED at 402e5d2, both signatures
     B01  E02 Brand + Timeline                           not started
     E02  first public episode                           BLOCKED on a design decision
@@ -49,7 +49,7 @@ idempotent, privacy cannot accidentally become public, observed state is verifie
 
 ## Open, and who owns it
 
-**G03, and it is close.** The one thing this system had never done - observe the same
+**G03 is closed.** The one thing this system had never done - observe the same
 videos twice, an hour apart, across a process restart - it did at 19:51:57Z on 2026-08-20.
 
     video          t0     t1   delta   elapsed   views/hr
@@ -65,14 +65,13 @@ nothing in the path lets a caller supply it. The system was finally ABLE to decl
 opportunity and declined to, which is the result that matters - a system tuned to say yes
 would have said yes to a two-view hour.
 
-Still to attack before G03 closes: two of the three deltas are zero, and a zero delta is
-what a cached response looks like. FmPPe5ADuZ8 moved in the same batch, so the response
-was not wholesale stale - but that is an argument, not a proof.
+The final attack focused on the two zero deltas, because zero is also what a cached
+response looks like.
 
 The cache attack subsequently used a second request with the three IDs in reverse order,
-creating a distinct request key. It returned the same mixed values: 340, 2, and 16. Along
-with the changed video in the valid batch, this rules out a wholesale response replay.
-YouTube may still delay an individual public counter; no client of the Data API can prove
+creating a distinct request key. It returned the same mixed values: 340, 2, and 16. This
+rules out a URL-keyed or client-side replay; the changed video shows the valid batch was
+not uniformly stale. It cannot rule out an opaque provider-side cache. No API client can prove
 the provider's internal event stream. G03's measured fact is therefore stated narrowly:
 these were the counters YouTube returned at each observation instant, including real
 numeric zero deltas rather than missing values.
@@ -82,7 +81,12 @@ The committed SQLite artifact contains nine raw rows, not six: after Claude's va
 Those last three rows are explicitly `below_minimum_interval=true`, remain available for
 audit, and are excluded by `snapshots()` and from opportunity evidence. Thus the artifact
 contains six eligible rows across two valid instants and three audit-only rows at a third
-instant. The extra run cost two quota units and did not alter the verdict.
+instant. The extra run cost two quota units and did not alter the verdict. It also became
+an unplanned production trial of the interval guard: all three live rows were preserved
+for audit and excluded from evidence.
+
+Future live experiments have one designated writer. The reviewing agent reads a copied
+artifact, so coordination cannot add measurements while a result is being described.
 
 
 **THE CHARACTER.** The channel's public logo and the production bible are two different
