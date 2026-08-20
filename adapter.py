@@ -123,11 +123,17 @@ def fetch_statistics(ids, *, transport=None) -> dict[str, dict]:
         response = transport.statistics(batch)
         for video_id, raw in response.items():
             returned[video_id] = {
-                "views": int(raw["viewCount"]) if raw.get("viewCount") is not None else None,
-                "likes": int(raw["likeCount"]) if raw.get("likeCount") is not None else None,
-                "comments": (int(raw["commentCount"])
-                             if raw.get("commentCount") is not None else None),
+                "views": _counter(raw.get("viewCount")),
+                "likes": _counter(raw.get("likeCount")),
+                "comments": _counter(raw.get("commentCount")),
                 "observed_at": observed_at,
+                # Conversion failure must not discard what the platform actually sent.
+                # Keeping all three raw values also distinguishes absent from malformed.
+                "raw_statistics": {
+                    "viewCount": raw.get("viewCount"),
+                    "likeCount": raw.get("likeCount"),
+                    "commentCount": raw.get("commentCount"),
+                },
             }
     _last_unreturned = [video_id for video_id in requested if video_id not in returned]
     return returned
@@ -135,6 +141,16 @@ def fetch_statistics(ids, *, transport=None) -> dict[str, dict]:
 
 def last_unreturned_ids() -> list[str]:
     return list(_last_unreturned)
+
+
+def _counter(value):
+    if value is None or isinstance(value, bool):
+        return None
+    text = str(value)
+    if not re.fullmatch(r"[0-9]+", text):
+        return None
+    parsed = int(text)
+    return parsed if parsed >= 0 else None
 
 
 _DURATION = re.compile(

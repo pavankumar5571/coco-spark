@@ -34,4 +34,16 @@ for video_id in batch["video_ids"]:
 assert c.discoveries("v1") == [{"video_id": "v1", "query": "q",
                                 "region": "US", "language": "en"}]
 
-print("adapter policy controls passed: loop / retry exhaustion / retry success / provenance")
+# One malformed/negative counter makes only that measurement unknown. Raw provider values
+# survive, valid neighbours continue, and no fabricated zero enters G03.
+t = adapter.FakeTransport(stats={
+    "bad": {"viewCount": "abc", "likeCount": "-5", "commentCount": "1.2e3"},
+    "good": {"viewCount": "1200", "likeCount": "12", "commentCount": "3"},
+})
+rows = adapter.fetch_statistics(["bad", "good"], transport=t)
+assert (rows["bad"]["views"], rows["bad"]["likes"], rows["bad"]["comments"]) == (None, None, None)
+assert rows["bad"]["raw_statistics"] == {
+    "viewCount": "abc", "likeCount": "-5", "commentCount": "1.2e3"}
+assert (rows["good"]["views"], rows["good"]["likes"], rows["good"]["comments"]) == (1200, 12, 3)
+
+print("adapter policy controls passed: loop / retries / provenance / malformed counters")
