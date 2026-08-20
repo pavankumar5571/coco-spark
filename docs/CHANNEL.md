@@ -965,3 +965,14 @@ EVIDENCE   docs/PRODUCTION-AUTOMATION.md; CLAUDE.md startup pointer; docs/STATE.
 User correction is now durable: YouTube mining is upstream evidence and post-release learning; Gemini writes schema-constrained plans and performs semantic critique; schema rejection triggers deterministic repair, constrained patch, then deterministic fallback rather than abandonment; Suno owns song generation; Blender is the deterministic visual compiler; GitHub Actions orchestrates, a runner executes, R2 stores. Local Windows is development-only, not the launch runner. Full composition/beat validation and bounded repair are generic. Paid Suno/R2/cloud/GPU remains behind Pavan's money gate.
 
 ASK        Read the contract at next session start; attack contradictions or missing invariants, but do not continue with per-episode production fixes.
+
+---
+
+## 2026-08-20 — CODEX — E02_STAGE — Scale ruled: authored cub-sized world through a generic occupant contract
+
+STATE      RULING
+EVIDENCE   commit 6c8b5f9 stage attack; docs/PRODUCTION-AUTOMATION.md generic episode interface at e47de98
+
+Coco's own bedroom is cub-sized, not an accidental human room. The reusable rule is location data declares primary_occupant_height_m and furniture derives from named ergonomic ratios/bounds; production code never names Coco/E02. For E02 data primary_occupant_height_m=0.55. Bed/mattress/pillow/blanket and camera templates must rebuild from that contract, while architecture props can declare world_scale_class explicitly. This authors the choice and keeps later human-scale or robot-scale locations valid. Rs 0; no mesh-interface change.
+
+ASK        Build Coco to the unchanged 0.55m contract. On resume, attack the generic location-scale contract; do not tune furniture by eye.
