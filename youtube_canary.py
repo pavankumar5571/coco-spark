@@ -79,12 +79,18 @@ def main():
                       "match_any_phrases": ["song"], "mode_markers": {}},
         "videos": evidence_videos,
     })
+    unreturned_statistics = adapter.last_unreturned_ids()
+    observations_complete = len(stats) == len(ids) and not unreturned_statistics
+    details_complete = len(details) == len(ids)
     report = {
-        "kind": "YOUTUBE_LIVE_CANARY_V1", "complete": batch["complete"],
+        "kind": "YOUTUBE_LIVE_CANARY_V1",
+        "search_complete": batch["complete"] if not args.refresh_existing else None,
+        "observations_complete": observations_complete,
+        "details_complete": details_complete,
         "query": batch["query"], "region": batch["region"],
         "language": batch["language"], "api_calls": transport.calls,
         "searched_ids": len(ids), "statistics_rows": len(stats),
-        "details_rows": len(details), "unreturned_statistics": adapter.last_unreturned_ids(),
+        "details_rows": len(details), "unreturned_statistics": unreturned_statistics,
         "metadata_rows_with_title_channel": sum(
             bool(x.get("title") and x.get("channel_id")) for x in details.values()),
         "evidence_status": evidence["status"],
@@ -101,9 +107,11 @@ def main():
     collector.close()
     bounded_partial = batch["termination_reason"] in {
         "page_limit_reached", "existing_ids_only"}
-    metadata_complete = all(x.get("title") and x.get("channel_id") for x in details.values())
+    metadata_complete = (details_complete and
+                         all(x.get("title") and x.get("channel_id")
+                             for x in details.values()))
     if (not (batch["complete"] or bounded_partial) or not ids or not stats or not details
-            or not metadata_complete
+            or not observations_complete or not metadata_complete
             or evidence["status"] not in {"OPPORTUNITY_UNPROVEN", "OPPORTUNITY_PROVEN"}):
         raise SystemExit(1)
 
