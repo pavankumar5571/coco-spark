@@ -15,11 +15,12 @@ _last_unreturned: list[str] = []
 
 
 class FakeTransport:
-    def __init__(self, *, pages=None, stats=None, details=None,
+    def __init__(self, *, pages=None, stats=None, details=None, channels=None,
                  echo_region=None, echo_language=None):
         self.pages = pages or {}
         self.stats = stats or {}
         self.details = details or {}
+        self.channels = channels or {}
         self.echo_region = echo_region
         self.echo_language = echo_language
         self.calls = 0
@@ -45,6 +46,11 @@ class FakeTransport:
         self.calls += 1
         return {video_id: self.details[video_id] for video_id in ids
                 if video_id in self.details}
+
+    def channel_details(self, ids):
+        self.calls += 1
+        return {channel_id: self.channels[channel_id] for channel_id in ids
+                if channel_id in self.channels}
 
 
 def _require(transport):
@@ -194,5 +200,27 @@ def fetch_details(ids, *, transport=None) -> dict[str, dict]:
                 "published_at": _timestamp(raw.get("publishedAt")),
                 "title": raw.get("title"),
                 "channel_id": raw.get("channelId"),
+            }
+    return returned
+
+
+def fetch_channels(ids, *, transport=None) -> dict[str, dict]:
+    """Translate stated channel metadata without inferring ownership or hidden counts."""
+    _require(transport)
+    returned = {}
+    for batch in _chunks(ids):
+        response = transport.channel_details(batch)
+        for channel_id, raw in response.items():
+            hidden = raw.get("hiddenSubscriberCount") is True
+            returned[channel_id] = {
+                "channel_id": channel_id,
+                "title": raw.get("title"),
+                "hidden_subscriber_count": hidden,
+                "subscriber_count": None if hidden else _counter(raw.get("subscriberCount")),
+                "channel_owner_hint": None,
+                "raw_statistics": {
+                    "hiddenSubscriberCount": raw.get("hiddenSubscriberCount"),
+                    "subscriberCount": raw.get("subscriberCount"),
+                },
             }
     return returned

@@ -64,4 +64,20 @@ detail = adapter.fetch_details(["v"], transport=t)["v"]
 assert detail["title"] == "Counting Song" and detail["channel_id"] == "channel"
 assert not hasattr(adapter, "YouTubeTransport")
 
+# Channel cohorts retain the platform's hidden/null distinction, public zero, and never
+# manufacture common ownership from a shared identifier or title.
+t = adapter.FakeTransport(channels={
+    "hidden": {"title": "Hidden", "hiddenSubscriberCount": True,
+               "subscriberCount": "999"},
+    "zero": {"title": "New", "hiddenSubscriberCount": False,
+             "subscriberCount": "0"},
+})
+channels = adapter.fetch_channels(["hidden", "zero", "missing"], transport=t)
+assert channels["hidden"]["subscriber_count"] is None
+assert channels["hidden"]["hidden_subscriber_count"] is True
+assert channels["zero"]["subscriber_count"] == 0
+assert channels["zero"]["hidden_subscriber_count"] is False
+assert channels["zero"]["channel_owner_hint"] is None
+assert "missing" not in channels
+
 print("adapter policy controls passed: loop / retries / provenance / malformed counters")

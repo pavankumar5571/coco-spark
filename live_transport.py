@@ -111,5 +111,17 @@ class LiveTransport:
                             "duration": i.get("contentDetails", {}).get("duration")}
         return out
 
+    def channel_details(self, ids):
+        body = self._get("channels", part="snippet,statistics", id=",".join(ids))
+        out = {}
+        for item in body.get("items", []):
+            statistics = item.get("statistics", {})
+            out[item["id"]] = {
+                "title": item.get("snippet", {}).get("title"),
+                "hiddenSubscriberCount": statistics.get("hiddenSubscriberCount"),
+                "subscriberCount": statistics.get("subscriberCount"),
+            }
+        return out
+
     def report(self):
         return {"calls": self.calls, "quota_units": self.quota_units, "log": self.log}
