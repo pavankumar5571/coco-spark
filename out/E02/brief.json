@@ -17,19 +17,21 @@
     "song_origin_in_master_s": 1.2
   },
   "audio": {
-    "programme_lufs": null,
-    "programme_lufs_unset_reason": "programme loudness for SONG is UNSET. It must come from a listening test on a real mastered mix, not from config.PROGRAMME_LUFS (-14.0), which is a single global and cannot be right for every mode at once.",
+    "programme_lufs": -20.0,
+    "programme_lufs_basis": "PROVISIONAL_FOR_PRIVATE_TEST",
+    "programme_lufs_unset_reason": null,
+    "public_release_allowed": false,
     "true_peak_db": -1.5,
     "fade_s": 1.5
   },
   "beats": [
     {
       "index": 0,
-      "from_phrase": 0,
-      "lyric": "[Verse 1]",
-      "song_t": 2.5,
-      "master_t": 3.7,
-      "duration_s": 3.41,
+      "from_phrase": null,
+      "lyric": "(programme origin)",
+      "song_t": 0.0,
+      "master_t": 1.2,
+      "duration_s": 5.91,
       "source": {
         "kind": "STILL",
         "id": 0
@@ -157,7 +159,7 @@
       "lyric": "Four little stars, then three, then two,",
       "song_t": 36.01,
       "master_t": 37.21,
-      "duration_s": 1.18,
+      "duration_s": 1.65,
       "source": {
         "kind": "STILL",
         "id": 1
@@ -170,9 +172,9 @@
     {
       "index": 9,
       "from_phrase": null,
-      "lyric": "(pinned to a time)",
-      "song_t": 37.19,
-      "master_t": 38.39,
+      "lyric": "word: three",
+      "song_t": 37.66,
+      "master_t": 38.86,
       "duration_s": 0.71,
       "source": {
         "kind": "STILL",
@@ -186,10 +188,10 @@
     {
       "index": 10,
       "from_phrase": null,
-      "lyric": "(pinned to a time)",
-      "song_t": 37.9,
-      "master_t": 39.1,
-      "duration_s": 1.62,
+      "lyric": "word: two",
+      "song_t": 38.37,
+      "master_t": 39.57,
+      "duration_s": 1.15,
       "source": {
         "kind": "STILL",
         "id": 1
@@ -294,12 +296,14 @@
       13,
       14
     ],
-    "beat_count": 16
+    "beat_count": 16,
+    "estimate_inr": 52.0,
+    "reserved_worst_case_inr": 78.0,
+    "breakdown": {
+      "stills": "4 x Rs 5.0 = Rs 20.0",
+      "video": "4s x Rs 8.0/s = Rs 32.0"
+    }
   },
-  "ready": false,
-  "problems": [
-    "beat map is MIXED: 14 beats anchored to phrases and 2 pinned to absolute times. A retrim moves the first kind and not the second, so the two disagree the moment the song is re-cut. Anchor every beat to a phrase.",
-    "beats cover 68.504s of a 71.004s programme - 2.5s is unaccounted for",
-    "programme loudness for SONG is UNSET. It must come from a listening test on a real mastered mix, not from config.PROGRAMME_LUFS (-14.0), which is a single global and cannot be right for every mode at once."
-  ]
+  "ready": true,
+  "problems": []
 }

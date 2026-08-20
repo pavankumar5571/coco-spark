@@ -1,10 +1,9 @@
 {
   "kind": "EPISODE_BEAT_MAP",
   "episode": "E02",
-  "note": "Fifteen cuts over seven paid pictures. A beat names the phrase it starts on and ends when the next begins, so the song sets every length. Pictures are REUSED with different framing where the lyric returns to the same idea; the frame changes on every phrase even though only seven pictures are bought. Exactly one beat is generated, it is capped at the 4s a clip actually lasts, and the phrase after it is covered free by that clip's own last frame. Beat starts name SUNG phrases, never section labels \u2014 a label shares its timestamp with the line under it and would create a zero-length cut. The window is ONE bought picture; the star COUNT is drawn deterministically on top of it, so five really is five and the same five never move. Asking a generator for an exact count is the one instruction we have never tried, and the other repo already carries a FINAL COUNT AUDIT clause begging for three ducks and never four.",
+  "note": "Sixteen beats over FOUR paid stills, two free reuses of a clip's own last frame, and exactly ONE generated beat capped at the 4s a clip actually lasts. A beat names the WORD or phrase it starts on and ends when the next begins, so the song sets every length and no cut is authored by hand. Counting beats anchor to the sung number, because 'four, then three, then two' changes the count three times inside one line and a line-level anchor would hold the first number through all of it. Pictures are REUSED with different framing where the lyric returns to the same idea. The window is one bought picture; the star COUNT is drawn deterministically on top, so five really is five and the same five never move.",
   "beats": [
     {
-      "from_phrase": 0,
       "source": {
         "kind": "STILL",
         "id": 0
@@ -12,7 +11,9 @@
       "move": "PUSH_IN",
       "visual_change": "CAMERA_ONLY",
       "state": "wide room at night, five stars in the round window, Coco awake in bed",
-      "stars": 5
+      "stars": 5,
+      "at": 0.0,
+      "why_at": "programme origin: the establishing wide holds through the instrumental lead-in"
     },
     {
       "from_phrase": 2,
@@ -99,7 +100,6 @@
       "stars": 4
     },
     {
-      "at": 37.19,
       "source": {
         "kind": "STILL",
         "id": 1
@@ -107,10 +107,13 @@
       "move": "HOLD",
       "stars": 3,
       "visual_change": "NONE",
-      "state": "three stars, on the word 'three'"
+      "state": "three stars, on the word 'three'",
+      "from_word": {
+        "text": "three",
+        "nth": 1
+      }
     },
     {
-      "at": 37.9,
       "source": {
         "kind": "STILL",
         "id": 1
@@ -118,7 +121,11 @@
       "move": "HOLD",
       "stars": 2,
       "visual_change": "NONE",
-      "state": "two stars, on the word 'two'"
+      "state": "two stars, on the word 'two'",
+      "from_word": {
+        "text": "two",
+        "nth": 1
+      }
     },
     {
       "from_phrase": 12,

@@ -45,21 +45,77 @@ PROGRAMME_LUFS = {
 }
 
 
-def programme_lufs(mode):
-    """The delivered loudness target for a mode, or a refusal naming what is missing."""
+# THE CIRCLE, AND HOW IT IS BROKEN WITHOUT LYING.
+#
+# A SONG target must come from listening to a real mastered mix. No such mix exists until
+# the episode is assembled, which needs the pictures, which needs the target. Waiting would
+# let an unmade recording block the recording that would make it.
+#
+# So a PRIVATE test master may be cut at a deliberately conservative level. That is not
+# inheriting the bedtime policy and it is not a decision about SONG — it is choosing a
+# level safe enough to produce the evidence the policy needs. SONG stays UNSET, and public
+# release is refused until somebody has listened to that private artifact and set the real
+# number from it.
+PROVISIONAL_PRIVATE_LUFS = -20.0
+
+
+def programme_lufs(mode, private_test=False):
+    """The delivered loudness target, or a refusal that names exactly what is missing."""
     if mode not in PROGRAMME_LUFS:
         raise KeyError(f"no programme loudness policy for mode '{mode}'")
     target = PROGRAMME_LUFS[mode]
-    if target is None:
-        raise ValueError(
-            f"programme loudness for {mode} is UNSET. It must come from a listening test "
-            f"on a real mastered mix, not from config.PROGRAMME_LUFS ({C.PROGRAMME_LUFS}), "
-            f"which is a single global and cannot be right for every mode at once.")
-    return target
+    if target is not None:
+        return target, "POLICY"
+    if private_test:
+        return PROVISIONAL_PRIVATE_LUFS, "PROVISIONAL_FOR_PRIVATE_TEST"
+    raise ValueError(
+        f"programme loudness for {mode} is UNSET. It must come from a listening test "
+        f"on a real mastered mix, not from config.PROGRAMME_LUFS ({C.PROGRAMME_LUFS}), "
+        f"which is a single global and cannot be right for every mode at once. A PRIVATE "
+        f"test master may use the provisional level; a public release may not.")
+
+
+def words_from_lrc(path, head_trim):
+    """Word-level timings, rebased into song_t by the same head trim as the phrase map.
+
+    A phrase map is line granularity, and that is enough until a lyric COUNTS. "Four
+    little stars, then three, then two" changes the number three times inside one line,
+    so a cut anchored to the line lands on the first number and holds through the rest.
+    The word timings were always in the .lrc; nothing had ever read them.
+    """
+    import re
+    words, pending = [], None
+    for raw in Path(path).read_text(encoding="utf-8").splitlines():
+        m = re.match(r"\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)", raw)
+        if m:
+            t = int(m.group(1)) * 60 + float(m.group(2)) - head_trim
+            text = m.group(3).strip()
+            # A timestamp carries the word that FOLLOWS it on the next line in this
+            # format, except for a section label, which carries its own line.
+            if pending is not None:
+                words.append({"at": round(pending[0], 3), "text": pending[1]})
+            pending = (t, text) if text else (t, "")
+        elif raw.strip() and pending is not None:
+            pending = (pending[0], raw.strip())
+    if pending is not None and pending[1]:
+        words.append({"at": round(pending[0], 3), "text": pending[1]})
+    return [w for w in words if w["text"] and not w["text"].startswith("[")]
+
+
+def find_word(words, text, nth=1):
+    """The nth occurrence of a word, matched on its bare form. Returns song_t or None."""
+    want = text.strip().lower().strip(".,!?")
+    seen = 0
+    for w in words:
+        if w["text"].strip().lower().strip(".,!?") == want:
+            seen += 1
+            if seen == nth:
+                return w["at"]
+    return None
 
 
 def compile_brief(episode, mode, signature=SIGNATURE_SECONDS, outro=OUTRO_SECONDS,
-                  root=Path(".")):
+                  root=Path("."), private_test=False):
     """phrase map + beat map -> one production brief, in all three coordinate systems."""
     d = Path(root) / "out" / episode
     phrases = json.loads((d / "phrases.json").read_text(encoding="utf-8"))
@@ -69,6 +125,8 @@ def compile_brief(episode, mode, signature=SIGNATURE_SECONDS, outro=OUTRO_SECOND
     trim = phrases["trimmed"]
     runtime = float(trim["runtime_seconds"])
     beats_in = beatmap["beats"]
+    lrc = d / "suno" / f"{phrases['clip_id']}.lrc"
+    words = words_from_lrc(lrc, float(trim["head_seconds"])) if lrc.exists() else []
 
     # A beat starts on the phrase it names and ends when the NEXT beat starts. The last
     # one runs to the end of the programme. Lengths are therefore never authored — they
@@ -82,6 +140,13 @@ def compile_brief(episode, mode, signature=SIGNATURE_SECONDS, outro=OUTRO_SECOND
         does NOT. Silently treating them alike would make a retrim look successful and
         put two cuts in the wrong place.
         """
+        if "from_word" in b:
+            w = b["from_word"]
+            t = find_word(words, w["text"], w.get("nth", 1))
+            if t is None:
+                return None, (f"beat {i} anchors to word "
+                              f"'{w['text']}' #{w.get('nth', 1)}, which is not sung")
+            return t, None
         if "from_phrase" in b:
             idx = b["from_phrase"]
             if not 0 <= idx < len(ph):
@@ -89,16 +154,23 @@ def compile_brief(episode, mode, signature=SIGNATURE_SECONDS, outro=OUTRO_SECOND
             return float(ph[idx]["at"]), None
         if "at" in b:
             return float(b["at"]), None
-        return None, f"beat {i} says neither from_phrase nor at"
+        return None, f"beat {i} says neither from_word, from_phrase nor at"
 
     beats, problems = [], []
-    anchored = sum(1 for b in beats_in if "from_phrase" in b)
-    if 0 < anchored < len(beats_in):
+    # A beat is ANCHORED if it moves when the song is re-cut: to a word, to a phrase, or
+    # to the programme origin, which is 0.0 by definition and not a guess. Anything else
+    # is a hand-typed timestamp that will be left behind by the next retrim while every
+    # anchored beat around it moves — and the result looks fine right up until it doesn't.
+    def _anchored(b):
+        return ("from_word" in b or "from_phrase" in b
+                or (b.get("at") == 0.0 and "why_at" in b))
+
+    loose = [i for i, b in enumerate(beats_in) if not _anchored(b)]
+    if loose:
         problems.append(
-            f"beat map is MIXED: {anchored} beats anchored to phrases and "
-            f"{len(beats_in) - anchored} pinned to absolute times. A retrim moves the "
-            f"first kind and not the second, so the two disagree the moment the song "
-            f"is re-cut. Anchor every beat to a phrase.")
+            f"beats {loose} are pinned to hand-typed times. A retrim moves every "
+            f"anchored beat and leaves these behind. Anchor to the word or phrase they "
+            f"belong to; only the programme origin may be a literal, and it must say why.")
 
     for i, b in enumerate(beats_in):
         start, why = _start_of(b, i)
@@ -121,7 +193,9 @@ def compile_brief(episode, mode, signature=SIGNATURE_SECONDS, outro=OUTRO_SECOND
         beats.append({
             "index": i,
             "from_phrase": idx,
-            "lyric": ph[idx]["text"] if idx is not None else "(pinned to a time)",
+            "lyric": (ph[idx]["text"] if idx is not None
+                      else (f"word: {b['from_word']['text']}" if "from_word" in b
+                            else "(programme origin)")),
             "song_t": round(start, 3),
             "master_t": round(start + signature, 3),
             "duration_s": dur,
@@ -163,10 +237,10 @@ def compile_brief(episode, mode, signature=SIGNATURE_SECONDS, outro=OUTRO_SECOND
     reserved = round(estimate * C.SAFETY_MARGIN, 2)
 
     try:
-        lufs = programme_lufs(mode)
+        lufs, lufs_basis = programme_lufs(mode, private_test)
         lufs_note = None
     except (KeyError, ValueError) as e:
-        lufs, lufs_note = None, str(e)
+        lufs, lufs_basis, lufs_note = None, "UNSET", str(e)
         problems.append(str(e))
 
     return {
@@ -190,7 +264,9 @@ def compile_brief(episode, mode, signature=SIGNATURE_SECONDS, outro=OUTRO_SECOND
         },
         "audio": {
             "programme_lufs": lufs,
+            "programme_lufs_basis": lufs_basis,
             "programme_lufs_unset_reason": lufs_note,
+            "public_release_allowed": lufs_basis == "POLICY",
             "true_peak_db": C.PROGRAMME_TRUE_PEAK,
             "fade_s": C.AUDIO_FADE_SECONDS,
         },
@@ -222,7 +298,8 @@ def compile_brief(episode, mode, signature=SIGNATURE_SECONDS, outro=OUTRO_SECOND
 def main(argv):
     episode = argv[1] if len(argv) > 1 else "E02"
     mode = argv[2] if len(argv) > 2 else "SONG"
-    brief = compile_brief(episode, mode)
+    private = "--private-test" in argv
+    brief = compile_brief(episode, mode, private_test=private)
     out = Path("out") / episode / "brief.json"
     out.write_text(json.dumps(brief, indent=2), encoding="utf-8")
 
@@ -235,7 +312,9 @@ def main(argv):
     print(f"    beats     {len(brief['beats'])}, "
           f"{len(brief['paid']['still_ids'])} paid stills, "
           f"{len(brief['paid']['generative_beats'])} generative")
-    print(f"    loudness  {brief['audio']['programme_lufs']}")
+    print(f"    loudness  {brief['audio']['programme_lufs']} "
+          f"({brief['audio']['programme_lufs_basis']})"
+          f"{'' if brief['audio']['public_release_allowed'] else '  PRIVATE ONLY'}")
     print(f"  -> {out}")
     if brief["problems"]:
         print("  PROBLEMS")
