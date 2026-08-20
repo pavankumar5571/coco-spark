@@ -5,19 +5,38 @@ it does is local, reversible and free; this reaches out and changes the world. S
 mutation gets its own command, its own name and its own arguments — never a flag on a
 generic one, and never a privacy setting that arrives from a default.
 
-    release.py prepare               validates everything, touches no network
-    release.py upload-private        performs the mutation, explicitly, in its name
+    release.py prepare        [EPISODE]   validates everything, touches no network
+    release.py upload-private [EPISODE]   performs the mutation, explicitly, in its name
+    release.py verify         [EPISODE]   reads back what the platform says is true
 
 A public launch will be a THIRD command against an already-uploaded id. The path used for
 today's technical test must never be one omitted argument away from launching the channel.
+
+THE EPISODE IS AN ARGUMENT, NOT A CONSTANT. It was a constant while E01 was the only
+artifact, and that is business identity welded into reusable release code: E02 could not
+have used this path without editing Python. Provider-shaped code — the ISO 8601 parser,
+the scope map — is a different thing and stays; it belongs to the YouTube boundary.
 """
 from __future__ import annotations
 
 import hashlib, json, subprocess, sys, time
 from pathlib import Path
 
-MANIFEST = Path("out/E01/release/upload_manifest.json")
 PURPOSE = "PRIVATE_PUBLISH_PATH_TEST"
+DEFAULT_EPISODE = "E01"
+
+
+def paths(episode=DEFAULT_EPISODE):
+    """Where an episode's release lives. One place, so the three commands cannot disagree."""
+    d = Path("out") / episode / "release"
+    return {"dir": d, "master": d / f"{episode}_master.mp4",
+            "metadata": d / "metadata.json", "manifest": d / "upload_manifest.json"}
+
+
+def _read_manifest(p):
+    """A manifest that does not exist yet is an empty record, not an error."""
+    p = Path(p)
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
 
 
 def _sha256(p):
@@ -48,10 +67,26 @@ def _probe(p):
             "audio": {k: a.get(k) for k in ("codec_name", "channels", "sample_rate")}}
 
 
-def prepare(master, metadata_path):
-    """Everything checkable without touching the network. No mutation, no session created."""
+def prepare(episode=DEFAULT_EPISODE, master=None, metadata_path=None, manifest=None):
+    """Everything checkable without touching the network. No mutation, no session created.
+
+    AND NO DESTRUCTION EITHER, which it did not honour until now. This function wrote a
+    freshly-built record straight over the manifest, so running the command documented as
+    "touches no network" erased youtube_video_id, observed, human_inspection and the frozen
+    state — the entire record of what the platform had actually done. upload_private then
+    read that erased file looking for the video id it had just destroyed, which is why the
+    duplicate guard below never once fired.
+
+    A preparation record is now MERGED over the prior one, and preservation is the default:
+    unknown keys survive because a future field must not need this function to be edited.
+    Mutation history is only dropped when the bytes are different, and then it is recorded
+    as superseded rather than silently discarded.
+    """
     import youtube_upload as yt
-    master, meta_p = Path(master), Path(metadata_path)
+    p = paths(episode)
+    master = Path(master or p["master"])
+    meta_p = Path(metadata_path or p["metadata"])
+    manifest = Path(manifest or p["manifest"])
     fails = []
     if not master.exists():
         fails.append(f"master missing: {master}")
@@ -72,8 +107,8 @@ def prepare(master, metadata_path):
         fails.append("no private_test_audit.json")
 
     tech = _probe(master) if master.exists() else {}
-    m = {
-        "kind": "UPLOAD_MANIFEST", "purpose": PURPOSE,
+    prepared = {
+        "kind": "UPLOAD_MANIFEST", "purpose": PURPOSE, "episode": episode,
         "prepared_at": time.strftime("%F %T"),
         "master": str(master), "master_sha256": _sha256(master) if master.exists() else None,
         "master_bytes": master.stat().st_size if master.exists() else None,
@@ -84,12 +119,26 @@ def prepare(master, metadata_path):
         "contains_no_secrets": True,
         "ready": not fails, "blockers": fails,
     }
-    MANIFEST.parent.mkdir(parents=True, exist_ok=True)
-    MANIFEST.write_text(json.dumps(m, indent=2), encoding="utf-8")
+    prior = _read_manifest(manifest)
+    if prior and prior.get("master_sha256") == prepared["master_sha256"]:
+        # SAME BYTES. Everything the platform told us about them is still true, including
+        # fields no version of this function has heard of. Preserve by default.
+        m = {**prior, **prepared}
+    else:
+        m = dict(prepared)
+        if prior.get("youtube_video_id"):
+            # DIFFERENT BYTES. The old observations describe a different artifact and must
+            # not be inherited — but they are still what happened, so they are recorded as
+            # superseded rather than deleted.
+            m["supersedes"] = {k: prior.get(k) for k in
+                               ("master_sha256", "youtube_video_id", "uploaded_at")}
+
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest.write_text(json.dumps(m, indent=2), encoding="utf-8")
     return m
 
 
-def upload_private(master, metadata_path):
+def upload_private(episode=DEFAULT_EPISODE, master=None, metadata_path=None, manifest=None):
     """Perform the mutation. Refuses unless prepare() says ready, and refuses to repeat.
 
     IDEMPOTENCE MATTERS MORE HERE THAN ANYWHERE ELSE IN THE PIPELINE. Once YouTube has
@@ -97,38 +146,50 @@ def upload_private(master, metadata_path):
     carries a video id for these exact bytes is a completed upload, not a reason to try
     again — the same reasoning as reserve-before-invoke, applied to an external mutation
     instead of to money.
+
+    THE PRIOR STATE IS READ BEFORE ANYTHING CAN WRITE IT. It was not: prepare() ran first
+    and overwrote the manifest, so this function then searched the file it had just erased
+    for the video id that proved the upload had happened. The guard was present, commented,
+    and dead from the day it was written. Idempotence state that is read after a writer has
+    run is not idempotence state.
     """
     import youtube_upload as yt
-    m = prepare(master, metadata_path)
+    p = paths(episode)
+    manifest = Path(manifest or p["manifest"])
+    master = Path(master or p["master"])
+    metadata_path = Path(metadata_path or p["metadata"])
+
+    prior = _read_manifest(manifest)                       # BEFORE prepare(), always
+
+    m = prepare(episode, master, metadata_path, manifest)
     if not m["ready"]:
         sys.exit("  NOT READY:\n    " + "\n    ".join(m["blockers"]))
 
-    if MANIFEST.exists():
-        prev = json.loads(MANIFEST.read_text(encoding="utf-8"))
-        if prev.get("youtube_video_id") and prev.get("master_sha256") == m["master_sha256"]:
-            sys.exit(f"  ALREADY UPLOADED: {prev['youtube_video_id']} for these exact bytes. "
-                     f"Refusing to create a duplicate.")
+    if prior.get("youtube_video_id") and prior.get("master_sha256") == m["master_sha256"]:
+        sys.exit(f"  ALREADY UPLOADED: {prior['youtube_video_id']} for these exact bytes. "
+                 f"Refusing to create a duplicate.")
 
     # Acquisition-time validation is necessary and NOT sufficient. A credential can be
     # revoked, a scope policy can change, an account can lose the channel, between the
     # consent that minted the token and the moment it is used. So the mutation checks the
     # authority it is about to exercise, immediately before exercising it — one free token
-    # refresh standing in front of an irreversible external write.
+    # refresh standing in front of an irreversible external write. It fails CLOSED: if the
+    # refresh raises because the token was revoked, no upload is attempted.
     if yt.scope_preflight(yt.granted_scopes(), ["upload"]):
         sys.exit("  cannot upload with this credential — re-run consent.")
 
-    meta = json.loads(Path(metadata_path).read_text(encoding="utf-8"))
+    meta = json.loads(metadata_path.read_text(encoding="utf-8"))
     print(f"  uploading {m['master_bytes']/1e6:.1f} MB as PRIVATE …")
     vid = yt.upload(master, meta, privacy="private")
 
     m["youtube_video_id"] = vid
     m["uploaded_at"] = time.strftime("%F %T")
-    MANIFEST.write_text(json.dumps(m, indent=2), encoding="utf-8")
+    manifest.write_text(json.dumps(m, indent=2), encoding="utf-8")
     print(f"  video id {vid}")
     return vid
 
 
-def verify(video_id=None):
+def verify(episode=DEFAULT_EPISODE, video_id=None, manifest=None):
     """Record what YouTube ACTUALLY did, read back from the API.
 
     Not what we asked for — what it says is true afterwards. Every other stage of this
@@ -142,7 +203,8 @@ def verify(video_id=None):
     # actual diagnosis: this token cannot observe, so it cannot verify.
     if yt.scope_preflight(yt.granted_scopes(), ["verify"]):
         sys.exit("  cannot verify with this credential — re-run consent.")
-    m = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest = Path(manifest or paths(episode)["manifest"])
+    m = _read_manifest(manifest)
     vid = video_id or m.get("youtube_video_id")
     q = urllib.parse.urlencode({"part": "status,contentDetails,snippet,processingDetails",
                                 "id": vid})
@@ -170,21 +232,21 @@ def verify(video_id=None):
     m["duration_delta_s"] = _iso8601_s(observed["duration"]) - m.get("technical", {}).get("duration", 0)
     m["matches_intent"] = (observed["privacy"] == "private"
                            and observed["self_declared_made_for_kids"] is True)
-    MANIFEST.write_text(json.dumps(m, indent=2), encoding="utf-8")
+    manifest.write_text(json.dumps(m, indent=2), encoding="utf-8")
     return m
 
 
 if __name__ == "__main__":
-    MASTER = "out/E01/release/E01_master.mp4"
-    META = "out/E01/release/metadata.json"
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
+    episode = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_EPISODE
     if cmd == "prepare":
-        r = prepare(MASTER, META)
-        print(json.dumps({k: r[k] for k in ("master_sha256", "master_bytes", "technical",
-                                            "intended", "ready", "blockers")}, indent=2))
+        r = prepare(episode)
+        print(json.dumps({k: r[k] for k in ("episode", "master_sha256", "master_bytes",
+                                            "technical", "intended", "ready", "blockers")},
+                         indent=2))
     elif cmd == "upload-private":
-        upload_private(MASTER, META)
+        upload_private(episode)
     elif cmd == "verify":
-        print(json.dumps(verify().get("observed"), indent=2))
+        print(json.dumps(verify(episode).get("observed"), indent=2))
     else:
         print(__doc__)

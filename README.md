@@ -24,6 +24,10 @@ safety property.
 Review standard: adversarial. Most defects in this codebase were found when one reviewer
 tried to falsify another's confidence, reading source rather than summaries.
 
+**PROVABLE_AUTHORITY.** External mutation is allowed only when AUTHORITY, RUNTIME and
+OBSERVABILITY for the operation are proven before the mutation. Reasoning and the three
+real failures behind it are in `docs/DECISIONS.md`.
+
 ## Design rules, each learned from a real failure
 
 1. STATE says what is true. EVENTS say why it changed. Every discontinuity must be

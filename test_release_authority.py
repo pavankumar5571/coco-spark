@@ -14,7 +14,7 @@ Four properties, one per defect this module actually shipped with:
 The third is the one worth keeping forever: the bug was not that the token failed to
 write, it was that it wrote and did not take effect, while the flow printed success.
 """
-import io, sys, tempfile, contextlib
+import contextlib, io, json, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).parent
@@ -53,10 +53,18 @@ def scope_properties():
                    _quiet(yt.scope_preflight, both) == []))
     out.append(_ok("an empty grant fails every declared operation",
                    len(_quiet(yt.scope_preflight, set())) == len(yt.OPERATION_SCOPES)))
-    # An unrelated scope must not be mistaken for coverage. Google returns scopes we did
-    # not ask for often enough that substring reasoning would eventually pass a bad token.
-    out.append(_ok("an unrelated scope is not coverage",
-                   len(_quiet(yt.scope_preflight, {"https://www.googleapis.com/auth/youtube"})) == 2))
+    # CAPABILITY AND POLICY ARE DIFFERENT QUESTIONS, and an earlier version of this test
+    # confused them. It asserted the broad .../auth/youtube scope was "unrelated" — but
+    # Google documents it as "Manage your YouTube account", a SUPERSET that could very
+    # plausibly perform both operations. It is capability-sufficient and policy-refused:
+    # we mint least privilege, so a credential carrying more than the declared pair is not
+    # the credential we agreed to hold, and scope_preflight is a POLICY check.
+    broad = {"https://www.googleapis.com/auth/youtube"}
+    out.append(_ok("a broader scope is refused by POLICY, not judged unrelated",
+                   len(_quiet(yt.scope_preflight, broad)) == 2))
+    out.append(_ok("policy is exact least privilege, not substring containment",
+                   all(s in yt.OPERATION_SCOPES.values()
+                       for s in yt.SCOPE.split()) and not broad & set(yt.SCOPE.split())))
 
     # DERIVATION. If SCOPE is ever hand-edited back into a literal, the consent request and
     # the preflight would disagree and the disagreement would be invisible: consent would
@@ -133,9 +141,162 @@ def duration_properties():
     return out
 
 
+class FakeUploader:
+    """Counts external mutations. Any call at all is an irreversible act on YouTube.
+
+    The suite asserts the COUNTER, not the return value. A guard that logs a refusal and
+    uploads anyway would pass an assertion about messages and fail this one.
+    """
+    def __init__(self):
+        self.calls = 0
+
+    def __call__(self, video_path, metadata, privacy="private"):
+        self.calls += 1
+        return f"FAKEID{self.calls}"
+
+
+def _episode_dir(root, episode="E99", body=b"pretend master bytes"):
+    d = root / "out" / episode / "release"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{episode}_master.mp4").write_bytes(body)
+    (d / "metadata.json").write_text(json.dumps(
+        {"title": "T", "made_for_kids": True, "tags": []}), encoding="utf-8")
+    (d / "private_test_audit.json").write_text(json.dumps({"all_pass": True}), encoding="utf-8")
+    return d
+
+
+def mutation_properties():
+    """The guards that stand in front of an irreversible external write.
+
+    Every one of these was written and none was tested, which is the same shape as building
+    verify() and minting a credential that defeats it. The duplicate guard turned out to be
+    dead on arrival: prepare() overwrote the manifest before upload_private read it.
+    """
+    import os, shutil
+    out = []
+    root = Path(tempfile.mkdtemp())
+    cwd = os.getcwd()
+    real_probe, real_upload, real_scopes = release._probe, yt.upload, yt.granted_scopes
+    saved_env = {k: os.environ.get(k) for k in
+                 ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN")}
+    try:
+        os.chdir(root)
+        for k in saved_env:
+            os.environ[k] = "test-value"          # presence is checked, never the value
+        release._probe = lambda p: {"duration": 12.0, "video": {}, "audio": {}}
+        yt.granted_scopes = lambda: {UPLOAD, READONLY}
+
+        d = _episode_dir(root)
+        manifest = d / "upload_manifest.json"
+
+        fake = FakeUploader(); yt.upload = fake
+        vid = release.upload_private("E99")
+        out.append(_ok("first upload performs exactly one external call", fake.calls == 1))
+        out.append(_ok("the video id is recorded against the bytes",
+                       _read(manifest).get("youtube_video_id") == vid))
+
+        # THE REGRESSION. prepare() is documented as touching no network; it must also not
+        # destroy what the network already told us.
+        release.prepare("E99")
+        out.append(_ok("prepare does NOT erase the recorded video id",
+                       _read(manifest).get("youtube_video_id") == vid))
+
+        fake2 = FakeUploader(); yt.upload = fake2
+        out.append(_ok("second upload of identical bytes REFUSES",
+                       _exits(release.upload_private, "E99")))
+        out.append(_ok("...and performs ZERO external calls", fake2.calls == 0))
+
+        # Different bytes are a different artifact: not a duplicate, and the old
+        # observations must not be inherited by them.
+        _episode_dir(root, body=b"different master bytes entirely")
+        fake3 = FakeUploader(); yt.upload = fake3
+        release.upload_private("E99")
+        m = _read(manifest)
+        out.append(_ok("different bytes upload, and supersede rather than inherit",
+                       fake3.calls == 1 and m.get("supersedes", {}).get("youtube_video_id") == vid))
+
+        # NEGATIVE CONTROLS. Both are the authority guard, and both must fail CLOSED.
+        _episode_dir(root, body=b"third distinct master")
+        fake4 = FakeUploader(); yt.upload = fake4
+        yt.granted_scopes = lambda: {READONLY}                     # upload scope withdrawn
+        out.append(_ok("missing upload scope refuses the mutation",
+                       _exits(release.upload_private, "E99")))
+        out.append(_ok("...and performs ZERO external calls", fake4.calls == 0))
+
+        fake5 = FakeUploader(); yt.upload = fake5
+        def _revoked():
+            raise RuntimeError("invalid_grant: token revoked")
+        yt.granted_scopes = _revoked                               # the realistic failure
+        raised = False
+        try:
+            release.upload_private("E99")
+        except (RuntimeError, SystemExit):
+            raised = True
+        out.append(_ok("a revoked credential fails closed", raised))
+        out.append(_ok("...and performs ZERO external calls", fake5.calls == 0))
+    finally:
+        release._probe, yt.upload, yt.granted_scopes = real_probe, real_upload, real_scopes
+        for k, v in saved_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        os.chdir(cwd)
+        shutil.rmtree(root, ignore_errors=True)
+    return out
+
+
+def _read(p):
+    return json.loads(Path(p).read_text(encoding="utf-8"))
+
+
+def _exits(fn, *a):
+    """True if the call refused via sys.exit. Silences the refusal message."""
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            fn(*a)
+    except SystemExit:
+        return True
+    return False
+
+
+def wiring_properties():
+    """The seam that actually broke, end to end, without pretending to simulate consent.
+
+    Human approval cannot be faked and should not be. Everything AFTER it can: a token
+    response arrives, its granted scopes are checked, the token is stored, the process
+    forgets it, and the loader is asked what the credential now is.
+    """
+    import os, shutil
+    out = []
+    root = Path(tempfile.mkdtemp())
+    env = root / ".env"
+    env.write_text("YOUTUBE_REFRESH_TOKEN=OLD_UPLOAD_ONLY\n", encoding="utf-8")
+
+    # A consent that came back short must never reach storage.
+    short = {UPLOAD}
+    if not _quiet(yt.scope_preflight, short):
+        yt._write_env("YOUTUBE_REFRESH_TOKEN", "SHOULD_NOT_BE_STORED", path=str(env))
+    out.append(_ok("a short grant never reaches storage",
+                   "SHOULD_NOT_BE_STORED" not in env.read_text(encoding="utf-8")))
+
+    # A full grant does, and takes effect in a process that has never seen it.
+    full = {UPLOAD, READONLY}
+    if not _quiet(yt.scope_preflight, full):
+        yt._write_env("YOUTUBE_REFRESH_TOKEN", "NEW_FULL_GRANT", path=str(env))
+    os.environ.pop("YOUTUBE_REFRESH_TOKEN", None)
+    yt._load_env_file(str(env))
+    out.append(_ok("a full grant is stored and is what the loader returns",
+                   os.environ.get("YOUTUBE_REFRESH_TOKEN") == "NEW_FULL_GRANT"))
+    os.environ.pop("YOUTUBE_REFRESH_TOKEN", None)
+    shutil.rmtree(root, ignore_errors=True)
+    return out
+
+
 def main():
     print("  C01 PUBLISHING AUTHORITY")
-    results = scope_properties() + env_properties() + duration_properties()
+    results = (scope_properties() + env_properties() + duration_properties()
+               + mutation_properties() + wiring_properties())
     if not all(results):
         print(f"  {results.count(False)} FAILED")
         sys.exit(1)
