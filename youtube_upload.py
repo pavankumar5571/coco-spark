@@ -62,7 +62,7 @@ def _post(url, data):
         return json.loads(r.read())
 
 
-def consent_loopback(port=0):
+def consent_loopback(port=0, host="127.0.0.1"):
     """Run the whole consent flow against a LOOPBACK redirect and store the token.
 
     The out-of-band redirect (urn:ietf:wg:oauth:2.0:oob) that this module used first is
@@ -93,9 +93,10 @@ def consent_loopback(port=0):
         def log_message(self, *a):
             pass                      # never log the query string; it carries the code
 
-    srv = http.server.HTTPServer(("127.0.0.1", port), Handler)
+    srv = http.server.HTTPServer((host if host != "localhost" else "127.0.0.1", port),
+                                 Handler)
     port = srv.server_address[1]
-    redirect = f"http://127.0.0.1:{port}"
+    redirect = f"http://{host}:{port}"
     url = mint_consent_url(redirect)
 
     threading.Thread(target=srv.handle_request, daemon=True).start()
@@ -194,7 +195,15 @@ def upload(video_path, metadata, privacy="private"):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "consent":
-        consent_loopback()
+        # A DESKTOP client accepts any loopback port, so the default random port works.
+        # A WEB client does NOT: it only accepts redirect URIs registered on it, exactly,
+        # port included — which is what "Access blocked: this app's request is invalid"
+        # means in practice. For that case pin a port and register the matching URI.
+        #   python3 youtube_upload.py consent 8080
+        #   python3 youtube_upload.py consent 8080 localhost
+        prt = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+        hst = sys.argv[3] if len(sys.argv) > 3 else "127.0.0.1"
+        consent_loopback(prt, hst)
     elif len(sys.argv) > 1 and sys.argv[1] == "consent-url":
         print(mint_consent_url())
     elif len(sys.argv) > 2 and sys.argv[1] == "exchange":
