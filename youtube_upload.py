@@ -30,7 +30,25 @@ UPLOAD = "https://www.googleapis.com/upload/youtube/v3/videos"
 OOB = "urn:ietf:wg:oauth:2.0:oob"
 
 
+def _load_env_file(path=".env"):
+    """Read a git-ignored .env WITHOUT overriding anything already in the environment.
+
+    A real export always wins. This exists only so a secret can live in one 0600 file
+    instead of being re-exported into every shell that needs it.
+    """
+    p = Path(path)
+    if not p.exists():
+        return
+    for line in p.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        os.environ.setdefault(k.strip(), v.strip())
+
+
 def _env(name, required=True):
+    _load_env_file()
     v = os.environ.get(name)
     if required and not v:
         sys.exit(f"  {name} is not set. Export it; do not put it in a file in this repo.")
@@ -110,9 +128,17 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "consent-url":
         print(mint_consent_url())
     elif len(sys.argv) > 2 and sys.argv[1] == "exchange":
+        # NEVER printed. It was, in the first version, and that is a secret in stdout,
+        # in scrollback and in any log capturing this process. Written straight to a
+        # git-ignored .env at 0600 instead, so it exists exactly where it is needed and
+        # nowhere else.
         rt = exchange_code(sys.argv[2])
-        print("REFRESH TOKEN OBTAINED." if rt else "no refresh_token returned")
-        print("Store it yourself:  export YOUTUBE_REFRESH_TOKEN='...'")
-        print(rt or "")
+        if not rt:
+            sys.exit("  no refresh_token returned — was prompt=consent used?")
+        envf = Path(".env")
+        with open(envf, "a") as f:
+            f.write(f"\nYOUTUBE_REFRESH_TOKEN={rt}\n")
+        os.chmod(envf, 0o600)
+        print(f"  refresh token written to {envf} (0600, git-ignored). Not printed.")
     else:
         print(__doc__)
