@@ -85,4 +85,45 @@ assert channels["unknown"]["subscriber_count"] is None
 assert "missing" not in channels
 assert adapter.last_unreturned_channel_ids() == ["missing"]
 
+# Provider/proxy responses cannot inject IDs outside the request provenance, and every
+# fetcher exposes requested rows that did not return.
+class InjectingTransport(adapter.FakeTransport):
+    def statistics(self, _ids):
+        return {"stranger": {"viewCount": "999"}}
+
+    def video_details(self, _ids):
+        return {"stranger": {"title": "Wrong"}}
+
+    def channel_details(self, _ids):
+        return {"stranger": {"title": "Wrong", "subscriberCount": "999"}}
+
+
+t = InjectingTransport()
+assert adapter.fetch_statistics(["wanted"], transport=t) == {}
+assert adapter.last_unreturned_ids() == ["wanted"]
+assert adapter.fetch_details(["wanted"], transport=t) == {}
+assert adapter.last_unreturned_detail_ids() == ["wanted"]
+assert adapter.fetch_channels(["wanted"], transport=t) == {}
+assert adapter.last_unreturned_channel_ids() == ["wanted"]
+
+class RaisingTransport(adapter.FakeTransport):
+    def statistics(self, _ids): raise RuntimeError("fail")
+    def video_details(self, _ids): raise RuntimeError("fail")
+    def channel_details(self, _ids): raise RuntimeError("fail")
+
+
+t = RaisingTransport()
+for fetch, missing in [
+    (adapter.fetch_statistics, adapter.last_unreturned_ids),
+    (adapter.fetch_details, adapter.last_unreturned_detail_ids),
+    (adapter.fetch_channels, adapter.last_unreturned_channel_ids),
+]:
+    try:
+        fetch(["new"], transport=t)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("transport failure was swallowed")
+    assert missing() == []
+
 print("adapter policy controls passed: loop / retries / provenance / malformed counters")

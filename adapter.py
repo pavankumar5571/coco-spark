@@ -12,6 +12,7 @@ import re
 
 DEFAULT_RETRIES = 2  # three total attempts
 _last_unreturned: list[str] = []
+_last_unreturned_details: list[str] = []
 _last_unreturned_channels: list[str] = []
 
 
@@ -130,11 +131,15 @@ def fetch_statistics(ids, *, transport=None) -> dict[str, dict]:
     global _last_unreturned
     _require(transport)
     requested = list(dict.fromkeys(ids))
+    requested_set = set(requested)
+    _last_unreturned = []
     observed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     returned = {}
     for batch in _chunks(requested):
         response = transport.statistics(batch)
         for video_id, raw in response.items():
+            if video_id not in requested_set:
+                continue
             returned[video_id] = {
                 "views": _counter(raw.get("viewCount")),
                 "likes": _counter(raw.get("likeCount")),
@@ -191,18 +196,30 @@ def _timestamp(value):
 
 
 def fetch_details(ids, *, transport=None) -> dict[str, dict]:
+    global _last_unreturned_details
     _require(transport)
+    requested = list(dict.fromkeys(ids))
+    requested_set = set(requested)
+    _last_unreturned_details = []
     returned = {}
-    for batch in _chunks(ids):
+    for batch in _chunks(requested):
         response = transport.video_details(batch)
         for video_id, raw in response.items():
+            if video_id not in requested_set:
+                continue
             returned[video_id] = {
                 "duration_seconds": _duration_seconds(raw.get("duration")),
                 "published_at": _timestamp(raw.get("publishedAt")),
                 "title": raw.get("title"),
                 "channel_id": raw.get("channelId"),
             }
+    _last_unreturned_details = [video_id for video_id in requested
+                                if video_id not in returned]
     return returned
+
+
+def last_unreturned_detail_ids() -> list[str]:
+    return list(_last_unreturned_details)
 
 
 def fetch_channels(ids, *, transport=None) -> dict[str, dict]:
@@ -210,10 +227,14 @@ def fetch_channels(ids, *, transport=None) -> dict[str, dict]:
     global _last_unreturned_channels
     _require(transport)
     requested = list(dict.fromkeys(ids))
+    requested_set = set(requested)
+    _last_unreturned_channels = []
     returned = {}
     for batch in _chunks(requested):
         response = transport.channel_details(batch)
         for channel_id, raw in response.items():
+            if channel_id not in requested_set:
+                continue
             flag = raw.get("hiddenSubscriberCount")
             # The documented absent flag remains public. Any present non-boolean value is
             # unknown and therefore fails closed: never disclose/use its count as public.

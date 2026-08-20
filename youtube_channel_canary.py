@@ -23,6 +23,7 @@ def main():
 
     transport = LiveTransport()
     details = adapter.fetch_details(video_ids, transport=transport)
+    unreturned_detail_ids = adapter.last_unreturned_detail_ids()
     channel_ids = sorted({row.get("channel_id") for row in details.values()
                           if row.get("channel_id")})
     channels = adapter.fetch_channels(channel_ids, transport=transport)
@@ -35,13 +36,15 @@ def main():
                 subscriber_count=row["subscriber_count"],
                 channel_owner_hint=None)
 
-    complete = (len(details) == len(video_ids) and len(channels) == len(channel_ids)
+    complete = (len(details) == len(video_ids) and not unreturned_detail_ids
+                and len(channels) == len(channel_ids)
                 and not unreturned_channel_ids
                 and all(row.get("title") for row in channels.values()))
     report = {
         "kind": "YOUTUBE_CHANNEL_CANARY_V1",
         "video_ids_requested": len(video_ids),
         "video_details_returned": len(details),
+        "unreturned_detail_ids": unreturned_detail_ids,
         "channel_ids_requested": len(channel_ids),
         "channels_returned": len(channels),
         "unreturned_channel_ids": unreturned_channel_ids,

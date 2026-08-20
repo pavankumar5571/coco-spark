@@ -54,6 +54,7 @@ def main():
         ids = batch["video_ids"] or batch["retry_video_ids"]
     stats = adapter.fetch_statistics(ids, transport=transport)
     details = adapter.fetch_details(ids, transport=transport)
+    unreturned_details = adapter.last_unreturned_detail_ids()
     evidence_videos = []
     for video_id in ids:
         if not args.refresh_existing:
@@ -81,7 +82,7 @@ def main():
     })
     unreturned_statistics = adapter.last_unreturned_ids()
     observations_complete = len(stats) == len(ids) and not unreturned_statistics
-    details_complete = len(details) == len(ids)
+    details_complete = len(details) == len(ids) and not unreturned_details
     report = {
         "kind": "YOUTUBE_LIVE_CANARY_V1",
         "search_complete": batch["complete"] if not args.refresh_existing else None,
@@ -91,6 +92,7 @@ def main():
         "language": batch["language"], "api_calls": transport.calls,
         "searched_ids": len(ids), "statistics_rows": len(stats),
         "details_rows": len(details), "unreturned_statistics": unreturned_statistics,
+        "unreturned_details": unreturned_details,
         "metadata_rows_with_title_channel": sum(
             bool(x.get("title") and x.get("channel_id")) for x in details.values()),
         "evidence_status": evidence["status"],
