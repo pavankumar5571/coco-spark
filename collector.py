@@ -122,7 +122,12 @@ class Collector:
                     video_ids.append(video_id)
         complete = not failed_pages
         return {"query": query, "region": region.upper(), "language": language.casefold(),
-                "video_ids": video_ids, "complete": complete,
+                # `video_ids` is the production handoff and therefore fails closed. Raw
+                # partial work remains available under a name that cannot be mistaken for
+                # an accepted population and can seed a retry without recollection.
+                "video_ids": video_ids if complete else [],
+                "retry_video_ids": [] if complete else video_ids,
+                "complete": complete,
                 "failed_pages": failed_pages,
                 # Partial data remains auditable but cannot prove absence or market size.
                 "usable_for_opportunity": complete}
