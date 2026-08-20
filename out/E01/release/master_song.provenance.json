@@ -1,0 +1,17 @@
+{
+  "kind": "RELEASE_MASTER_VARIANT",
+  "episode": "E01",
+  "variant": "SONG",
+  "sha": "18ba0a029483765f",
+  "audio": {
+    "source": "out/E02/suno/audio/five-little-stars-eb63dca0.mp3",
+    "clip_id": "eb63dca0-0e30-46d7-b060-de18654aef36",
+    "head_trim_s": 11.38,
+    "origin": "SUNO",
+    "licence": "Suno Pro plan \u2014 commercial rights VERIFIED against the account's own feature list, not assumed",
+    "cut_on": "phrase boundary at 9.34s, not on video duration",
+    "fade_out_s": 2.66,
+    "normalisation": "loudnorm I=-20 TP=-1.5 LRA=11"
+  },
+  "CONFLICT": "this track is E02's SPINE. E02's entire 16-beat map is built on ITS word timings. Using it on E01 means two episodes share one song."
+}
