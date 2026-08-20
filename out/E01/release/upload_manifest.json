@@ -1,7 +1,7 @@
 {
   "kind": "UPLOAD_MANIFEST",
   "purpose": "PRIVATE_PUBLISH_PATH_TEST",
-  "prepared_at": "2026-08-20 04:22:16",
+  "prepared_at": "2026-08-20 04:25:00",
   "master": "out/E01/release/E01_master.mp4",
   "master_sha256": "a7bbe083da96d780e8e2357f137ad2c6fefc93d7012ceee88cd75f76802134e4",
   "master_bytes": 3809959,
@@ -32,8 +32,8 @@
     ]
   },
   "contains_no_secrets": true,
-  "ready": false,
-  "blockers": [
-    "YOUTUBE_REFRESH_TOKEN not available"
-  ]
+  "ready": true,
+  "blockers": [],
+  "youtube_video_id": "nFN75I3MlV8",
+  "uploaded_at": "2026-08-20 04:25:02"
 }

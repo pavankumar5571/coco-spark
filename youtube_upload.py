@@ -23,7 +23,17 @@ from __future__ import annotations
 import json, mimetypes, os, sys, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
-SCOPE = "https://www.googleapis.com/auth/youtube.upload"
+# youtube.upload alone can PUSH bytes and read NOTHING back. The first token minted here
+# carried only that, so release.py verify — the step whose entire purpose is recording what
+# YouTube actually did rather than what we asked for — returned 403 insufficientPermissions.
+# The verification step existed and the credential could never satisfy it.
+#
+# readonly is added for exactly that: reading back privacy, madeForKids, processingStatus
+# and duration. It grants no additional ability to change anything.
+SCOPE = " ".join([
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.readonly",
+])
 AUTH = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN = "https://oauth2.googleapis.com/token"
 UPLOAD = "https://www.googleapis.com/upload/youtube/v3/videos"
