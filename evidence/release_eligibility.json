@@ -1,0 +1,84 @@
+{
+  "kind": "RELEASE_ELIGIBILITY",
+  "note": "historical QC verdicts are NOT modified; this layer decides publication using current contracts and current instruments",
+  "clips": {
+    "E01/s01": {
+      "historical_qc": "ACCEPTED",
+      "probes": {
+        "CAMERA_CONTRACT": {
+          "pass": false,
+          "detail": "contract LOCKED_STATIC, measured RIGID_ZOOM 2.772% PUSH_IN",
+          "correctable": true
+        }
+      },
+      "eligibility": "REQUIRES_REVALIDATION",
+      "failed": [
+        "CAMERA_CONTRACT"
+      ],
+      "why": "deterministically correctable; the CORRECTED derivative must be re-judged and the new verdict must name its own bytes"
+    },
+    "E01/s02": {
+      "historical_qc": "ACCEPTED",
+      "probes": {
+        "CAMERA_CONTRACT": {
+          "pass": true,
+          "detail": "contract LOCKED_STATIC, measured STATIC",
+          "correctable": false
+        }
+      },
+      "eligibility": "RELEASEABLE",
+      "why": "passes every currently applicable probe"
+    },
+    "E01/s03": {
+      "historical_qc": "ACCEPTED",
+      "probes": {
+        "CAMERA_CONTRACT": {
+          "pass": true,
+          "detail": "contract LOCKED_STATIC, measured STATIC",
+          "correctable": false
+        }
+      },
+      "eligibility": "RELEASEABLE",
+      "why": "passes every currently applicable probe"
+    },
+    "E01/s04": {
+      "historical_qc": "REJECTED_QC",
+      "probes": {
+        "CAMERA_CONTRACT": {
+          "pass": false,
+          "detail": "contract LOCKED_STATIC, measured RIGID_ZOOM 3.828% PUSH_IN",
+          "correctable": true
+        }
+      },
+      "eligibility": "NOT_RELEASEABLE",
+      "why": "historical QC verdict is REJECTED_QC"
+    },
+    "P01/s01": {
+      "historical_qc": "REJECTED_QC",
+      "probes": {
+        "CAMERA_CONTRACT": {
+          "pass": true,
+          "detail": "contract LOCKED_STATIC, measured STATIC",
+          "correctable": false
+        }
+      },
+      "eligibility": "NOT_RELEASEABLE",
+      "why": "historical QC verdict is REJECTED_QC"
+    },
+    "P01B/s01": {
+      "historical_qc": "ACCEPTED",
+      "probes": {
+        "CAMERA_CONTRACT": {
+          "pass": false,
+          "detail": "contract LOCKED_STATIC, measured RIGID_ZOOM 3.717% PUSH_IN",
+          "correctable": true
+        }
+      },
+      "eligibility": "REQUIRES_REVALIDATION",
+      "failed": [
+        "CAMERA_CONTRACT"
+      ],
+      "why": "deterministically correctable; the CORRECTED derivative must be re-judged and the new verdict must name its own bytes"
+    }
+  }
+}

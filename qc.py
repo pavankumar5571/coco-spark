@@ -199,6 +199,53 @@ class QCVerdict:
                 "revision": self.revision}
 
 
+# ACCEPTED IS NOT RELEASEABLE.
+#
+# A QC verdict is evidence from a point in time. It says the artifact passed the contract
+# and the instruments we had THEN. It cannot speak for instruments we build later.
+#
+# E01/s01 was ACCEPTED and sits inside our only assembled footage. A camera probe built
+# afterwards measured a 2.8% unrequested push-in on a shot whose contract says "Locked
+# static camera". Nothing about that verdict was dishonest; the measurement did not exist
+# yet. But shipping it because a flag from yesterday says ACCEPTED is how a known defect
+# gets permanently blessed.
+#
+# So historical verdicts are NEVER rewritten, and a second layer decides publication using
+# TODAY's contract and TODAY's instruments:
+#
+#     GENERATED -> QC_AT_TIME -> ACCEPTED_ARTIFACT -> RELEASE_VALIDATION -> RELEASEABLE
+#
+# The same shape as software: an artifact can pass CI at commit time and stop being
+# releasable when a vulnerability is discovered. You keep the old test result and change
+# whether it ships.
+RELEASEABLE = "RELEASEABLE"
+REQUIRES_REVALIDATION = "REQUIRES_REVALIDATION"
+NOT_RELEASEABLE = "NOT_RELEASEABLE"
+
+
+def release_eligibility(historical_status, probes):
+    """Decide publication from CURRENT evidence, leaving the historical verdict untouched.
+
+    `probes` maps a probe name to {"pass": bool, "detail": str, "correctable": bool}.
+    A failing probe that a deterministic correction can fix is REQUIRES_REVALIDATION, not
+    NOT_RELEASEABLE — the corrected derivative can become the release candidate, provided
+    the new verdict binds the corrected bytes rather than the original.
+    """
+    if historical_status != "ACCEPTED":
+        return {"eligibility": NOT_RELEASEABLE,
+                "why": f"historical QC verdict is {historical_status}"}
+    failed = {k: v for k, v in probes.items() if not v.get("pass")}
+    if not failed:
+        return {"eligibility": RELEASEABLE, "why": "passes every currently applicable probe"}
+    if all(v.get("correctable") for v in failed.values()):
+        return {"eligibility": REQUIRES_REVALIDATION,
+                "failed": sorted(failed),
+                "why": "deterministically correctable; the CORRECTED derivative must be "
+                       "re-judged and the new verdict must name its own bytes"}
+    return {"eligibility": NOT_RELEASEABLE, "failed": sorted(failed),
+            "why": "a failing probe has no deterministic correction"}
+
+
 def compare_capability(baseline: dict, treatment: dict):
     """A treatment that removes one defect while degrading a proven capability is a
     TRADE-OFF, not a success. Compare the whole vector, never the target defect alone."""

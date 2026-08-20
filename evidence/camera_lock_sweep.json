@@ -1,356 +1,364 @@
 {
-  "kind": "CAMERA_LOCK_SWEEP",
-  "n": 6,
-  "measured_on": "2026-08-19",
-  "control": "structure_only blurs and downscales before aligning, so the search follows walls, window, bed and floor rather than the pervasive moving particles",
-  "question": "is the instability the motes, or the world itself?",
-  "answer": "THE WORLD. E01/s01 and s04 stay UNSTABLE at 0.11 tile agreement with the particles suppressed. Removing sparkle does not make the room hold still.",
-  "secondary": "inheritance-stability lead NOT SUPPORTED: one PREDECESSOR_PIXELS clip (E01/s03, STABLE) against five generated (2 STABLE, 3 UNSTABLE).",
-  "rows": [
-    {
-      "clip": "E01/s01",
-      "first_frame": "GENERATED",
-      "reference_kinds": [
-        "identity"
-      ],
-      "raw": {
-        "dx": 6,
-        "dy": 0,
-        "agreement": 0.11,
-        "state": "UNSTABLE"
-      },
-      "structure_only": {
-        "dx": 2,
-        "dy": 0,
-        "agreement": 0.11,
-        "per_tile": [
-          [
-            6,
-            2
-          ],
-          [
-            4,
-            4
-          ],
-          [
-            -6,
-            4
-          ],
-          [
-            6,
-            0
-          ],
-          [
-            2,
-            0
-          ],
-          [
-            -4,
-            -2
-          ],
-          [
-            6,
-            -2
-          ],
-          [
-            0,
-            -4
-          ],
-          [
-            -2,
-            -6
-          ]
+  "STATUS": "SUPERSEDED",
+  "superseded_by": "0e85ac3 \u2014 CORRECTION: the world is not deforming. Veo is pushing in without being asked",
+  "superseded_at": "2026-08-19 21:22:36",
+  "why": "This sweep aligned tiles by TRANSLATION ONLY. A rigid zoom moves every tile away from the centre, which is inconsistent as translations and perfectly consistent as one scale change \u2014 so the detector scored a deliberate, perfectly rigid 6% push-in at the same 0.11 'unstable' as E01/s01. Fitting a zoom explained the motion: s01 +2.2% (61% of motion explained), s04 +2.9% (80%), P01B/s01 +2.8% (66%). THE ROOM IS RIGID. THE CAMERA CREPT.",
+  "do_not_quote": "The 'answer' field below says THE WORLD is unstable. That conclusion is WITHDRAWN. It was quoted as current on 2026-08-19 by a session that did not check whether this file had been superseded, and a falsified hypothesis was briefly resurrected as a finding.",
+  "what_survives": "Three of six paid clips carry an UNREQUESTED slow push-in on shots whose camera contract says 'Locked static camera. No camera movement, no cut.' That is a real contract violation and a fifth ignored prose guarantee. It also explains framing discontinuity at cuts better than any world-authority argument: a shot ending 2% tighter than it began cannot match the next shot's start.",
+  "ORIGINAL_MEASUREMENT_BELOW": {
+    "kind": "CAMERA_LOCK_SWEEP",
+    "n": 6,
+    "measured_on": "2026-08-19",
+    "control": "structure_only blurs and downscales before aligning, so the search follows walls, window, bed and floor rather than the pervasive moving particles",
+    "question": "is the instability the motes, or the world itself?",
+    "answer": "THE WORLD. E01/s01 and s04 stay UNSTABLE at 0.11 tile agreement with the particles suppressed. Removing sparkle does not make the room hold still.",
+    "secondary": "inheritance-stability lead NOT SUPPORTED: one PREDECESSOR_PIXELS clip (E01/s03, STABLE) against five generated (2 STABLE, 3 UNSTABLE).",
+    "rows": [
+      {
+        "clip": "E01/s01",
+        "first_frame": "GENERATED",
+        "reference_kinds": [
+          "identity"
         ],
-        "state": "UNSTABLE"
-      }
-    },
-    {
-      "clip": "E01/s02",
-      "first_frame": "GENERATED",
-      "reference_kinds": [
-        "identity",
-        "temporal"
-      ],
-      "raw": {
-        "dx": 0,
-        "dy": 0,
-        "agreement": 0.56,
-        "state": "STABLE"
+        "raw": {
+          "dx": 6,
+          "dy": 0,
+          "agreement": 0.11,
+          "state": "UNSTABLE"
+        },
+        "structure_only": {
+          "dx": 2,
+          "dy": 0,
+          "agreement": 0.11,
+          "per_tile": [
+            [
+              6,
+              2
+            ],
+            [
+              4,
+              4
+            ],
+            [
+              -6,
+              4
+            ],
+            [
+              6,
+              0
+            ],
+            [
+              2,
+              0
+            ],
+            [
+              -4,
+              -2
+            ],
+            [
+              6,
+              -2
+            ],
+            [
+              0,
+              -4
+            ],
+            [
+              -2,
+              -6
+            ]
+          ],
+          "state": "UNSTABLE"
+        }
       },
-      "structure_only": {
-        "dx": 0,
-        "dy": 0,
-        "agreement": 0.78,
-        "per_tile": [
-          [
-            0,
-            0
-          ],
-          [
-            2,
-            0
-          ],
-          [
-            0,
-            0
-          ],
-          [
-            0,
-            0
-          ],
-          [
-            0,
-            0
-          ],
-          [
-            -6,
-            -6
-          ],
-          [
-            0,
-            0
-          ],
-          [
-            0,
-            6
-          ],
-          [
-            2,
-            0
-          ]
+      {
+        "clip": "E01/s02",
+        "first_frame": "GENERATED",
+        "reference_kinds": [
+          "identity",
+          "temporal"
         ],
-        "state": "STABLE"
-      }
-    },
-    {
-      "clip": "E01/s03",
-      "first_frame": "PREDECESSOR_PIXELS",
-      "reference_kinds": [
-        "identity",
-        "inherited"
-      ],
-      "raw": {
-        "dx": 0,
-        "dy": 0,
-        "agreement": 0.67,
-        "state": "STABLE"
+        "raw": {
+          "dx": 0,
+          "dy": 0,
+          "agreement": 0.56,
+          "state": "STABLE"
+        },
+        "structure_only": {
+          "dx": 0,
+          "dy": 0,
+          "agreement": 0.78,
+          "per_tile": [
+            [
+              0,
+              0
+            ],
+            [
+              2,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              -6,
+              -6
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              6
+            ],
+            [
+              2,
+              0
+            ]
+          ],
+          "state": "STABLE"
+        }
       },
-      "structure_only": {
-        "dx": 0,
-        "dy": 0,
-        "agreement": 0.78,
-        "per_tile": [
-          [
-            0,
-            0
-          ],
-          [
-            2,
-            0
-          ],
-          [
-            0,
-            0
-          ],
-          [
-            0,
-            0
-          ],
-          [
-            2,
-            0
-          ],
-          [
-            0,
-            6
-          ],
-          [
-            0,
-            0
-          ],
-          [
-            0,
-            2
-          ],
-          [
-            0,
-            6
-          ]
+      {
+        "clip": "E01/s03",
+        "first_frame": "PREDECESSOR_PIXELS",
+        "reference_kinds": [
+          "identity",
+          "inherited"
         ],
-        "state": "STABLE"
-      }
-    },
-    {
-      "clip": "E01/s04",
-      "first_frame": "GENERATED",
-      "reference_kinds": [
-        "identity",
-        "temporal"
-      ],
-      "raw": {
-        "dx": 2,
-        "dy": 0,
-        "agreement": 0.11,
-        "state": "UNSTABLE"
+        "raw": {
+          "dx": 0,
+          "dy": 0,
+          "agreement": 0.67,
+          "state": "STABLE"
+        },
+        "structure_only": {
+          "dx": 0,
+          "dy": 0,
+          "agreement": 0.78,
+          "per_tile": [
+            [
+              0,
+              0
+            ],
+            [
+              2,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              2,
+              0
+            ],
+            [
+              0,
+              6
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              2
+            ],
+            [
+              0,
+              6
+            ]
+          ],
+          "state": "STABLE"
+        }
       },
-      "structure_only": {
-        "dx": 0,
-        "dy": 0,
-        "agreement": 0.11,
-        "per_tile": [
-          [
-            6,
-            4
-          ],
-          [
-            2,
-            4
-          ],
-          [
-            -6,
-            4
-          ],
-          [
-            6,
-            0
-          ],
-          [
-            0,
-            0
-          ],
-          [
-            -6,
-            0
-          ],
-          [
-            6,
-            -4
-          ],
-          [
-            -2,
-            -6
-          ],
-          [
-            -6,
-            -6
-          ]
+      {
+        "clip": "E01/s04",
+        "first_frame": "GENERATED",
+        "reference_kinds": [
+          "identity",
+          "temporal"
         ],
-        "state": "UNSTABLE"
-      }
-    },
-    {
-      "clip": "P01/s01",
-      "first_frame": "GENERATED",
-      "reference_kinds": [
-        "identity"
-      ],
-      "raw": {
-        "dx": 0,
-        "dy": 0,
-        "agreement": 1.0,
-        "state": "STABLE"
+        "raw": {
+          "dx": 2,
+          "dy": 0,
+          "agreement": 0.11,
+          "state": "UNSTABLE"
+        },
+        "structure_only": {
+          "dx": 0,
+          "dy": 0,
+          "agreement": 0.11,
+          "per_tile": [
+            [
+              6,
+              4
+            ],
+            [
+              2,
+              4
+            ],
+            [
+              -6,
+              4
+            ],
+            [
+              6,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              -6,
+              0
+            ],
+            [
+              6,
+              -4
+            ],
+            [
+              -2,
+              -6
+            ],
+            [
+              -6,
+              -6
+            ]
+          ],
+          "state": "UNSTABLE"
+        }
       },
-      "structure_only": {
-        "dx": 0,
-        "dy": 0,
-        "agreement": 1.0,
-        "per_tile": [
-          [
-            0,
-            0
-          ],
-          [
-            0,
-            2
-          ],
-          [
-            2,
-            0
-          ],
-          [
-            0,
-            0
-          ],
-          [
-            0,
-            0
-          ],
-          [
-            0,
-            0
-          ],
-          [
-            0,
-            0
-          ],
-          [
-            0,
-            0
-          ],
-          [
-            0,
-            0
-          ]
+      {
+        "clip": "P01/s01",
+        "first_frame": "GENERATED",
+        "reference_kinds": [
+          "identity"
         ],
-        "state": "STABLE"
-      }
-    },
-    {
-      "clip": "P01B/s01",
-      "first_frame": "GENERATED",
-      "reference_kinds": [
-        "identity"
-      ],
-      "raw": {
-        "dx": 2,
-        "dy": -2,
-        "agreement": 0.0,
-        "state": "UNSTABLE"
+        "raw": {
+          "dx": 0,
+          "dy": 0,
+          "agreement": 1.0,
+          "state": "STABLE"
+        },
+        "structure_only": {
+          "dx": 0,
+          "dy": 0,
+          "agreement": 1.0,
+          "per_tile": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              2
+            ],
+            [
+              2,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "state": "STABLE"
+        }
       },
-      "structure_only": {
-        "dx": 2,
-        "dy": -2,
-        "agreement": 0.22,
-        "per_tile": [
-          [
-            6,
-            4
-          ],
-          [
-            -2,
-            4
-          ],
-          [
-            0,
-            4
-          ],
-          [
-            6,
-            -2
-          ],
-          [
-            2,
-            0
-          ],
-          [
-            -6,
-            -2
-          ],
-          [
-            6,
-            -4
-          ],
-          [
-            2,
-            -4
-          ],
-          [
-            -6,
-            -6
-          ]
+      {
+        "clip": "P01B/s01",
+        "first_frame": "GENERATED",
+        "reference_kinds": [
+          "identity"
         ],
-        "state": "UNSTABLE"
+        "raw": {
+          "dx": 2,
+          "dy": -2,
+          "agreement": 0.0,
+          "state": "UNSTABLE"
+        },
+        "structure_only": {
+          "dx": 2,
+          "dy": -2,
+          "agreement": 0.22,
+          "per_tile": [
+            [
+              6,
+              4
+            ],
+            [
+              -2,
+              4
+            ],
+            [
+              0,
+              4
+            ],
+            [
+              6,
+              -2
+            ],
+            [
+              2,
+              0
+            ],
+            [
+              -6,
+              -2
+            ],
+            [
+              6,
+              -4
+            ],
+            [
+              2,
+              -4
+            ],
+            [
+              -6,
+              -6
+            ]
+          ],
+          "state": "UNSTABLE"
+        }
       }
-    }
-  ]
+    ]
+  }
 }
