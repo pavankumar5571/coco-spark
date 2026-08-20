@@ -141,24 +141,42 @@ def a_replay_inside_the_interval_adds_nothing():
                n_snap == 2, f"snapshots={n_snap} raw={n_raw}")
 
 
-def the_baseline_on_disk_is_untouched_by_any_of_this():
-    """These fixtures must not have written to the live baseline. Checked, not assumed."""
+def _live_rows():
     live = Path("out/youtube-g03-live.sqlite3")
     if not live.exists():
+        return None
+    return sqlite3.connect(live).execute(
+        "SELECT COUNT(*) FROM observations").fetchone()[0]
+
+
+def the_baseline_on_disk_is_untouched_by_any_of_this(before):
+    """These fixtures must not have written to the live baseline. Checked, not assumed.
+
+    This case used to assert the baseline held exactly 3 rows, which was true when it was
+    written and false an hour later when the experiment legitimately added its second
+    observation and an audit row. That is a test asserting a MOMENT rather than a
+    PROPERTY: it went red for the very success it was built to protect.
+
+    The property is that running these fixtures does not change the live store. So the
+    count is captured before the fixtures run and compared with the count after, and the
+    number itself is none of this test's business.
+    """
+    after = _live_rows()
+    if before is None:
         return _ok("the live baseline is untouched", True, "(not present here)")
-    rows = sqlite3.connect(live).execute("SELECT COUNT(*) FROM observations").fetchone()[0]
-    return _ok("the live baseline still holds exactly 3 observations", rows == 3,
-               f"{rows} rows")
+    return _ok("running these fixtures did not touch the live baseline", after == before,
+               f"{before} rows before, {after} after")
 
 
 def main():
     print("  REFRESH ATTACK — run before the clock allows a live refresh")
+    before = _live_rows()
     results = [
         refresh_reads_ids_from_the_store_and_never_searches(),
         the_second_instant_comes_from_the_clock_not_the_caller(),
         a_short_statistics_return_is_not_completeness(),
         a_replay_inside_the_interval_adds_nothing(),
-        the_baseline_on_disk_is_untouched_by_any_of_this(),
+        the_baseline_on_disk_is_untouched_by_any_of_this(before),
     ]
     failed = results.count(False)
     print(f"  {len(results) - failed}/{len(results)} held, {failed} open")

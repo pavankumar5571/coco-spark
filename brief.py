@@ -23,7 +23,14 @@ from __future__ import annotations
 import json, sys
 from pathlib import Path
 
+import yaml
+
 import config as C
+
+
+def load_bible(root=Path(".")):
+    """The show's own policy file. Modes, and what each mode is delivered at, live here."""
+    return yaml.safe_load((Path(root) / "bible.yaml").read_text(encoding="utf-8"))
 
 # BRANDING TIMING CONTRACT. Durations only — the rendered assets are a different module's
 # problem, and deliberately so: their timing changes the beat map's offset, so it has to be
@@ -31,18 +38,19 @@ import config as C
 SIGNATURE_SECONDS = 1.2          # opening channel signature, 1.0-1.5 agreed
 OUTRO_SECONDS     = 4.0          # closing card over the episode's own final image, 3-5
 
-# PER-MODE PROGRAMME LOUDNESS. config.PROGRAMME_LUFS is a single global, which contradicts
-# the agreed policy that a bedtime programme and a song are not delivered at the same
-# level. A lullaby mastered to a song's target stops being a lullaby.
+# PER-MODE PROGRAMME LOUDNESS LIVES IN THE BIBLE, NOT HERE. config.PROGRAMME_LUFS is a
+# single global, which contradicts the agreed policy that a bedtime programme and a song
+# are not delivered at the same level: a lullaby mastered to a song's target stops being a
+# lullaby.
 #
-# BEDTIME_STORY is the only number we have actually decided. The others are UNSET on
-# purpose — a listening test sets them, not a default, and asking for an unset mode is an
-# error rather than a silent fallback to whatever happened to be in config.
-PROGRAMME_LUFS = {
-    "BEDTIME_STORY": -20.0,
-    "SONG":          None,       # UNSET: awaiting a listening test on a real mastered mix
-    "STORY":         None,       # UNSET
-}
+# This table used to be a dict in this file naming three modes. That made adding a fourth
+# mode a code change, and it put a delivery decision somewhere a person editing the show's
+# policy would never look. Modes are already defined in bible.yaml with their coverage,
+# pacing and camera rules; the loudness they are delivered at belongs beside those.
+#
+# A mode whose programme_lufs is absent or null is UNSET on purpose. A listening test sets
+# it, not a default, and asking for an unset mode is an error rather than a silent
+# fallback to whatever happened to be in config.
 
 
 # THE CIRCLE, AND HOW IT IS BROKEN WITHOUT LYING.
@@ -59,20 +67,23 @@ PROGRAMME_LUFS = {
 PROVISIONAL_PRIVATE_LUFS = -20.0
 
 
-def programme_lufs(mode, private_test=False):
+def programme_lufs(mode, bible, private_test=False):
     """The delivered loudness target, or a refusal that names exactly what is missing."""
-    if mode not in PROGRAMME_LUFS:
-        raise KeyError(f"no programme loudness policy for mode '{mode}'")
-    target = PROGRAMME_LUFS[mode]
+    modes = (bible or {}).get("modes") or {}
+    if mode not in modes:
+        raise KeyError(f"mode '{mode}' is not defined in bible.yaml; the modes there are "
+                       f"{sorted(modes) or 'none'}")
+    target = (modes[mode] or {}).get("programme_lufs")
     if target is not None:
-        return target, "POLICY"
+        return float(target), "POLICY"
     if private_test:
         return PROVISIONAL_PRIVATE_LUFS, "PROVISIONAL_FOR_PRIVATE_TEST"
     raise ValueError(
-        f"programme loudness for {mode} is UNSET. It must come from a listening test "
-        f"on a real mastered mix, not from config.PROGRAMME_LUFS ({C.PROGRAMME_LUFS}), "
-        f"which is a single global and cannot be right for every mode at once. A PRIVATE "
-        f"test master may use the provisional level; a public release may not.")
+        f"programme loudness for {mode} is UNSET. It must come from a listening test on a "
+        f"real mastered mix, not from config.PROGRAMME_LUFS ({C.PROGRAMME_LUFS}), which is "
+        f"a single global and cannot be right for every mode at once, and not from another "
+        f"mode's number in bible.yaml. A PRIVATE test master may use the provisional level; "
+        f"a public release may not.")
 
 
 def words_from_lrc(path, head_trim):
@@ -115,8 +126,9 @@ def find_word(words, text, nth=1):
 
 
 def compile_brief(episode, mode, signature=SIGNATURE_SECONDS, outro=OUTRO_SECONDS,
-                  root=Path("."), private_test=False):
+                  root=Path("."), private_test=False, bible=None):
     """phrase map + beat map -> one production brief, in all three coordinate systems."""
+    bible = load_bible(root) if bible is None else bible
     d = Path(root) / "out" / episode
     phrases = json.loads((d / "phrases.json").read_text(encoding="utf-8"))
     beatmap = json.loads((d / "beats.json").read_text(encoding="utf-8"))
@@ -237,7 +249,7 @@ def compile_brief(episode, mode, signature=SIGNATURE_SECONDS, outro=OUTRO_SECOND
     reserved = round(estimate * C.SAFETY_MARGIN, 2)
 
     try:
-        lufs, lufs_basis = programme_lufs(mode, private_test)
+        lufs, lufs_basis = programme_lufs(mode, bible, private_test)
         lufs_note = None
     except (KeyError, ValueError) as e:
         lufs, lufs_basis, lufs_note = None, "UNSET", str(e)

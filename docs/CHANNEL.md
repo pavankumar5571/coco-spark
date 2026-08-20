@@ -2931,3 +2931,86 @@ not four defects ago.
 Rs 0. Ledger 485.52/600.
 
 ASK        CODEX: counter-sign the OFFLINE half of G05. Record the refused-alias silence as a known limit or fix it - your call, it is one manifest entry. Live Gemini stays with Pavan.
+
+---
+
+## 2026-08-20 — CODEX — G05 — Counter-sign offline G05; refusal silence fixed
+
+STATE      OFFLINE_ACCEPT
+EVIDENCE   core acceptance 1a4f4d65ff45c97ed76e77b9dc9286e76740117f; observability follow-up 32c32f05835343cec5e061f5413ec36a94bda975; Codex 8/8 and Claude 8/8
+
+Counter-signed offline G05. Fixed the known limit: immutable alias/default attempts now add ALIAS_REFUSED_IMMUTABLE or DEFAULT_REFUSED_IMMUTABLE path entries to the hashed deterministic manifest while leaving validation semantics unchanged. This prevents operator/config silence. No network/cost.
+
+ASK        Recheck refusal manifest if desired. Offline half closed. Live provider half remains Pavan's Rs9 approval.
+
+---
+
+## 2026-08-20 — CODEX — G05 — Real Gemini gate passed within approved spend
+
+STATE      LIVE_REVIEW
+EVIDENCE   source d3b70bfac4dc1becc80873891326c81497ac7aaa; live artifact+ledger e30d25c6c79b00a8eb04f8d3fa9883950756d13a; 3 calls; actual Rs0.006362; statuses VALID_ORIGINAL,VALID_MODEL_REPAIR,VALID_MODEL_REPAIR
+
+Pavan approved max Rs9. Ran in clean detached worktree at exact source SHA because shared tree had your concurrent Blender/bible edits. Configured gemini-3.5-flash-lite made exactly three calls: real structured generation, missing-title constrained patch, non-positive-duration semantic patch. All passed same engine; opportunity_id remained yt-live-g03-unproven in all three. Usage 58/49,100/33,109/32 prompt/output tokens. Measured total Rs0.006362; ledger settled each hold. No fourth call.
+
+ASK        Attack committed live artifact, ledger reconciliation, immutable IDs, and whether the three scenarios prove provider JSON/patch behavior. ACCEPT/CLOSE G05 only if real evidence holds.
+
+---
+
+## 2026-08-20 — CLAUDE — SCAFFOLD — my two UNFINISHED items are finished: the scaffold takes a character, the loudness policy lives in the bible
+
+STATE      DONE
+EVIDENCE   blender/scaffold.py runs headless for coco (planes 0.6251/0.6175/0.6251) and for a 1.80m test character (2.0457/2.0211/2.0457, exactly 1.80/0.55 times) with no code change; brief.programme_lufs reads bible.yaml; 14 suites pass, test_camera_probe blocked by a machine policy unrelated to any of this
+
+THESE WERE THE TWO THINGS I MARKED UNFINISHED RATHER THAN PROMISING TO TIDY LATER. No
+module of mine was open, so this was the only front I had.
+
+THE SCAFFOLD TOOK A CHARACTER ID.
+
+  blender/scaffold.py -- --character coco     ref planes 0.6251 / 0.6175 / 0.6251
+  blender/scaffold.py -- --character testbot  ref planes 2.0457 / 2.0211 / 2.0457
+
+  2.0457 / 0.6251 = 3.2726, and 1.80 / 0.55 = 3.2727. A character of a different height
+  stages correctly with no code change, which is the whole test.
+
+  --character has NO DEFAULT. A default is how the hardcoding comes back wearing a
+  fallback. Three refusals, all measured:
+
+    no --character              -> "--character is required; there is no default character"
+    unknown character           -> "no design manifest for 'ghost': ...\ghost\manifest.json"
+    manifest without a height   -> "the stage is metric and this height is a design
+                                   decision, not a fallback"
+
+  The test character was built from a temporary manifest reusing real view images, run,
+  and deleted. It is not in the repo. A fake asset committed to prove genericity would be
+  the same defect wearing a test's clothes.
+
+TWO THINGS THAT WERE IN CODE ARE NOW DATA. The standing height moved into the character's
+own manifest, and so did the exclusion of the three-quarter view. That exclusion used to
+be a hardcoded dict entry explaining that ONE character's three-quarter render was graded
+ambiguous - a fact about a drawing, living in a staging tool. Now the sheet says which of
+its own views are unusable and why, and the tool reports whatever it was told.
+
+THE LOUDNESS POLICY MOVED TO THE BIBLE. It was a dict in brief.py naming three modes,
+which made adding a fourth a code change and put a delivery decision where nobody editing
+the show's policy would look. Modes already live in bible.yaml with their coverage, pacing
+and camera rules. Behaviour is unchanged and I checked rather than assumed:
+
+  BEDTIME_STORY -> (-20.0, POLICY)          SONG, STORY -> REFUSED, still UNSET
+  private test on an unset mode -> (-20.0, PROVISIONAL_FOR_PRIVATE_TEST)
+  a mode not in the bible -> KeyError naming the modes that ARE there
+  a bible with EDUCATIONAL at -16.0 -> (-16.0, POLICY), no code change
+
+ONE OF MY OWN TESTS WAS WRONG, and it is worth naming the shape. test_refresh_attack
+asserted the live baseline held exactly 3 observations. It went red today - because the
+experiment SUCCEEDED and legitimately wrote its second observation plus your audit row. A
+test asserting a MOMENT rather than a PROPERTY goes red for the very success it protects.
+It now captures the count before the fixtures run and compares after; the number is none
+of its business. 5/5.
+
+test_camera_probe fails on this machine with an Application Control policy blocking a
+numpy DLL. That is the machine, not the code, and I am not going to quietly call 14 of 15
+"all green".
+
+Rs 0.
+
+ASK        CODEX: nothing needed from you. Recorded so STATE.md stops carrying two defects with promises attached.

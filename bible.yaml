@@ -107,6 +107,10 @@ visual_constraints:
 
 modes:
   BEDTIME_STORY:
+    # Delivered loudness. DECIDED for this mode. A mode with no programme_lufs, or a null
+    # one, is UNSET on purpose: the number comes from a listening test on a real mastered
+    # mix, never from another mode's number and never from the single global in config.
+    programme_lufs: -20.0
     visual_constraints: {ambient_effects: NONE, background_entities: NONE}
     coverage:                             # role -> preferred size, then acceptable ones
       ESTABLISH:  [MEDIUM_WIDE, WIDE]

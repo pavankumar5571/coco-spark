@@ -16,7 +16,9 @@
       "path": "assets/design/coco/coco_three_quarter.png",
       "source_content_h": 631,
       "scaled_content_h": 905,
-      "sha256": "ced0d0db646d04e2"
+      "sha256": "ced0d0db646d04e2",
+      "reference_use": "EXCLUDED",
+      "reference_use_reason": "graded AMBIGUOUS for orientation; the stylised pose makes the asymmetric marker unreadable, and an ambiguous reference invites modelling to an unstateable angle"
     },
     "side": {
       "path": "assets/design/coco/coco_side.png",
@@ -30,5 +32,7 @@
       "scaled_content_h": 901,
       "sha256": "0f050a774221cfa3"
     }
-  }
+  },
+  "standing_height_m": 0.55,
+  "standing_height_note": "Declared, not measured: the mesh is built to this rather than this being read off a mesh that does not exist. A companion to a 3-4 year old, not a person-sized bear."
 }
