@@ -66,6 +66,34 @@ def rows_with_content(alpha, width, height):
     return spans
 
 
+def rows_with_runs(alpha, width, height):
+    """For each row, EVERY separate opaque run, not just the outer extent.
+
+    The extent alone is a lie wherever a silhouette is disconnected. An arm held away from
+    the body, a gap between two legs, or the space under a chin all read as solid to a
+    min/max measurement — and anything built from that measurement would fill the gap with
+    geometry that was never drawn.
+
+    A row of three runs cannot be described by one convex section. Recording the runs is
+    what lets a later stage SAY SO instead of quietly producing a blob.
+    """
+    rows = []
+    for y in range(height):
+        base = y * width
+        runs, start = [], None
+        for x in range(width):
+            opaque = alpha[base + x] >= ALPHA_FLOOR
+            if opaque and start is None:
+                start = x
+            elif not opaque and start is not None:
+                runs.append((start, x - 1))
+                start = None
+        if start is not None:
+            runs.append((start, width - 1))
+        rows.append(runs)
+    return rows
+
+
 def profile(image_path, standing_height_m, steps):
     """The width profile of one view, measured and unnamed."""
     with Image.open(image_path) as im:
@@ -74,6 +102,7 @@ def profile(image_path, standing_height_m, steps):
         alpha = im.getchannel("A").tobytes()
 
     spans = rows_with_content(alpha, width, height)
+    runs_by_row = rows_with_runs(alpha, width, height)
     filled = [y for y, s in enumerate(spans) if s is not None]
     if not filled:
         raise SystemExit(f"  {image_path.name} has no opaque pixels to measure")
@@ -102,10 +131,18 @@ def profile(image_path, standing_height_m, steps):
         left, right = span
         w = right - left + 1
         centre = (left + right) / 2.0
+        runs = runs_by_row[y]
         bands.append({
             "height_fraction": round(frac, 4),
             "width_px": w,
             "width_m": round(w * metres_per_px, 4),
+            # Every separate opaque run at this height, as metres from the box centre.
+            # One run means a single convex section is a fair description here. More than
+            # one means it is not, and whatever builds geometry has to know that.
+            "runs_m": [[round((a - (box_left + box_right) / 2.0) * metres_per_px, 4),
+                        round((b - (box_left + box_right) / 2.0) * metres_per_px, 4)]
+                       for a, b in runs],
+            "run_count": len(runs),
             # Positive means the band sits right of the bounding box's centre. A lean, a
             # raised arm or an ear that stands proud shows up here and nowhere else.
             "centre_offset_m": round((centre - (box_left + box_right) / 2.0)
@@ -113,6 +150,7 @@ def profile(image_path, standing_height_m, steps):
         })
 
     widest = max(bands, key=lambda b: b["width_px"])
+    disjoint = [b["height_fraction"] for b in bands if b["run_count"] > 1]
     return {
         "image": str(image_path.relative_to(ROOT)).replace("\\", "/"),
         "canvas_px": [width, height],
@@ -123,6 +161,7 @@ def profile(image_path, standing_height_m, steps):
         "content_width_m": round(content_w * metres_per_px, 4),
         "widest_band": {"height_fraction": widest["height_fraction"],
                         "width_m": widest["width_m"]},
+        "disjoint_bands": disjoint,
         "bands": bands,
     }
 

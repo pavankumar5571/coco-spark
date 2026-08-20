@@ -1,0 +1,33 @@
+{
+  "kind": "GATE_1C_BASE_MESH",
+  "character": "coco",
+  "standing_height_m": 0.55,
+  "segments_per_section": 32,
+  "vertices": 5342,
+  "faces": 5792,
+  "z_range_m": [
+    0.0,
+    0.55
+  ],
+  "source_measurement": "assets/design/coco/measurement.json",
+  "topology": {
+    "components": 15,
+    "dropped_short_components": 8,
+    "splits": 0,
+    "merges": 4,
+    "circular_sections_assumed": 38
+  },
+  "what_this_is_not": [
+    "not character art: no face, no costume, no fingers, no sculpted detail",
+    "each drawn part is a tube of ellipses, so a part is the right size and the wrong shape in cross-section",
+    "parts that meet are built as separate overlapping tubes, not joined"
+  ],
+  "the_one_assumption": "a turnaround gives depth per BAND, not per part. The widest run in a band takes the measured depth; a narrower run is built circular in section, because a limb or an ear is roughly as deep as it is wide.",
+  "renders": [
+    "base_front.png",
+    "base_right.png",
+    "base_back.png",
+    "base_left.png"
+  ],
+  "blend": "coco_base.blend"
+}
