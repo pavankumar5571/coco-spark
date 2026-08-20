@@ -110,6 +110,7 @@ def repair_spec(candidate, *, schema, semantic_validator=lambda _: [], provider=
                 "manifest": [{"stage": "PARSE", "errors": [{"code": "INVALID_JSON",
                               "path": "/", "message": str(exc)}]}]}
 
+    input_document = deepcopy(document)
     errors = validate_document(document, schema, semantic_validator)
     manifest.append({"stage": "INPUT", "sha256": _hash(document), "errors": errors})
     if not errors:
@@ -118,11 +119,15 @@ def repair_spec(candidate, *, schema, semantic_validator=lambda _: [], provider=
 
     changed = unfenced
     for path, mapping in (aliases or {}).items():
+        if any(path == root or path.startswith(root + "/") for root in immutable_paths):
+            continue
         try: current = _get(document, path)
         except (KeyError, IndexError, TypeError, ValueError): continue
         if current in mapping:
             _set(document, path, mapping[current], must_exist=True); changed = True
     for path, value in (defaults or {}).items():
+        if any(path == root or path.startswith(root + "/") for root in immutable_paths):
+            continue
         try: _get(document, path)
         except (KeyError, IndexError, TypeError, ValueError):
             try: _set(document, path, value)
@@ -136,10 +141,15 @@ def repair_spec(candidate, *, schema, semantic_validator=lambda _: [], provider=
             return {"status": "VALID_DETERMINISTIC", "document": document,
                     "manifest": manifest}
 
+    # A later refusal or newly revealed error can never widen the paths authorised by the
+    # original validation. Otherwise merely naming a forbidden path would authorise it.
+    authorised_paths = frozenset(error["path"] for error in errors)
+    validation_errors = errors
     for attempt in range(max(0, max_model_attempts)):
         if provider is None: break
-        allowed = sorted({error["path"] for error in errors})
-        patches = provider.repair(deepcopy(document), deepcopy(errors), allowed)
+        allowed = sorted(authorised_paths)
+        patches = provider.repair(deepcopy(document), deepcopy(validation_errors), allowed)
+        candidate_document = deepcopy(document)
         rejected = []
         for patch in patches if isinstance(patches, list) else []:
             path, operation = patch.get("path"), patch.get("op")
@@ -150,11 +160,18 @@ def repair_spec(candidate, *, schema, semantic_validator=lambda _: [], provider=
                                  "message": "patch operation/path is outside rejected fields"})
                 continue
             try:
-                _set(document, path, patch.get("value"), must_exist=operation == "replace")
+                _set(candidate_document, path, patch.get("value"),
+                     must_exist=operation == "replace")
             except (KeyError, IndexError, TypeError, ValueError):
                 rejected.append({"code": "PATCH_INVALID", "path": path,
                                  "message": "patch target does not match document"})
-        errors = rejected or validate_document(document, schema, semantic_validator)
+        if rejected:
+            errors = rejected
+            # Transactional batch: no accepted prefix survives one refused operation.
+        else:
+            document = candidate_document
+            validation_errors = validate_document(document, schema, semantic_validator)
+            errors = validation_errors
         manifest.append({"stage": "MODEL_REPAIR", "attempt": attempt + 1,
                          "sha256": _hash(document), "errors": errors})
         if not errors:
@@ -162,7 +179,8 @@ def repair_spec(candidate, *, schema, semantic_validator=lambda _: [], provider=
                     "manifest": manifest}
 
     if fallback_factory is not None:
-        fallback = fallback_factory(deepcopy(document), deepcopy(errors))
+        # Fallback begins from what entered the engine, never deterministic/model wreckage.
+        fallback = fallback_factory(deepcopy(input_document), deepcopy(errors))
         fallback_errors = validate_document(fallback, schema, semantic_validator)
         manifest.append({"stage": "FALLBACK", "sha256": _hash(fallback),
                          "errors": fallback_errors})
