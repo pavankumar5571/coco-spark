@@ -109,6 +109,14 @@ def upload_private(master, metadata_path):
             sys.exit(f"  ALREADY UPLOADED: {prev['youtube_video_id']} for these exact bytes. "
                      f"Refusing to create a duplicate.")
 
+    # Acquisition-time validation is necessary and NOT sufficient. A credential can be
+    # revoked, a scope policy can change, an account can lose the channel, between the
+    # consent that minted the token and the moment it is used. So the mutation checks the
+    # authority it is about to exercise, immediately before exercising it — one free token
+    # refresh standing in front of an irreversible external write.
+    if yt.scope_preflight(yt.granted_scopes(), ["upload"]):
+        sys.exit("  cannot upload with this credential — re-run consent.")
+
     meta = json.loads(Path(metadata_path).read_text(encoding="utf-8"))
     print(f"  uploading {m['master_bytes']/1e6:.1f} MB as PRIVATE …")
     vid = yt.upload(master, meta, privacy="private")

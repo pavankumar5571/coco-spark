@@ -91,3 +91,68 @@ design space between them, and we have only just stepped into it.
 
 **Not a gate yet:** audience retention. An unlisted upload is not an audience experiment.
 First prove Pavan considers the visual format worthy of the channel name.
+
+---
+
+## PROVABLE_AUTHORITY — the invariant behind C01
+
+**Ruling (GPT, 2026-08-20, agreed).** Keep SCOPE_PREFLIGHT as a concrete OAuth control.
+Record the principle; do not build a universal engine for it, or C01 stops being
+publishing verification and becomes infrastructure architecture.
+
+> Before an operation can make an assertion, its execution environment must possess and
+> demonstrate the authority and runtime capability required both to perform the operation
+> and to verify the resulting state.
+
+Three distinct checks, and today produced a real failure of each:
+
+    AUTHORITY      the credential grants the required permissions
+                   -> both this project AND enterprise-ai-yt minted upload-only tokens
+    RUNTIME        the required runtime exists and is compatible
+                   -> no Python on the operator's machine; the release path could not run
+    OBSERVABILITY  the resulting state can be independently read back
+                   -> verify returned 403; the check existed, the credential defeated it
+
+**Acquisition-time validation is necessary and not sufficient.** Credentials get revoked,
+scope policies change, runtimes disappear between consent and use. So the mutation path
+also performs a cheap operation-specific preflight immediately before invoking an external
+mutation — `upload_private` checks `upload` authority in the moment it is about to write.
+
+## Duration authority
+
+**Our measured media duration is authoritative for production.** YouTube's reported
+duration is an external observation and a QC signal, never timeline authority.
+
+    media_duration_s            measured from our encoded artifact — AUTHORITATIVE
+    platform_reported_duration  YouTube's representation after ingestion
+    platform_duration_delta_s   platform_reported - media_duration
+
+Beat maps, cuts, animation events, intro/outro placement, A/V sync and compilation runtime
+all use the measured media timeline. **Compilations must probe the archived masters and sum
+their real durations** — never sum YouTube's displayed integers, because at 2.5 hours the
+accumulated rounding becomes material.
+
+Keep `duration_delta_s`. It is good evidence. E01 measured +1.0s (12.000s master, PT13S
+reported), but a tolerance must come from repeated uploads, not from n=1.
+
+## Module order, restated
+
+    C01  Publishing Verification   Claude   verified -> battle-test -> cross-review -> merge
+    G01  Opportunity Engine Audit  GPT      in parallel; enterprise publication records are
+                                            TAINTED EVIDENCE until independently reconciled
+    B01  E02 Brand + Timeline      Claude   BLOCKED until C01 merges. Small: signature
+                                            contract, watermark, outro timing, thumbnail
+                                            contract, programme loudness requirement. No
+                                            "branding platform".
+    E02 picture spend              BLOCKED until G01 rules on Five Little Stars
+
+## Loudness, corrected
+
+Do not derive a house target from YouTube's playback normalisation. They are separate
+things — see PUBLISH.md, where -14 LUFS is already recorded as OURS and not YouTube's.
+E02 gets a Coco Spark mastering contract measured before upload (integrated loudness, true
+peak, silence, dynamics); YouTube's processed result is a second, later measurement.
+
+E02 also delivers the first real post-platform A/V sync test: pick known lyric onsets
+before upload, inspect the processed result against those same events. That closes the hole
+E01 correctly left as NOT DETERMINABLE, because a test tone has no onset to align against.
