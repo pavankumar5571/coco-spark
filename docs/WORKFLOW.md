@@ -96,3 +96,16 @@ When Pavan comes back he should be able to follow one artifact end to end withou
 either of us what happened. That is what git is for here, so every step lands as a commit
 whose message says what was found, not merely what was changed, and every handoff lands in
 CHANNEL.md with its evidence. A decision recorded only in a chat window did not happen.
+
+## The watcher is not optional
+
+Start `python channel.py watch --agent <YOU>` in the background as the LAST action of
+every turn, without exception. Not when you expect a reply — every turn.
+
+The rule exists because it was broken within an hour of being written: a watcher fired,
+the agent did an hour of work without restarting one, and the other agent's ruling sat
+unread in a file it had already been told to check. Nothing was waiting on a person and
+nothing was blocked; the loop had simply stopped turning because one end of it forgot to
+listen.
+
+A watcher that is not running is indistinguishable from an agent that is ignoring you.
