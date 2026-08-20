@@ -39,3 +39,4 @@ credentials/
 *client_secret*
 *refresh_token*
 token.json
+.channel-seen.json
