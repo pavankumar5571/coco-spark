@@ -1,0 +1,85 @@
+{
+  "kind": "BLENDER_STAGE_MANIFEST",
+  "location_id": "starlight_bedroom_stage_v1",
+  "fps": 24,
+  "blend": "starlight_bedroom_stage_v1.blend",
+  "preview": "stage_preview.png",
+  "required_objects": [
+    "bed_frame",
+    "pillow",
+    "blanket",
+    "round_window_glass",
+    "round_window_frame",
+    "camera_rig",
+    "camera",
+    "star_1",
+    "star_2",
+    "star_3",
+    "star_4",
+    "star_5"
+  ],
+  "missing_objects": [],
+  "stars": [
+    {
+      "name": "star_1",
+      "independently_addressable": true
+    },
+    {
+      "name": "star_2",
+      "independently_addressable": true
+    },
+    {
+      "name": "star_3",
+      "independently_addressable": true
+    },
+    {
+      "name": "star_4",
+      "independently_addressable": true
+    },
+    {
+      "name": "star_5",
+      "independently_addressable": true
+    }
+  ],
+  "deformation_controls": {
+    "pillow": "HEAD_CONTACT",
+    "blanket": "SLEEP_DRAPE"
+  },
+  "anchors": {
+    "character_origin": [
+      0.0,
+      0.18,
+      1.04
+    ],
+    "foot_plane": [
+      0.0,
+      0.18,
+      1.04
+    ],
+    "sleep_head": [
+      0.0,
+      1.1,
+      1.26
+    ],
+    "sleep_hips": [
+      0.0,
+      0.26,
+      1.31
+    ],
+    "sleep_feet": [
+      0.0,
+      -0.55,
+      1.2
+    ],
+    "window_focus": [
+      0.0,
+      2.42,
+      2.72
+    ]
+  },
+  "contract": {
+    "one_blender_unit_m": 1.0,
+    "ground_z": 0.0,
+    "character_height_pending_mesh_handoff": true
+  }
+}

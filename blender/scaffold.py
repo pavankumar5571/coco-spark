@@ -39,6 +39,11 @@ MANIFEST = ROOT / "assets" / "design" / "coco" / "manifest.json"
 # design record graded it AMBIGUOUS for the asymmetric marker because the stylised pose
 # made its orientation unreadable. An ambiguous reference is worse than no reference —
 # it invites modelling to a view nobody can state the angle of.
+# Declared, not measured. The mesh is built to this rather than this being read off a
+# mesh that does not exist. A companion to a 3-4 year old, not a person-sized bear.
+STANDING_HEIGHT_M = 0.55
+FOOT_PLANE_LOCAL_Z = 0.0
+
 VIEWS = {
     "front": {"yaw": 0.0, "note": "camera on +Y looking back at the character"},
     "side": {"yaw": 90.0, "note": "camera on +X; this is the character's RIGHT side"},
@@ -74,7 +79,11 @@ def reference_planes(manifest):
         # Each view keeps its TRUE height; the sheet was scaled by one factor, so the
         # profile's taller ear is real rather than an inconsistency to normalise away.
         content = float(rec.get("scaled_content_h", rec.get("scaled_to")))
-        size = canvas / content                     # so the CHARACTER spans 1.0 unit
+        # METRES, agreed with the stage. This used to make the character span 1.0 unit,
+        # which was fine while he was the only thing in the file and wrong the moment a
+        # bed existed: a metre-tall cub next to metre-scaled furniture, with nothing
+        # raising an error. The stage is authored in metres, so he is too.
+        size = (canvas / content) * STANDING_HEIGHT_M
 
         img = bpy.data.images.load(str(img_path))
         empty = bpy.data.objects.new(f"ref_{name}", None)
@@ -90,7 +99,9 @@ def reference_planes(manifest):
         empty.rotation_euler = (math.radians(90.0), 0.0, yaw)
         # Push it behind the character so geometry is modelled in front of it, and lift it
         # so the character's FEET sit on z=0 rather than its centre.
-        empty.location = (-math.sin(yaw) * 1.5, math.cos(yaw) * -1.5, 0.5)
+        empty.location = (-math.sin(yaw) * 1.5 * STANDING_HEIGHT_M,
+                          math.cos(yaw) * -1.5 * STANDING_HEIGHT_M,
+                          0.5 * STANDING_HEIGHT_M)
 
         bpy.context.collection.objects.link(empty)
         planes.append((name, size, empty.location))
@@ -100,9 +111,9 @@ def reference_planes(manifest):
 def lighting():
     """Preschool key/fill/rim. Bright, soft, no drama, nothing hidden in shadow."""
     specs = [
-        ("key", "AREA", (2.2, -2.6, 3.0), 600.0, 4.0),
-        ("fill", "AREA", (-3.0, -1.6, 1.4), 200.0, 5.0),
-        ("rim", "AREA", (0.0, 3.2, 2.6), 300.0, 3.0),
+        ("key", "AREA", (1.21, -1.43, 1.65), 180.0, 2.2),
+        ("fill", "AREA", (-1.65, -0.88, 0.77), 60.0, 2.75),
+        ("rim", "AREA", (0.0, 1.76, 1.43), 90.0, 1.65),
     ]
     for name, kind, loc, power, size in specs:
         d = bpy.data.lights.new(name, type=kind)
@@ -111,7 +122,7 @@ def lighting():
         o = bpy.data.objects.new(name, d)
         o.location = loc
         # point it at the character's mid height
-        dx, dy, dz = -loc[0], -loc[1], 0.55 - loc[2]
+        dx, dy, dz = -loc[0], -loc[1], 0.55 * STANDING_HEIGHT_M - loc[2]
         o.rotation_euler = (math.atan2(math.hypot(dx, dy), -dz), 0.0, math.atan2(dy, dx) + math.pi / 2)
         bpy.context.collection.objects.link(o)
 
@@ -131,7 +142,8 @@ def camera():
     return o
 
 
-def place_camera(cam, yaw_deg, dist=3.4, height=0.62):
+def place_camera(cam, yaw_deg, dist=3.4 * STANDING_HEIGHT_M,
+                 height=0.62 * STANDING_HEIGHT_M):
     yaw = math.radians(yaw_deg)
     cam.location = (math.sin(yaw) * dist, -math.cos(yaw) * dist, height)
     cam.rotation_euler = (math.radians(88.0), 0.0, yaw)
@@ -173,7 +185,9 @@ def main():
 
     report = {
         "kind": "GATE_1B_SCAFFOLD",
-        "unit": "1.0 Blender unit = Coco's full height, from the manifest's 901px norm",
+        "unit": "METRES, agreed with the stage. Coco stands %.2f m." % STANDING_HEIGHT_M,
+        "standing_height_m": STANDING_HEIGHT_M,
+        "foot_plane_local_z": FOOT_PLANE_LOCAL_Z,
         "reference_planes": [{"view": n, "plane_size": round(s, 5),
                               "location": [round(v, 3) for v in loc]} for n, s, loc in planes],
         "excluded": {"three_quarter": "graded AMBIGUOUS for orientation; an ambiguous "
