@@ -123,6 +123,17 @@ loop must pass this sequence before merge and before a downstream module may rel
 7. Only then is the branch merged and the next module allowed to treat the output as
    authoritative.
 
+For every provider-facing module, the frozen offline/fake suite is necessary but not final
+acceptance. After it holds, the module must run a bounded live canary against the real
+service with production authentication and verify the response or resulting external state
+independently. A live-only defect reopens the owning module, becomes a permanent fake
+regression fixture, and causes both the offline suite and live canary to rerun. Work does not
+restart from the beginning and the defect must not be patched in a downstream module.
+
+Live canaries remain subject to the existing authority and money gates. Free quota is still
+an external resource and must be measured; any call that can charge money requires Pavan's
+explicit approval with a worst-case reservation before invocation.
+
 A later module may expose a missed defect. That reopens the owning module, adds the case to
 its frozen regression set, and repeats the two-agent gate; it must not be patched downstream
 as an episode-specific workaround.
