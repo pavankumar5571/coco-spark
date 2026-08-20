@@ -1,0 +1,53 @@
+{
+  "status": "COMPLETE",
+  "kind": "STABILISED_DERIVATIVE",
+  "source_clip": "out/E01/clips/s01.mp4",
+  "source_sha": "eb62f011d755fdf8",
+  "sha": "517366f149cf6131",
+  "correction": "INVERSE_RIGID_ZOOM",
+  "stabiliser": "1",
+  "model": {
+    "coef": [
+      0.004015588235294121,
+      0.0008705042016806715
+    ],
+    "degree": 2
+  },
+  "total_zoom_pct": 2.999,
+  "linearity_r2": 0.9984,
+  "frames": 96,
+  "samples": [
+    [
+      0.5,
+      0.0016
+    ],
+    [
+      1.0,
+      0.00519
+    ],
+    [
+      1.5,
+      0.00792
+    ],
+    [
+      2.0,
+      0.01184
+    ],
+    [
+      2.5,
+      0.01521
+    ],
+    [
+      3.0,
+      0.01992
+    ],
+    [
+      3.5,
+      0.02472
+    ]
+  ],
+  "stabilised_to": "FINAL_FRAMING",
+  "note": "last frame unchanged; opening framing cropped by the total zoom",
+  "originals_untouched": true,
+  "requires": "its own QC verdict; the source verdict judged different pixels"
+}
