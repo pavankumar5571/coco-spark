@@ -1,0 +1,45 @@
+{
+  "status": "ACCEPTED_DERIVATIVE",
+  "binds_sha": "517366f149cf6131",
+  "source_status": "ACCEPTED",
+  "transform": "INVERSE_RIGID_ZOOM (quadratic, terminal-anchored)",
+  "failed": [],
+  "note": "this verdict authorises THESE bytes only; the source verdict remains historical evidence for the original bytes",
+  "kind": "DERIVATIVE_QC",
+  "clip": "out/E01/clips/s01.stabilised.mp4",
+  "source_clip": "out/E01/clips/s01.mp4",
+  "judged_by": "HUMAN",
+  "probes": {
+    "CAMERA_CONTRACT": {
+      "pass": true,
+      "detail": "contract LOCKED_STATIC, measured STATIC -0.151%"
+    },
+    "TECHNICAL_INTEGRITY": {
+      "pass": true,
+      "detail": "4.00s, decodes, 1280x720"
+    }
+  },
+  "human": {
+    "COMPOSITION_INTENT": {
+      "pass": true,
+      "detail": "declared WIDE ESTABLISH. The corrected frame still reads as the whole room: window LEFT, bookshelf FAR LEFT, chair, bed RIGHT, rug centre. The bookshelf was already edge-cropped in the ORIGINAL; the correction takes a little more but it remains present and readable as a bookshelf."
+    },
+    "REQUESTED_MOTION": {
+      "pass": true,
+      "detail": "the shot asks for Coco sitting quietly and gazing at the window. Minimal motion is correct here and it survives."
+    },
+    "IDENTITY": {
+      "pass": true,
+      "detail": "same bear, red shirt, yellow star, proportions and gaze unchanged through resampling."
+    },
+    "WORLD_FORM": {
+      "pass": true,
+      "detail": "geography and object forms hold across all four sampled times; nothing is reinvented by the resample."
+    },
+    "BLOCKING_ADDITIONS": {
+      "pass": true,
+      "detail": "no text or lettering. Ambient motes present and TOLERATED for BEDTIME_STORY by existing policy."
+    }
+  },
+  "policy": "LOCKED_STATIC contract + measured MONOTONIC rigid zoom breach"
+}

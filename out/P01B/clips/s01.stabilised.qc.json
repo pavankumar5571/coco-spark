@@ -1,0 +1,45 @@
+{
+  "status": "ACCEPTED_DERIVATIVE",
+  "binds_sha": "0babcafd448bd755",
+  "source_status": "ACCEPTED",
+  "transform": "INVERSE_RIGID_ZOOM (quadratic, terminal-anchored)",
+  "failed": [],
+  "note": "this verdict authorises THESE bytes only; the source verdict remains historical evidence for the original bytes",
+  "kind": "DERIVATIVE_QC",
+  "clip": "out/P01B/clips/s01.stabilised.mp4",
+  "source_clip": "out/P01B/clips/s01.mp4",
+  "judged_by": "HUMAN",
+  "probes": {
+    "CAMERA_CONTRACT": {
+      "pass": true,
+      "detail": "contract LOCKED_STATIC, measured STATIC -0.089%"
+    },
+    "TECHNICAL_INTEGRITY": {
+      "pass": true,
+      "detail": "4.00s, decodes, 1280x720"
+    }
+  },
+  "human": {
+    "COMPOSITION_INTENT": {
+      "pass": true,
+      "detail": "framing consistent across all four sampled times; the push-in is gone and the shot still reads as intended."
+    },
+    "REQUESTED_MOTION": {
+      "pass": true,
+      "detail": "the whole point of this clip. sitting upright -> eyes closing -> lying on side -> asleep. The full transition is intact after correction."
+    },
+    "IDENTITY": {
+      "pass": true,
+      "detail": "same bear throughout, red shirt and star, no drift introduced by resampling."
+    },
+    "WORLD_FORM": {
+      "pass": true,
+      "detail": "window, bookshelf, chair, bed, quilt and rug all hold."
+    },
+    "BLOCKING_ADDITIONS": {
+      "pass": true,
+      "detail": "no text. Notably clean of particles, consistent with this being the constrained probe."
+    }
+  },
+  "policy": "LOCKED_STATIC contract + measured MONOTONIC rigid zoom breach"
+}

@@ -1,84 +1,54 @@
 {
   "kind": "RELEASE_ELIGIBILITY",
-  "note": "historical QC verdicts are NOT modified; this layer decides publication using current contracts and current instruments",
+  "note": "historical QC verdicts are never modified. This layer decides publication using the current contract and current instruments. Where a deterministic correction exists and its derivative passed DERIVATIVE_QC on its own bytes, the DERIVATIVE is the release candidate \u2014 the original remains historically judged and untouched.",
   "clips": {
     "E01/s01": {
       "historical_qc": "ACCEPTED",
-      "probes": {
-        "CAMERA_CONTRACT": {
-          "pass": false,
-          "detail": "contract LOCKED_STATIC, measured RIGID_ZOOM 2.772% PUSH_IN",
-          "correctable": true
-        }
-      },
       "eligibility": "REQUIRES_REVALIDATION",
       "failed": [
         "CAMERA_CONTRACT"
       ],
-      "why": "deterministically correctable; the CORRECTED derivative must be re-judged and the new verdict must name its own bytes"
+      "why": "deterministically correctable; the CORRECTED derivative must be re-judged and the new verdict must name its own bytes",
+      "release_candidate": {
+        "artifact": "out/E01/clips/s01.stabilised.mp4",
+        "binds_sha": "517366f149cf6131",
+        "eligibility": "RELEASEABLE",
+        "why": "corrected derivative passed DERIVATIVE_QC on its own bytes"
+      }
     },
     "E01/s02": {
       "historical_qc": "ACCEPTED",
-      "probes": {
-        "CAMERA_CONTRACT": {
-          "pass": true,
-          "detail": "contract LOCKED_STATIC, measured STATIC",
-          "correctable": false
-        }
-      },
       "eligibility": "RELEASEABLE",
       "why": "passes every currently applicable probe"
     },
     "E01/s03": {
       "historical_qc": "ACCEPTED",
-      "probes": {
-        "CAMERA_CONTRACT": {
-          "pass": true,
-          "detail": "contract LOCKED_STATIC, measured STATIC",
-          "correctable": false
-        }
-      },
       "eligibility": "RELEASEABLE",
       "why": "passes every currently applicable probe"
     },
     "E01/s04": {
       "historical_qc": "REJECTED_QC",
-      "probes": {
-        "CAMERA_CONTRACT": {
-          "pass": false,
-          "detail": "contract LOCKED_STATIC, measured RIGID_ZOOM 3.828% PUSH_IN",
-          "correctable": true
-        }
-      },
       "eligibility": "NOT_RELEASEABLE",
       "why": "historical QC verdict is REJECTED_QC"
     },
     "P01/s01": {
       "historical_qc": "REJECTED_QC",
-      "probes": {
-        "CAMERA_CONTRACT": {
-          "pass": true,
-          "detail": "contract LOCKED_STATIC, measured STATIC",
-          "correctable": false
-        }
-      },
       "eligibility": "NOT_RELEASEABLE",
       "why": "historical QC verdict is REJECTED_QC"
     },
     "P01B/s01": {
       "historical_qc": "ACCEPTED",
-      "probes": {
-        "CAMERA_CONTRACT": {
-          "pass": false,
-          "detail": "contract LOCKED_STATIC, measured RIGID_ZOOM 3.717% PUSH_IN",
-          "correctable": true
-        }
-      },
       "eligibility": "REQUIRES_REVALIDATION",
       "failed": [
         "CAMERA_CONTRACT"
       ],
-      "why": "deterministically correctable; the CORRECTED derivative must be re-judged and the new verdict must name its own bytes"
+      "why": "deterministically correctable; the CORRECTED derivative must be re-judged and the new verdict must name its own bytes",
+      "release_candidate": {
+        "artifact": "out/P01B/clips/s01.stabilised.mp4",
+        "binds_sha": "0babcafd448bd755",
+        "eligibility": "RELEASEABLE",
+        "why": "corrected derivative passed DERIVATIVE_QC on its own bytes"
+      }
     }
   }
 }

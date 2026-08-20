@@ -218,6 +218,66 @@ class QCVerdict:
 # The same shape as software: an artifact can pass CI at commit time and stop being
 # releasable when a vulnerability is discovered. You keep the old test result and change
 # whether it ships.
+# A DERIVATIVE is not a new generation and not the original either.
+#
+# A deterministic correction produces different pixels, so the source's human verdict
+# cannot authorise it — that verdict judged bytes that no longer exist in this file. But
+# re-running the whole judgement as though nobody has ever seen the source would be
+# theatre: the transform is known, and most questions it cannot affect.
+#
+# So the chain is explicit, and the derivative verdict binds the DERIVATIVE's own SHA:
+#
+#   source ACCEPTED -> deterministic transform -> automatic probes -> ONE human release
+#   review of the corrected clip -> derivative ACCEPTED / REJECTED
+#
+# The human review is substantive rather than ceremonial for one concrete reason: a few
+# percent of crop can turn a good composition into a bad one, or cut something the shot
+# needed. That is a question only a person watching the corrected clip can answer.
+DERIVATIVE_QC_CATEGORIES = (
+    "CAMERA_CONTRACT",        # automatic — does the corrected clip honour its contract
+    "TECHNICAL_INTEGRITY",    # automatic — duration, resolution, decodes, not corrupt
+    "COMPOSITION_INTENT",     # human — does the crop still express the declared shot
+    "REQUESTED_MOTION",       # human — did the correction damage the action
+    "IDENTITY",               # human — characters still themselves after resampling
+    "WORLD_FORM",             # human — geography and object forms survive the crop
+    "BLOCKING_ADDITIONS",     # human — text, entities; TOLERATED classes stay tolerated
+)
+
+# Deliberately NARROW. This policy is earned for exactly one measured failure class and is
+# not a licence to "fix" arbitrary model behaviour after the fact. Pans, rotations and
+# general affine motion need their own evidence before anything corrects them.
+STABILISATION_POLICY = {
+    "applies_to": "LOCKED_STATIC contract + measured MONOTONIC rigid zoom breach",
+    "correction": "stabilise toward TERMINAL framing",
+    "why_terminal": "the last frame is the largest region present in EVERY frame, and "
+                    "anchoring there leaves the tail byte-unchanged, protecting any "
+                    "temporal-reference or inheritance chain into the next shot",
+    "precondition": "the resulting crop must preserve shot intent and every required entity",
+    "does_not_apply_to": ["RIGID_TRANSLATION", "RIGID_AFFINE", "NON_RIGID_OR_UNEXPLAINED"],
+    "canon": "the canonical plate remains the ORIGINAL accepted frame. A derivative never "
+             "rewrites canon; the relationship is recorded instead.",
+}
+
+
+def derivative_verdict(source_status, transform, probes, human, derivative_sha):
+    """Judge a corrected artifact, linked to but not inheriting its source's verdict."""
+    if source_status != "ACCEPTED":
+        return {"status": "REJECTED_DERIVATIVE",
+                "why": f"source verdict is {source_status}; a correction cannot rescue "
+                       f"footage rejected for a reason the transform does not address"}
+    checks = {**probes, **human}
+    failed = sorted(k for k, v in checks.items() if not v.get("pass"))
+    return {
+        "status": "ACCEPTED_DERIVATIVE" if not failed else "REJECTED_DERIVATIVE",
+        "binds_sha": derivative_sha,
+        "source_status": source_status,
+        "transform": transform,
+        "failed": failed,
+        "note": "this verdict authorises THESE bytes only; the source verdict remains "
+                "historical evidence for the original bytes",
+    }
+
+
 RELEASEABLE = "RELEASEABLE"
 REQUIRES_REVALIDATION = "REQUIRES_REVALIDATION"
 NOT_RELEASEABLE = "NOT_RELEASEABLE"
