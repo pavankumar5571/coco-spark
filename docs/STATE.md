@@ -37,6 +37,9 @@ is no onset to align a picture against. E01 verified the pipe, not the timing.
 
     C01  Reproducible Launch Env + Private Publishing   MERGED at 3832091
     G01  Opportunity Engine Audit                       RULED, off the critical path
+    G02  Opportunity Evidence Engine                    MERGED, 5/5 attack routes closed
+    G03  Collector + persistence                        OPEN - live pair proven, awaiting attack
+    G04  YouTube API adapter                            CLOSED at 402e5d2, both signatures
     B01  E02 Brand + Timeline                           not started
     E02  first public episode                           BLOCKED on a design decision
 
@@ -45,6 +48,27 @@ machine: fresh environment bootstraps, secrets do not leak, offline suites pass,
 idempotent, privacy cannot accidentally become public, observed state is verified.
 
 ## Open, and who owns it
+
+**G03, and it is close.** The one thing this system had never done - observe the same
+videos twice, an hour apart, across a process restart - it did at 19:51:57Z on 2026-08-20.
+
+    video          t0     t1   delta   elapsed   views/hr
+    1iXF33mEJaw   340    340       0    1.006h        0.0
+    KTCnNsY9fOw    16     16       0    1.006h        0.0
+    FmPPe5ADuZ8     0      2      +2    1.006h        2.0
+
+    OPPORTUNITY_UNPROVEN, opportunity_proof_allowed TRUE for the first time,
+    2 API calls, 2 quota units, no search - the ids came from SQLite.
+
+The interval is a measurement, not a parameter: two clock reads by two processes, and
+nothing in the path lets a caller supply it. The system was finally ABLE to declare an
+opportunity and declined to, which is the result that matters - a system tuned to say yes
+would have said yes to a two-view hour.
+
+Still to attack before G03 closes: two of the three deltas are zero, and a zero delta is
+what a cached response looks like. FmPPe5ADuZ8 moved in the same batch, so the response
+was not wholesale stale - but that is an argument, not a proof.
+
 
 **THE CHARACTER.** The channel's public logo and the production bible are two different
 bears. `bible.yaml` says *bright red short-sleeved t-shirt with a small yellow star*; the
