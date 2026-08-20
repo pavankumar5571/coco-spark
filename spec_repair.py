@@ -150,10 +150,21 @@ def repair_spec(candidate, *, schema, semantic_validator=lambda _: [], provider=
     # original validation. Otherwise merely naming a forbidden path would authorise it.
     authorised_paths = frozenset(error["path"] for error in errors)
     validation_errors = errors
+    provider_failed = False
     for attempt in range(max(0, max_model_attempts)):
         if provider is None: break
         allowed = sorted(authorised_paths)
-        patches = provider.repair(deepcopy(document), deepcopy(validation_errors), allowed)
+        try:
+            patches = provider.repair(deepcopy(document), deepcopy(validation_errors), allowed)
+        except Exception as exc:
+            provider_failed = True
+            errors = [{"code": "PROVIDER_UNAVAILABLE", "path": "/",
+                       "message": f"{type(exc).__name__}: {exc}"}]
+            manifest.append({"stage": "MODEL_REPAIR", "attempt": attempt + 1,
+                             "sha256": _hash(document), "errors": errors})
+            # A bounded later attempt may recover. The provider still receives the
+            # original validation errors and the original frozen authorization set.
+            continue
         candidate_document = deepcopy(document)
         rejected = []
         for patch in patches if isinstance(patches, list) else []:
@@ -192,4 +203,5 @@ def repair_spec(candidate, *, schema, semantic_validator=lambda _: [], provider=
         if not fallback_errors:
             return {"status": "VALID_FALLBACK", "document": fallback,
                     "manifest": manifest}
-    return {"status": "UNRECOVERABLE", "document": None, "manifest": manifest}
+    return {"status": "PROVIDER_UNAVAILABLE" if provider_failed else "UNRECOVERABLE",
+            "document": None, "manifest": manifest}

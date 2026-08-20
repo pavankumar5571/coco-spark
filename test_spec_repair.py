@@ -76,4 +76,15 @@ det = next(x for x in r["manifest"] if x["stage"] == "DETERMINISTIC")
 assert det["refusals"] == [{"code": "ALIAS_REFUSED_IMMUTABLE",
                             "path": "/opportunity_id"}]
 
-print("G05 spec repair controls passed: 8 adversarial routes")
+# Provider outages preserve the input/attempt evidence and remain distinct from an
+# intrinsically unrecoverable specification.
+class UnavailableProvider:
+    def repair(self, *_args): raise ConnectionError("offline")
+
+r = repair_spec(bad, schema=SCHEMA, semantic_validator=semantic,
+                provider=UnavailableProvider(), max_model_attempts=1)
+assert r["status"] == "PROVIDER_UNAVAILABLE" and r["document"] is None
+assert r["manifest"][-1]["errors"][0]["code"] == "PROVIDER_UNAVAILABLE"
+assert r["manifest"][0]["sha256"] == r["manifest"][-1]["sha256"]
+
+print("G05 spec repair controls passed: 9 adversarial routes")
