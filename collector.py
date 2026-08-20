@@ -171,6 +171,10 @@ class Collector:
         by_time = self._raw.get(video_id, {})
         return [dict(by_time[t]) for t in sorted(by_time)]
 
+    def observed_video_ids(self) -> list[str]:
+        """Return persisted observation subjects in deterministic order."""
+        return sorted(self._raw)
+
     def snapshots(self, video_id: str) -> list[dict]:
         return [x for x in self.raw_snapshots(video_id)
                 if not x["below_minimum_interval"]]

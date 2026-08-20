@@ -63,6 +63,7 @@ with tempfile.TemporaryDirectory() as directory:
                                       "views": 500, "likes": None, "comments": None,
                                       "below_minimum_interval": False}]
     assert second.discoveries("v")[0]["query"] == "q"
+    assert second.observed_video_ids() == ["v"]
     second.record_observation(video_id="v", observed_at="2026-08-20T10:00:00Z",
                               views=500, likes=None, comments=None)
     assert len(second.snapshots("v")) == 1
