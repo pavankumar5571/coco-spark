@@ -126,13 +126,17 @@ def select_opportunity(payload: dict) -> dict:
 
     reasons = []
     if len(valid) < 3: reasons.append("fewer_than_3_valid_videos")
-    if len(channels) < 3: reasons.append("fewer_than_3_independent_channels")
-    if not ownership_verified: reasons.append("channel_independence_unverified")
-    if not query_diverse: reasons.append("single_query_family")
-    if valid and len(strong) / len(valid) < 2 / 3: reasons.append("weak_cluster_breakout")
-    if proven and mode == "UNPROVEN": reasons.append("format_evidence_ambiguous")
-    if contaminated_modes: reasons.append("format_markers_overlap_discovery_terms")
     if not valid: reasons.append("no_repeated_peer_supported_observations")
+    else:
+        # These are properties of the valid evidence population. If upstream scoring
+        # invalidated every item, report them as unevaluated by omission rather than making
+        # false claims about an empty derived set.
+        if len(channels) < 3: reasons.append("fewer_than_3_independent_channels")
+        if not ownership_verified: reasons.append("channel_independence_unverified")
+        if not query_diverse: reasons.append("single_query_family")
+        if len(strong) / len(valid) < 2 / 3: reasons.append("weak_cluster_breakout")
+        if proven and mode == "UNPROVEN": reasons.append("format_evidence_ambiguous")
+        if contaminated_modes: reasons.append("format_markers_overlap_discovery_terms")
 
     return {
         "kind": "YOUTUBE_OPPORTUNITY_EVIDENCE_V1",

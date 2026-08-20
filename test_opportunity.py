@@ -57,4 +57,18 @@ r = select_opportunity(ambiguous)
 assert r["status"] == "OPPORTUNITY_PROVEN" and r["selection"] == "UNPROVEN", r
 assert "format_evidence_ambiguous" in r["reasons"], r
 
-print("opportunity battle tests passed: SONG / false-viral refusal / ambiguous-format refusal")
+# Battle 4: when peer evidence invalidates the entire population, downstream ownership and
+# query gates were not evaluated and must not be reported as failures.
+invalid_peers = payload("cloud_dancing", [
+    video(10, "Cloud Dancing Song", "q", [0, 100, 200],
+          channel_peers=(0, 0, 0), cohort_peers=(0, 0, 0)),
+    video(11, "Cloud Dancing Song", "r", [0, 100, 200],
+          channel_peers=(0, 0, 0), cohort_peers=(0, 0, 0), query="sky movement kids"),
+    video(12, "Cloud Dancing Song", "s", [0, 100, 200],
+          channel_peers=(0, 0, 0), cohort_peers=(0, 0, 0)),
+])
+r = select_opportunity(invalid_peers)
+assert r["reasons"] == ["fewer_than_3_valid_videos",
+                        "no_repeated_peer_supported_observations"], r
+
+print("opportunity battle tests passed: SONG / false-viral / ambiguous-format / honest-reasons")
