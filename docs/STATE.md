@@ -39,8 +39,8 @@ is no onset to align a picture against. E01 verified the pipe, not the timing.
     G01  Opportunity Engine Audit                       RULED, off the critical path
     G02  Opportunity Evidence Engine                    MERGED, 5/5 attack routes closed
     G03  Collector + persistence                        CLOSED at 29da8bb, both signatures
-    G05  Gemini spec + bounded repair                   OFFLINE CLOSED at 32c32f0;
-                                                        live half awaits Pavan's Rs 9
+    G05  Gemini spec + bounded repair                   LIVE REVIEW at e30d25c;
+                                                        3 real calls, Rs 0.006362
     G04  YouTube API adapter                            CLOSED at 402e5d2, both signatures
     B01  E02 Brand + Timeline                           not started
     E02  first public episode                           BLOCKED on a design decision
@@ -50,6 +50,18 @@ machine: fresh environment bootstraps, secrets do not leak, offline suites pass,
 idempotent, privacy cannot accidentally become public, observed state is verified.
 
 ## Open, and who owns it
+
+**G05 live review.** Pavan approved a maximum Rs 9 and three real
+`gemini-3.5-flash-lite` calls ran from clean source commit `d3b70bf`: structured
+generation, missing-field repair and semantic-duration repair. All passed and preserved
+the immutable opportunity id. The reconciled ledger committed Rs 0.006362.
+
+The first canary version reserved Rs 4.50 per call after the global safety margin, so its
+three possible reservations totalled Rs 13.50 even though actual exposure was sequential
+and settled spend was tiny. `ba0abe2` fixes future runs by passing the human ceiling into
+the canary and limiting cumulative safety-margined reservations to Rs 9. That version also
+records accepted-document hashes and repair manifests. The already-completed live
+artifact has statuses but lacks those hashes; they cannot be invented retroactively.
 
 **G03 is closed.** The one thing this system had never done - observe the same
 videos twice, an hour apart, across a process restart - it did at 19:51:57Z on 2026-08-20.
