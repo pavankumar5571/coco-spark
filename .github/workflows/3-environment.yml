@@ -1,0 +1,76 @@
+name: 3 · environment
+
+# C01's last contract item: prove a FRESH environment bootstraps and passes with no
+# manual repairs. It cannot honestly be proved on a developer machine — that machine
+# is exactly what the claim is about — so it runs on a clean runner, in the SAME image
+# the devcontainer declares, executing the SAME bootstrap script a Codespace runs.
+#
+# Nothing here is allowed to install anything bootstrap.sh does not. If a step needs a
+# package added by hand, the environment contract has failed and this job should fail
+# with it.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.devcontainer/**'
+      - 'requirements.txt'
+      - '.github/workflows/3-environment.yml'
+      - 'release.py'
+      - 'youtube_upload.py'
+      - 'test_*.py'
+
+permissions:
+  contents: read
+
+jobs:
+  fresh:
+    runs-on: ubuntu-latest
+    # The exact image .devcontainer/devcontainer.json declares. numpy==2.0.2 has no
+    # wheel for 3.13, so "any Python" is not the contract — this pinned one is.
+    container: mcr.microsoft.com/devcontainers/python:3.11-bookworm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: bootstrap, exactly as a Codespace does
+        run: bash .devcontainer/bootstrap.sh
+
+      - name: the toolchain bootstrap claims to have installed
+        run: |
+          python -V
+          ffprobe -version | head -1
+          python -c "import yaml, PIL, numpy, google.genai; print('imports OK')"
+
+      - name: offline suites
+        run: |
+          python test_firewall.py
+          python test_runtime_firewall.py
+          python test_release_authority.py
+
+      - name: release.py prepare on a fresh checkout
+        # Credentials are PRESENCE-checked and never used here: prepare touches no
+        # network. Sentinels rather than secrets, so this job needs no repository
+        # secret and a fork cannot learn anything by running it.
+        env:
+          YOUTUBE_CLIENT_ID: CI-PRESENCE-ONLY-1
+          YOUTUBE_CLIENT_SECRET: CI-PRESENCE-ONLY-2
+          YOUTUBE_REFRESH_TOKEN: CI-PRESENCE-ONLY-3
+        run: python release.py prepare E01
+
+      - name: prepare preserved the mutation history it used to destroy
+        # The regression that nearly shipped: prepare() overwrote the manifest, so the
+        # duplicate-upload guard searched a file it had just erased. Asserted here in a
+        # fresh checkout because that is where a reintroduction would be invisible.
+        run: |
+          python - <<'PY'
+          import json, sys
+          m = json.load(open("out/E01/release/upload_manifest.json", encoding="utf-8"))
+          missing = [k for k in ("youtube_video_id", "observed", "human_inspection",
+                                 "frozen", "verified_at") if k not in m]
+          if missing:
+              sys.exit(f"prepare() destroyed provenance: {missing}")
+          if m["intended"]["privacy"] != "private":
+              sys.exit("prepare() produced a manifest that is not private")
+          print("provenance intact after prepare:", m["youtube_video_id"], m["observed"]["privacy"])
+          PY
