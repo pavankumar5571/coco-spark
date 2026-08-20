@@ -1,0 +1,45 @@
+{
+  "kind": "GATE_1B_SCAFFOLD",
+  "unit": "1.0 Blender unit = Coco's full height, from the manifest's 901px norm",
+  "reference_planes": [
+    {
+      "view": "front",
+      "plane_size": 1.13651,
+      "location": [
+        -0.0,
+        -1.5,
+        0.5
+      ]
+    },
+    {
+      "view": "side",
+      "plane_size": 1.13651,
+      "location": [
+        -1.5,
+        -0.0,
+        0.5
+      ]
+    },
+    {
+      "view": "back",
+      "plane_size": 1.13651,
+      "location": [
+        -0.0,
+        1.5,
+        0.5
+      ]
+    }
+  ],
+  "excluded": {
+    "three_quarter": "graded AMBIGUOUS for orientation; an ambiguous reference invites modelling to an unstateable angle"
+  },
+  "renders": [
+    "turntable_front.png",
+    "turntable_right.png",
+    "turntable_back.png",
+    "turntable_left.png"
+  ],
+  "blend": "coco_scaffold.blend",
+  "mesh_objects": [],
+  "engine": "BLENDER_EEVEE"
+}
