@@ -49,6 +49,30 @@ def _valid_png():
     return buf.getvalue()
 
 
+def _textured_png(w=320, h=180):
+    """A deterministic TEXTURED still, for controls that measure motion.
+
+    measure_camera_lock only counts tiles with real variance, because a featureless wall
+    fits every offset equally and would make a close-up on plain plaster look like the
+    steadiest shot ever filmed. So a flat fill makes it return None — no tile votes.
+
+    This control used out/E01/frames/s01.png when present and a flat 8x8 otherwise. That
+    frame is git-ignored, so it exists only on a machine that has already rendered E01:
+    the property passed locally and could never have passed on a fresh checkout. A test
+    whose result depends on an untracked file is testing the machine.
+    """
+    import io
+    from PIL import Image as _I
+    img = _I.new("RGB", (w, h))
+    px = img.load()
+    for y in range(h):
+        for x in range(w):
+            c = 40 if ((x // 8) + (y // 8)) % 2 else 210      # every tile has variance
+            px[x, y] = (c, (c + x) % 256, (c + y) % 256)      # and no two tiles alike
+    buf = io.BytesIO(); img.save(buf, "PNG")
+    return buf.getvalue()
+
+
 def _resp():
     png = _valid_png()
     class P:  inline_data = type("D", (), {"data": png})()
@@ -1035,18 +1059,19 @@ def audio_properties():
     import tempfile as _tf
     tdir = Path(_tf.mkdtemp())
     still = tdir / "s.png"
-    make.write_atomic(still, (Path("out/E01/frames/s01.png").read_bytes()
-                              if Path("out/E01/frames/s01.png").exists() else _valid_png()))
+    make.write_atomic(still, _textured_png())
     held = tdir / "hold.mp4"
     if make.render_beat(still, held, 2.0, "HOLD", 320, 180, 24):
         m = make.measure_camera_lock(str(held))
+        # A None measurement is a FAILED control, not an excused one. It previously
+        # crashed the whole suite with a TypeError instead of reporting itself.
         out.append(_ok("a HOLD beat does not move at all",
-                       m["dx"] == 0 and m["dy"] == 0))
+                       m is not None and m["dx"] == 0 and m["dy"] == 0))
     panned = tdir / "pan.mp4"
     if make.render_beat(still, panned, 2.0, "DRIFT_LEFT", 320, 180, 24):
         m2 = make.measure_camera_lock(str(panned))
         out.append(_ok("a programmed pan is a RIGID translation, not a deformation",
-                       m2["confident"] and not m2["still"]))
+                       m2 is not None and m2["confident"] and not m2["still"]))
     out.append(_ok("an unknown camera move is refused, not improvised",
                    "SWOOP" not in (make.BIBLE.get("camera_moves") or {})))
     shutil.rmtree(tdir, ignore_errors=True)
