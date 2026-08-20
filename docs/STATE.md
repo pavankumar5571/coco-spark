@@ -1,72 +1,105 @@
-# Coco Spark TV — verified state, 2026-08-19
+# Coco Spark TV — verified state, 2026-08-20
 
-## What exists
+Rewritten at every milestone so a new session starts with no gap. Everything here is
+checkable; where it is not, it says so.
 
-E01 is 15.0 seconds at out/E01/episode.mp4: 12s of ACCEPTED footage (s01-s03) plus a free
-3s closing hold derived from s03's accepted last frame. One continuous original bed,
-delivered at exactly -14.0 LUFS. Not published. s04 is REJECTED_QC.
+    ledger      Rs 485.52 of the Rs 600 cap. Rs 114.48 authorised and unspent.
+    spent today Rs 0.
+    main        419782c
 
-Rs 480.52 spent of the Rs 600 cap. Rs 119.48 authorised and unspent.
+## What is published
 
-## What was learned, with the measurement that showed it
+E01, video id `nFN75I3MlV8`, **PRIVATE**, uploaded 2026-08-20 04:25. First artifact this
+project has ever put on a platform. Verified by reading the API back rather than trusting
+the upload: privacy `private`, madeForKids `true`, uploadStatus `processed`, processing
+`succeeded`, duration `PT13S` against a 12.000s master, title as intended. Frozen as
+`TEST_ARTICLE` — no s04, no particle repair, no branding, never public.
 
-GENERATED CLIPS OF THIS ROOM ARE NOT RIGID. Aligning each clip's first and last frame tile
-by tile, with the pervasive particles suppressed by blur and downscale so the search
-follows walls and furniture rather than sparkle:
+Human inspection passed on playback, audio, aspect and privacy state. **A/V sync is
+recorded as NOT DETERMINABLE**, not as a pass: the master's audio is a test tone, so there
+is no onset to align a picture against. E01 verified the pipe, not the timing.
 
-  E01/s01  0.11 tile agreement  UNSTABLE      E01/s02  0.78  STABLE
-  E01/s04  0.11                 UNSTABLE      E01/s03  0.78  STABLE
-  P01B/s01 0.22                 UNSTABLE      P01/s01  1.00  STABLE
+## Modules
 
-The two unstable clips are the WIDE and the MEDIUM_WIDE; the steady ones are close shots.
-n=6, so that pairing is a LEAD, not a finding. What is established is that removing the
-particles does not make the room hold still — the instability is structural.
+    C01  Reproducible Launch Env + Private Publishing   MERGED at 3832091
+    G01  Opportunity Engine Audit                       RULED, off the critical path
+    B01  E02 Brand + Timeline                           not started
+    E02  first public episode                           BLOCKED on a design decision
 
-Every mechanism built before this — plates, canonical authority, CANON_AGREEMENT, reference
-conditioning, predecessor pixels — governs what a shot STARTS from. None governs the four
-seconds after that. This is the better explanation of "the transition is not good": the
-shots may simply not be rigid, and the cut may have been innocent.
+C01's six contract items all pass, proved in a clean container in CI, not on a developer
+machine: fresh environment bootstraps, secrets do not leak, offline suites pass, upload is
+idempotent, privacy cannot accidentally become public, observed state is verified.
 
-THE AUDIENCE CAN HEAR. Veo generates native audio per clip; three independent generations
-landed 13.4 LU apart on accepted footage (s01 -17.2, s02 -30.6, s03 -27.4). Provider audio
-is now discarded at assemble and the programme carries one authored bed. Every QC probe
-written before today looks; none of them listened.
+## Open, and who owns it
 
-PARTICLES ARE PERVASIVE, not the "visually soft" motes recorded from three sampled frames.
-A twelve-frame contact sheet of the same footage shows them across the whole room in every
-sample. Tolerance is now quantified: SPARSE tolerated, PERVASIVE blocking, unmeasured
-blocking.
+**THE CHARACTER.** The channel's public logo and the production bible are two different
+bears. `bible.yaml` says *bright red short-sleeved t-shirt with a small yellow star*; the
+channel avatar shows a **blue patterned bandana**, pink inner ears and cheek blushes. Every
+paid portrait and all four Tripo views came from the bible, so the pipeline has been
+rendering a character the audience has never seen. GPT's Gate-1 observation list in message
+225 names the blue bandana — it was known once and never reached the bible.
 
-IMAGE CONDITIONING HOLDS FORM AND WILL NOT EXTEND THE FRAME. Plate attempt 002 removed the
-character cleanly and preserved every visible object form, and left the cropped bookshelf
-cropped. Removal is a change within observed pixels and works; extension is a change to the
-extent of the world and has failed every time it has been asked for in prose. Generated
-plates are FALSIFIED for cottage_night on this provider.
+Pavan has said a new logo is acceptable if both agents agree, so this is ours to settle.
 
-## The contracts that now gate spending
+**E02's grammar.** Stills-plus-camera-move is FALSIFIED, by Pavan, twice, on aesthetic
+grounds — messages 219 and 224. It costs Rs 52 and fits the cap and is still the wrong
+product. Do not cost it again.
 
-  visual_change      the planner declares what must visibly change; code picks the cheapest
-                     renderer proven to satisfy it
-  estimate           deterministic production cost BEFORE generation, with a reason for
-                     every paid call. E02 as planned DOES NOT FIT (Rs 166.50 worst case
-                     against Rs 119.48 headroom)
-  CANON_AGREEMENT    a plate may not contradict footage the audience has already seen
-  audio              the delivered programme is measured, not assumed
-  release            master, thumbnail, metadata, checklist — and it does NOT upload
+**Spend.** Nothing is authorised. Whatever E02 becomes, its first rupee is Pavan's call.
 
-Unit economics, printed by the estimator: Rs 555 per published minute at the all-generative
-design. That number, not taste, is why the hybrid grammar exists.
+## 3D — un-frozen on corrected grounds
 
-## The next decisions, and who owns them
+`ADR-3d-frozen.md` froze 3D because the argument was "we need it because Coco drifts", and
+the audit showed Coco has never drifted in our own stack. That reasoning stands and answers
+a question nobody asked. Pavan has never complained about drift; he has complained three
+times about MOTION QUALITY. Un-frozen for motion quality and recurring production
+economics, co-signed by Codex.
 
-PAVAN: upload E01 unlisted, or not. Watch it and LISTEN to it — the bed is a prototype and
-arithmetic cannot tell us whether it sounds pleasant or cheap. Then whether E02 is planned
-under the new grammar.
+Gate 1-A passed all five frozen observations on a clean-room turtle — deliberately not
+Coco, so no channel IP went to a third party. GPT's own assessment: reconstruction 7/10,
+**full 3D episode pipeline 4-5/10**, because rigging, deformation, facial animation,
+lighting, scene integration and throughput are all untested.
 
-NOT A DECISION: repairing E01. Both reviewers agree it is frozen as the integration test
-article. No rupee is to be spent making it prettier.
+**There is no clean free image-to-3D route on this machine.** Codex checked each licence
+and hardware requirement: TripoSR is clean MIT but single-image and needs ~6GB VRAM;
+TRELLIS needs Linux and NVIDIA 16GB+ and this machine has no `nvidia-smi`; TRELLIS.2 has an
+open issue that the repo has no LICENSE file; Hunyuan3D-2's licence excludes the EU, UK and
+South Korea; Stable Fast 3D is Stability's gated licence. Tripo's free tier is an IP
+giveaway — CC BY 4.0, models made public, commercial use prohibited.
 
-The research direction, agreed and deliberately NOT built: separate world pixels from actor
-motion — a canonical background the video model never owns, animated foreground composited
-onto it, deterministic camera, audio spine. That is where the rigidity problem actually
-ends, and it is not today's work.
+So the route is **Blender-first**: model from the four owned orthographic views, Rigify,
+render locally. Blender states artwork and .blend data are the creator's property with
+commercial use allowed. No generator, no subscription, no GPU, no licence audit.
+
+    Blender 5.2.0 LTS installed, Rigify present
+    blender/scaffold.py  places the reference planes at one scale from the manifest's
+                         own 901px normalisation and renders the frozen turntable
+                         angles headlessly. It invents no geometry, on purpose.
+
+Rigify does not coerce a human silhouette — metarig bones are repositioned to the
+character. The real risk is skin weighting, so Gate 1-B must include shoulder, hip, elbow,
+knee, neck and facial deformation poses before adoption.
+
+## E02 timing — done and unaffected by the visual decision
+
+`brief.py` compiles the phrase map and beat map into one production brief. The song is the
+clock whoever draws the pictures, so this survives the switch to 3D intact.
+
+    master_t = signature_seconds + song_t     branding shifts the ORIGIN, never a word
+
+It found four defects on its first run, all free. The episode **opened on nothing** — beat
+0 started on the first sung word, leaving 2.5s of instrumental lead-in with no picture.
+Two counting beats were hand-typed at 37.19 and 37.90 while the words they count are sung
+at 37.66 and 38.37 — the counting cuts did not land on the counts. The beat map's note
+claimed 15 cuts over 7 pictures where the data says 16 over 4 stills. And SONG programme
+loudness is UNSET and refuses rather than defaulting: `--private-test` yields -20.0 marked
+`PROVISIONAL_FOR_PRIVATE_TEST`, and `public_release_allowed` stays false until a human has
+listened to a real mastered mix.
+
+## Where the money went, and what it bought
+
+Six paid clips ever. Four accepted, two rejected. The findings that cost real rupees:
+particles in three of four clips with no provider control on this surface; an unrequested
+accelerating push-in on half of them, measurable and correctable offline; and a WIDE shot
+that invented a room because prose cannot pin object FORM. All three are why the pipeline
+now prevents rather than discovers.
