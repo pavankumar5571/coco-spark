@@ -40,3 +40,4 @@ credentials/
 *refresh_token*
 token.json
 .channel-seen.json
+.channel-watch-*.lock

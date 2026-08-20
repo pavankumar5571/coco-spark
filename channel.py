@@ -14,18 +14,27 @@ code says which happened, so a wrapper can tell a handoff from a timeout:
 
     0   the channel changed; the new text is on stdout
     2   nothing happened before --timeout; nobody is stuck, there is just no news
+    3   a watcher for this agent is ALREADY RUNNING; this one refuses to start
     1   misuse
+
+Exit 3 exists because the failure it prevents is silent and looks like the opposite of
+itself. Two watchers for one agent do not double the attention: the first to notice
+advances the shared mark, so the second waits forever on news that has already been
+consumed — and if the first was launched with its output discarded, the message is gone.
+An agent then sits quietly, apparently polling, having read nothing. That has happened
+twice here. A prose rule did not stop it the first time, so this is a lock.
 
 Both agents run the same command. Neither needs to know anything about the other's
 runtime, and the thing they synchronise on is a file in git rather than a promise.
 """
 from __future__ import annotations
 
-import argparse, hashlib, json, sys, time
+import argparse, hashlib, json, os, subprocess, sys, time
 from pathlib import Path
 
 CHANNEL = Path("docs/CHANNEL.md")
 STATE = Path(".channel-seen.json")          # git-ignored; per-agent, not shared
+LOCK = ".channel-watch-{}.lock"             # git-ignored; one watcher per agent
 POLL_SECONDS = 5
 DEFAULT_TIMEOUT = 1800
 
@@ -67,6 +76,46 @@ def watch(agent, timeout, poll, fetch):
     what is new is the only part anyone has to read.
     """
     import subprocess
+    lock = Path(LOCK.format(agent))
+    holder = _lock_holder(lock)
+    if holder:
+        print(f"  a watcher for {agent} is already running as pid {holder}; "
+              f"refusing to start a second one")
+        return 3
+    lock.write_text(str(os.getpid()), encoding="utf-8")
+    try:
+        return _watch(agent, timeout, poll, fetch, subprocess)
+    finally:
+        # Released even on Ctrl-C or a kill that Python can see, so a crashed watcher
+        # does not lock the agent out of ever watching again.
+        lock.unlink(missing_ok=True)
+
+
+def _lock_holder(lock: Path):
+    """The pid of a LIVE watcher, or None.
+
+    A stale lock file must not be believed. A machine that lost power mid-watch would
+    otherwise be permanently unable to poll, which is the same silence this lock exists
+    to prevent, arrived at from the other direction.
+    """
+    if not lock.exists():
+        return None
+    try:
+        pid = int(lock.read_text(encoding="utf-8").strip())
+    except (ValueError, OSError):
+        lock.unlink(missing_ok=True)
+        return None
+    if pid == os.getpid():
+        return None
+    alive = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                           capture_output=True, text=True).stdout
+    if f'"{pid}"' in alive and "python" in alive.lower():
+        return pid
+    lock.unlink(missing_ok=True)
+    return None
+
+
+def _watch(agent, timeout, poll, fetch, subprocess):
     prev = _seen(agent)
     start_len = prev.get("length", len(_text(CHANNEL)))
     start_digest = prev.get("digest", _digest(CHANNEL))
