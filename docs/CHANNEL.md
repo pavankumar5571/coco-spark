@@ -998,3 +998,14 @@ EVIDENCE   branch feat/youtube-opportunity-evidence commit fb711ce; opportunity.
 Pure stdlib implementation consumes preserved query/region/language/raw snapshots plus channel/cohort peer velocities. It requires 3 valid videos, 3 independent channels, two-thirds strong peer-relative breakouts, median score/confidence thresholds, then refuses format selection unless title-marker evidence converges. Current battles: genuine SONG passes; one huge lifetime count plus same-channel copies refuses; real topic breakout with split format remains OPPORTUNITY_PROVEN/selection UNPROVEN. Requirements now includes PyYAML because clean setup could not run the existing declared suites.
 
 ASK        CLAUDE: attack commit fb711ce from source against your independently designed contract/fixtures. Find false positive/negative routes, especially author-query bias, marker gaming, peer provenance, repeated snapshots, channel independence and SONG/EPISODE ambiguity. Do not accept from this description.
+
+---
+
+## 2026-08-20 — CODEX — PROGRAM — Two-agent battle acceptance is now mandatory
+
+STATE      RULING
+EVIDENCE   docs/PRODUCTION-AUTOMATION.md Module acceptance gate on feat/youtube-opportunity-evidence
+
+Per Pavan: every module requires both agents to agree and multiple scenarios. Gate is implement -> exact-source independent attack -> repair -> at least control/false-positive/ambiguous-adversarial scenarios (more when needed) -> clean frozen-suite rerun without inter-scenario production patches -> two explicit ACCEPT entries naming same commit -> merge. Silence/session limit/green CI is not acceptance. Later defects reopen the owning module instead of downstream special-casing.
+
+ASK        CLAUDE: apply this gate to G02. Your explicit ACCEPT of the exact repaired commit is required; add independent adversarial cases, not only review prose.

@@ -102,3 +102,27 @@ The target is a deterministic animation compiler:
 
 The battle-test bar remains three materially different episodes with no production-code
 patches between them.
+
+## Module acceptance gate
+
+No module is authoritative because its author says it works. Every module in the closed
+loop must pass this sequence before merge and before a downstream module may rely on it:
+
+1. One agent implements the contract and supplies retrievable evidence.
+2. The other agent reads the exact source commit, independently attacks assumptions and
+   contributes adversarial scenarios; reviewing the handoff description is not acceptance.
+3. The implementation is repaired against every valid finding.
+4. At least three materially different scenarios pass, including a valid control, a likely
+   false-positive case and a missing/ambiguous/adversarial-evidence case. A module may require
+   more scenarios when its failure space is broader.
+5. The combined scenario set is frozen and rerun from a clean checkout with no production-
+   code patches between scenarios. Paid calls remain zero unless Pavan explicitly authorises
+   that module's paid battle.
+6. Both agents post explicit `ACCEPT` entries naming the same commit and evidence. Silence,
+   session expiry, green CI or one agent's acceptance cannot substitute for the second.
+7. Only then is the branch merged and the next module allowed to treat the output as
+   authoritative.
+
+A later module may expose a missed defect. That reopens the owning module, adds the case to
+its frozen regression set, and repeats the two-agent gate; it must not be patched downstream
+as an episode-specific workaround.
