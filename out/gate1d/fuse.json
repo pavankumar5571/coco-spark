@@ -1,0 +1,38 @@
+{
+  "kind": "GATE_1D_FUSED_SURFACE",
+  "character": "coco",
+  "standing_height_m": 0.55,
+  "voxels_per_height": 180,
+  "voxel_size_m": 0.003056,
+  "before_fusion": {
+    "vertices": 3666,
+    "faces": 3936,
+    "non_manifold_edges": 0,
+    "loose_vertices": 0,
+    "separate_shells": 9
+  },
+  "after_fusion": {
+    "vertices": 81442,
+    "faces": 81440,
+    "non_manifold_edges": 0,
+    "loose_vertices": 0,
+    "separate_shells": 1
+  },
+  "one_connected_surface": true,
+  "watertight": true,
+  "rig_ready": false,
+  "rig_ready_pending": "silhouette error against the approved sheets is not measured here; run assets/design/silhouette_error.py",
+  "masks": {
+    "front": "mask_front.png",
+    "side": "mask_side.png"
+  },
+  "ortho_scale_m": 0.6875,
+  "blend": "coco_fused.blend",
+  "base_volume_stats": {
+    "components": 9,
+    "dropped_short_components": 5,
+    "splits": 0,
+    "merges": 4,
+    "circular_sections_assumed": 38
+  }
+}

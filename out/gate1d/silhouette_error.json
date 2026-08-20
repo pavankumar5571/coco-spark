@@ -1,0 +1,62 @@
+{
+  "kind": "SILHOUETTE_ERROR_V1",
+  "character": "coco",
+  "voxel_size_m": 0.003056,
+  "thresholds": {
+    "max_mean_error_voxels": 1.0,
+    "max_worst_error_voxels": 3.0,
+    "min_iou": 0.97,
+    "declared": "stated before the numbers were looked at"
+  },
+  "views": {
+    "front": {
+      "bands_compared": 201,
+      "mean_error_mm": 5.496,
+      "worst_error_mm": 206.2,
+      "worst_at_height_fraction": 0.99,
+      "mean_error_voxels": 1.798,
+      "worst_error_voxels": 67.474,
+      "iou": 0.98748,
+      "bands_over_worst_tolerance": 7,
+      "bands_over_worst_tolerance_pct": 3.5,
+      "over_tolerance_heights": [
+        0.0,
+        0.005,
+        0.01,
+        0.945,
+        0.95,
+        0.99,
+        0.995
+      ]
+    },
+    "side": {
+      "bands_compared": 201,
+      "mean_error_mm": 3.215,
+      "worst_error_mm": 36.6,
+      "worst_at_height_fraction": 0.005,
+      "mean_error_voxels": 1.052,
+      "worst_error_voxels": 11.976,
+      "iou": 0.97683,
+      "bands_over_worst_tolerance": 14,
+      "bands_over_worst_tolerance_pct": 7.0,
+      "over_tolerance_heights": [
+        0.0,
+        0.005,
+        0.01,
+        0.445,
+        0.595,
+        0.945,
+        0.95,
+        0.955,
+        0.96,
+        0.965,
+        0.97,
+        0.975
+      ]
+    }
+  },
+  "within_tolerance": false,
+  "one_connected_surface": true,
+  "watertight": true,
+  "rig_ready": false
+}
